@@ -32,3 +32,8 @@
 *.out
 *.app
 
+# Build artifacts
+build/
+result
+.direnv/
+tests/secrets.h
