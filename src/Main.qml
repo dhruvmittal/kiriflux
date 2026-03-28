@@ -6,6 +6,8 @@ import org.kde.kirigami as Kirigami
 import org.kde.kiriflux 1.0
 import QtWebEngine
 
+import Qt.labs.platform as Platform
+
 Kirigami.ApplicationWindow {
     id: root
 
@@ -40,27 +42,33 @@ Kirigami.ApplicationWindow {
     }
 
     // ── Menu Bar (KDE Global Menu compatible) ─────────────────────
-    menuBar: QQC2.MenuBar {
-        QQC2.Menu {
+    Platform.MenuBar {
+        id: globalMenuBar
+
+        Platform.Menu {
             title: i18n("&File")
-            QQC2.Action {
+
+            Platform.MenuItem {
                 text: i18n("&Sync Now")
                 icon.name: "view-refresh"
                 shortcut: "Ctrl+R"
                 onTriggered: syncEngine.forceSync()
             }
-            QQC2.MenuSeparator {}
-            QQC2.Action {
+
+            Platform.MenuSeparator {}
+
+            Platform.MenuItem {
                 text: i18n("&Quit")
                 icon.name: "application-exit"
-                shortcut: StandardKey.Quit
+                shortcut: "Ctrl+Q"
                 onTriggered: Qt.quit()
             }
         }
 
-        QQC2.Menu {
+        Platform.Menu {
             title: i18n("&Edit")
-            QQC2.Action {
+
+            Platform.MenuItem {
                 text: i18n("&Preferences…")
                 icon.name: "settings-configure"
                 shortcut: "Ctrl+,"
@@ -68,9 +76,10 @@ Kirigami.ApplicationWindow {
             }
         }
 
-        QQC2.Menu {
+        Platform.Menu {
             title: i18n("&View")
-            QQC2.Action {
+
+            Platform.MenuItem {
                 text: i18n("&All Articles")
                 icon.name: "view-list-details"
                 onTriggered: {
