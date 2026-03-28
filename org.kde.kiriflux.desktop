@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Kiriflux
+Exec=kiriflux
+Icon=rss
+Type=Application
+Categories=Qt;KDE;Network;RSS;
+X-KDE-HasGlobalMenuBar=true
+StartupWMClass=kiriflux
+X-DBUS-ServiceName=org.kde.kiriflux
+X-DBUS-ObjectPath=/MenuBar/1

@@ -22,22 +22,23 @@
 
 int main(int argc, char *argv[])
 {
+    // 1. Core metadata (MUST be before any frameworks logic)
+    QCoreApplication::setApplicationName(QStringLiteral("kiriflux"));
+    QCoreApplication::setOrganizationDomain(QStringLiteral("kde.org"));
+    QCoreApplication::setOrganizationName(QStringLiteral("KDE"));
+    QCoreApplication::setApplicationVersion(QStringLiteral("0.1.0"));
+
+    // 2. GUI Application initialization
     QApplication app(argc, argv);
+    
     KLocalizedString::setApplicationDomain("kiriflux");
     QQuickStyle::setStyle(QStringLiteral("org.kde.desktop"));
 
-    if (!DatabaseManager::instance().init()) {
-        qWarning() << "Failed to initialize database.";
-    }
-    SyncEngine::instance().startIntervalSync();
-
-    KDBusService service(KDBusService::Unique);
-
-    qmlRegisterType<FeedListModel>("org.kde.kiriflux", 1, 0, "FeedListModel");
-    qmlRegisterType<ArticleListModel>("org.kde.kiriflux", 1, 0, "ArticleListModel");
-
+    // 3. KDE framework metadata
+    // KAboutData::setApplicationData will also call QCoreApplication::setApplicationName
+    // based on the component name we provide here.
     KAboutData about(
-        QStringLiteral("kiriflux"),
+        QStringLiteral("kiriflux"), 
         i18n("Kiriflux"),
         QStringLiteral("0.1.0"),
         i18n("A desktop-first RSS reader for Miniflux"),
@@ -45,16 +46,29 @@ int main(int argc, char *argv[])
         i18n("© 2026 Kiriflux Contributors"));
     about.addAuthor(i18n("Kiriflux Team"), QString(), QStringLiteral("https://github.com"));
     KAboutData::setApplicationData(about);
+    
+    // Critical for Wayland and Portal-based menu mapping
+    app.setDesktopFileName(QStringLiteral("org.kde.kiriflux"));
+
+    // 4. DBus service registration
+    // Because organizationDomain is kde.org and appName is kiriflux, 
+    // KF6 KDBusService will register org.kde.kiriflux.
+    KDBusService service(KDBusService::Unique);
+
+    // 5. Backend Logic
+    if (!DatabaseManager::instance().init()) {
+        qWarning() << "Failed to initialize database.";
+    }
+    SyncEngine::instance().startIntervalSync();
+
+    // 6. QML Interface
+    qmlRegisterType<FeedListModel>("org.kde.kiriflux", 1, 0, "FeedListModel");
+    qmlRegisterType<ArticleListModel>("org.kde.kiriflux", 1, 0, "ArticleListModel");
 
     QQmlApplicationEngine engine;
-
-    // Provide KLocalizedContext for i18n() in QML
     engine.rootContext()->setContextObject(new KLocalizedContext(&engine));
-    
-    // Expose SyncEngine as a context property
     engine.rootContext()->setContextProperty(QStringLiteral("syncEngine"), &SyncEngine::instance());
 
-    // Load Main.qml from the filesystem
     const QString appDir = QCoreApplication::applicationDirPath();
     const QString devPath = appDir + QStringLiteral("/Main.qml");
     const QString installPath = QStringLiteral(KIRIFLUX_DATA_DIR) + QStringLiteral("/qml/Main.qml");

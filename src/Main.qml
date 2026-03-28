@@ -23,6 +23,18 @@ Kirigami.ApplicationWindow {
         id: articleListModel
     }
 
+    Timer {
+        interval: 1000
+        running: true
+        repeat: true
+        onTriggered: {
+            console.log("DEBUG: root.menuBar =", root.menuBar)
+            if (root.menuBar) {
+                console.log("DEBUG: menuBar.menus.length =", root.menuBar.menus.length)
+            }
+        }
+    }
+
     // ── Preferences Dialog ─────────────────────────────────────────
     SettingsPage {
         id: settingsDialog
