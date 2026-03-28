@@ -28,6 +28,44 @@ void ArticleListModel::markAsRead(int index, bool read)
     emit dataChanged(qidx, qidx, {StatusRole});
 }
 
+void ArticleListModel::setFilterStatus(const QString &status)
+{
+    if (m_filterStatus == status) return;
+    m_filterStatus = status;
+    refresh();
+    emit filterChanged();
+}
+
+void ArticleListModel::setFilterStarred(bool starred)
+{
+    if (m_filterStarred == starred) return;
+    m_filterStarred = starred;
+    refresh();
+    emit filterChanged();
+}
+
+void ArticleListModel::markAllAsRead()
+{
+    for (int i = 0; i < m_articles.count(); ++i) {
+        if (m_articles.at(i).status == QStringLiteral("unread")) {
+            markAsRead(i, true);
+        }
+    }
+}
+
+void ArticleListModel::toggleStarred(int index)
+{
+    if (index < 0 || index >= m_articles.count()) return;
+    
+    Article article = m_articles.at(index);
+    article.starred = !article.starred;
+    DatabaseManager::instance().toggleStar(article.id, article.starred);
+    
+    m_articles[index] = article;
+    QModelIndex qidx = this->index(index, 0);
+    emit dataChanged(qidx, qidx, {StarredRole});
+}
+
 void ArticleListModel::refresh()
 {
     beginResetModel();
@@ -36,6 +74,19 @@ void ArticleListModel::refresh()
     } else {
         m_articles = DatabaseManager::instance().getArticlesForFeed(m_currentFeedId);
     }
+
+    // Apply client-side filters (for now, eventually move to DB queries if performance allows)
+    auto it = std::remove_if(m_articles.begin(), m_articles.end(), [this](const Article& a) {
+        if (m_filterStatus == QStringLiteral("unread") && a.status != QStringLiteral("unread")) {
+            return true;
+        }
+        if (m_filterStarred && !a.starred) {
+            return true;
+        }
+        return false;
+    });
+    m_articles.erase(it, m_articles.end());
+
     endResetModel();
 }
 
@@ -60,6 +111,8 @@ QVariant ArticleListModel::data(const QModelIndex &index, int role) const
     case PublishedAtRole: return article.publishedAt;
     case StatusRole: return article.status;
     case StarredRole: return article.starred;
+    case FeedTitleRole: return article.feedTitle;
+    case FeedSiteUrlRole: return article.feedSiteUrl;
     case Qt::DisplayRole: return article.title;
     }
     return {};
@@ -77,5 +130,7 @@ QHash<int, QByteArray> ArticleListModel::roleNames() const
     roles[PublishedAtRole] = "publishedAt";
     roles[StatusRole] = "status";
     roles[StarredRole] = "starred";
+    roles[FeedTitleRole] = "feedTitle";
+    roles[FeedSiteUrlRole] = "feedSiteUrl";
     return roles;
 }

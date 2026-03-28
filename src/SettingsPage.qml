@@ -58,5 +58,13 @@ QQC2.Dialog {
             value: syncEngine.syncInterval
             onValueModified: syncEngine.syncInterval = value
         }
+
+        QQC2.CheckBox {
+            id: showLabelsCheck
+            Kirigami.FormData.label: i18n("Appearance")
+            text: i18n("Show labels in toolbars")
+            checked: syncEngine.showToolbarLabels
+            onToggled: syncEngine.showToolbarLabels = checked
+        }
     }
 }

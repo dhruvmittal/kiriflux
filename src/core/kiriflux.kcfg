@@ -19,5 +19,12 @@
       <min>1</min>
       <max>1440</max>
     </entry>
+    <entry name="ShowToolbarLabels" type="Bool">
+      <label>Show labels in toolbars</label>
+      <default>false</default>
+    </entry>
+    <entry name="LastSyncTime" type="DateTime">
+      <label>Last Synchronized Time</label>
+    </entry>
   </group>
 </kcfg>

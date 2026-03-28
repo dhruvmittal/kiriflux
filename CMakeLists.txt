@@ -23,7 +23,7 @@ ecm_setup_version(${PROJECT_VERSION}
 )
 
 # ── Dependencies ─────────────────────────────────────────────────────
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick QuickControls2 Widgets Sql DBus)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick QuickControls2 Widgets Sql DBus WebEngineQuick)
 qt_policy(SET QTP0004 NEW)
 find_package(KF6Kirigami REQUIRED)
 find_package(KF6CoreAddons REQUIRED)

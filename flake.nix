@@ -36,6 +36,7 @@
           kxmlgui
           kitemmodels
           kdbusaddons
+          qtwebengine
           plasma-integration
         ];
 
@@ -55,6 +56,7 @@
             --prefix QML2_IMPORT_PATH : "${pkgs.kdePackages.qqc2-desktop-style}/lib/qt-6/qml" \
             --prefix QML2_IMPORT_PATH : "${pkgs.kdePackages.kitemmodels}/lib/qt-6/qml" \
             --prefix QML2_IMPORT_PATH : "${pkgs.kdePackages.qtdeclarative}/lib/qt-6/qml" \
+            --prefix QML2_IMPORT_PATH : "${pkgs.kdePackages.qtwebengine}/lib/qt-6/qml" \
             --prefix QT_PLUGIN_PATH : "${pkgs.kdePackages.qtbase}/lib/qt-6/plugins" \
             --prefix QT_PLUGIN_PATH : "${pkgs.kdePackages.plasma-integration}/lib/qt-6/plugins" \
             --prefix XDG_DATA_DIRS : "${pkgs.kdePackages.kirigami}/share" \

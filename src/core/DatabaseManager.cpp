@@ -32,6 +32,8 @@ bool DatabaseManager::init()
         return false;
     }
 
+    qDebug() << "Database opened successfully at:" << dbPath;
+
     QSqlQuery query;
     // Create feeds table
     if (!query.exec(QStringLiteral(
@@ -147,7 +149,12 @@ void DatabaseManager::saveArticles(const QList<Article>& articles)
 QList<Article> DatabaseManager::getAllArticles() const
 {
     QList<Article> articles;
-    QSqlQuery query(QStringLiteral("SELECT id, feed_id, title, author, content, url, published_at, status, starred FROM articles ORDER BY published_at DESC"));
+    QSqlQuery query(QStringLiteral(
+        "SELECT a.id, a.feed_id, a.title, a.author, a.content, a.url, a.published_at, a.status, a.starred, "
+        "f.title as feed_title, f.site_url "
+        "FROM articles a "
+        "LEFT JOIN feeds f ON a.feed_id = f.id "
+        "ORDER BY a.published_at DESC"));
     while (query.next()) {
         articles.append({
             query.value(0).toLongLong(),
@@ -158,7 +165,9 @@ QList<Article> DatabaseManager::getAllArticles() const
             query.value(5).toString(),
             query.value(6).toString(),
             query.value(7).toString(),
-            query.value(8).toBool()
+            query.value(8).toBool(),
+            query.value(9).toString(),  // feed_title
+            query.value(10).toString()  // site_url
         });
     }
     return articles;
@@ -168,21 +177,30 @@ QList<Article> DatabaseManager::getArticlesForFeed(long feedId) const
 {
     QList<Article> articles;
     QSqlQuery query;
-    query.prepare(QStringLiteral("SELECT id, feed_id, title, author, content, url, published_at, status, starred FROM articles WHERE feed_id = ? ORDER BY published_at DESC"));
+    query.prepare(QStringLiteral(
+        "SELECT a.id, a.feed_id, a.title, a.author, a.content, a.url, a.published_at, a.status, a.starred, "
+        "f.title as feed_title, f.site_url "
+        "FROM articles a "
+        "LEFT JOIN feeds f ON a.feed_id = f.id "
+        "WHERE a.feed_id = ? "
+        "ORDER BY a.published_at DESC"));
     query.addBindValue(qlonglong(feedId));
-    query.exec();
-    while (query.next()) {
-        articles.append({
-            query.value(0).toLongLong(),
-            query.value(1).toLongLong(),
-            query.value(2).toString(),
-            query.value(3).toString(),
-            query.value(4).toString(),
-            query.value(5).toString(),
-            query.value(6).toString(),
-            query.value(7).toString(),
-            query.value(8).toBool()
-        });
+    if (query.exec()) {
+        while (query.next()) {
+            articles.append({
+                query.value(0).toLongLong(),
+                query.value(1).toLongLong(),
+                query.value(2).toString(),
+                query.value(3).toString(),
+                query.value(4).toString(),
+                query.value(5).toString(),
+                query.value(6).toString(),
+                query.value(7).toString(),
+                query.value(8).toBool(),
+                query.value(9).toString(),  // feed_title
+                query.value(10).toString()  // site_url
+            });
+        }
     }
     return articles;
 }
@@ -201,6 +219,15 @@ void DatabaseManager::toggleStar(long articleId, bool starred)
     QSqlQuery query;
     query.prepare(QStringLiteral("UPDATE articles SET starred = ? WHERE id = ?"));
     query.addBindValue(starred);
+    query.addBindValue(qlonglong(articleId));
+    query.exec();
+}
+
+void DatabaseManager::updateArticleContent(long articleId, const QString& content)
+{
+    QSqlQuery query;
+    query.prepare(QStringLiteral("UPDATE articles SET content = ? WHERE id = ?"));
+    query.addBindValue(content);
     query.addBindValue(qlonglong(articleId));
     query.exec();
 }

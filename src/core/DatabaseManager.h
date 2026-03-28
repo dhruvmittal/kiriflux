@@ -24,6 +24,8 @@ struct Article {
     QString publishedAt;
     QString status;
     bool starred;
+    QString feedTitle;
+    QString feedSiteUrl;
 };
 
 class DatabaseManager : public QObject
@@ -45,6 +47,7 @@ public:
     
     void markAsRead(long articleId, bool read);
     void toggleStar(long articleId, bool starred);
+    void updateArticleContent(long articleId, const QString& content);
 
 private:
     explicit DatabaseManager(QObject *parent = nullptr);

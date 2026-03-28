@@ -4,31 +4,45 @@ add_subdirectory(core)
 
 # ── Kiriflux executable ──────────────────────────────────────────────
  
-add_executable(kiriflux
+qt_add_executable(kiriflux
     main.cpp
+    core/DatabaseManager.cpp
+    core/MinifluxClient.cpp
+    core/SyncEngine.cpp
+    core/FeedListModel.cpp
+    core/ArticleListModel.cpp
 )
 
-target_compile_definitions(kiriflux PRIVATE
-    KIRIFLUX_DATA_DIR="${KDE_INSTALL_FULL_DATADIR}/kiriflux"
+# Manual resource embedding for guaranteed QRC paths
+qt_add_resources(kiriflux "qml"
+    PREFIX "/"
+    FILES
+        Main.qml
+        SettingsPage.qml
 )
+
+target_include_directories(kiriflux PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/core)
 
 target_link_libraries(kiriflux PRIVATE
-    kiriflux_core
     Qt6::Core
     Qt6::Gui
     Qt6::Quick
     Qt6::QuickControls2
     Qt6::Widgets
+    Qt6::Sql
+    Qt6::Network
+    Qt6::DBus
+    Qt6::WebEngineQuick
     KF6::CoreAddons
     KF6::I18n
     KF6::XmlGui
     KF6::DBusAddons
-    Qt6::DBus
 )
 
+# Handle KConfigXT generated files for the main target
+kconfig_add_kcfg_files(kiriflux_SRCS core/kiriflux.kcfgc)
+target_sources(kiriflux PRIVATE ${kiriflux_SRCS})
+
 # ── Install ──────────────────────────────────────────────────────────
-set(QML_INSTALL_DIR "${KDE_INSTALL_DATADIR}/kiriflux/qml")
-file(COPY Main.qml SettingsPage.qml DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
-install(FILES Main.qml SettingsPage.qml DESTINATION ${QML_INSTALL_DIR})
 install(FILES ../org.kde.kiriflux.desktop DESTINATION ${KDE_INSTALL_APPDIR})
-install(TARGETS kiriflux ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
+install(TARGETS kiriflux DESTINATION ${KDE_INSTALL_BINDIR})
