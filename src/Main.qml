@@ -29,8 +29,15 @@ Kirigami.ApplicationWindow {
             feedListModel.refresh();
             categoryListModel.refresh();
         }
-        function onArticleSavedToService(entryId) {
-            root.showPassiveNotification(i18n("Article saved to external services."));
+        function onArticleStatusUpdated(entryId, status) {
+            if (status === "read") {
+                // Optional: show notification for manual read marks? 
+                // Usually we don't notify for every read mark, but for "saved" we did.
+                // Keeping it quiet for now unless it was a specific 'save' action.
+            }
+        }
+        function onArticleBookmarkToggled(entryId) {
+             root.showPassiveNotification(i18n("Article star status updated."));
         }
     }
 
@@ -149,10 +156,30 @@ Kirigami.ApplicationWindow {
     // ── Main Content (Middle Pane: Article List) ───────────────────
     pageStack.initialPage: articleListPage
 
-    // Progress Bar for global sync
-    header: QQC2.ProgressBar {
-        indeterminate: true
+    // Guaranteed visible progress bar overlay
+    Item {
+        parent: root.overlay
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: 3
+        z: 99999
         visible: syncEngine.isSyncing
-        Layout.fillWidth: true
+
+        Rectangle {
+            id: progressIndicator
+            height: parent.height
+            width: parent.width * 0.3
+            color: Kirigami.Theme.highlightColor
+            y: 0
+            
+            NumberAnimation on x {
+                loops: Animation.Infinite
+                from: -progressIndicator.width
+                to: root.width
+                duration: 1000
+                running: syncEngine.isSyncing
+            }
+        }
     }
 }

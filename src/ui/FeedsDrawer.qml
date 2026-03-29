@@ -21,7 +21,7 @@ Kirigami.GlobalDrawer {
             icon.name: "view-refresh"
             onTriggered: syncEngine.forceSync()
             tooltip: syncEngine.lastSyncTimeText
-            displayHint: syncEngine.showToolbarLabels ? 0 : Kirigami.DisplayHint.IconOnly
+            displayHint: syncEngine.showToolbarLabels ? 0 : 1
         }
     ]
 

@@ -32,7 +32,7 @@ Kirigami.Page {
             icon.name: "mail-mark-read"
             onTriggered: articleListModel.markAllAsRead()
             visible: articleListModel.rowCount() > 0
-            displayHint: syncEngine.showToolbarLabels ? 0 : Kirigami.DisplayHint.IconOnly
+            displayHint: syncEngine.showToolbarLabels ? 0 : 1
         },
         Kirigami.Action {
             id: filterAction
