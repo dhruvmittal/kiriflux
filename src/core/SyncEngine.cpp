@@ -20,6 +20,7 @@ SyncEngine::SyncEngine(QObject *parent)
     m_apiKey = Settings::self()->apiKey();
     m_syncInterval = Settings::self()->syncInterval();
     m_showToolbarLabels = Settings::self()->showToolbarLabels();
+    m_cleanSync = Settings::self()->cleanSync();
     m_lastSyncTime = Settings::self()->lastSyncTime();
     emit lastSyncTimeChanged();
     
@@ -110,6 +111,14 @@ void SyncEngine::setShowToolbarLabels(bool show)
     emit settingsChanged();
 }
 
+bool SyncEngine::cleanSync() const { return m_cleanSync; }
+void SyncEngine::setCleanSync(bool clean)
+{
+    m_cleanSync = clean;
+    Settings::setCleanSync(clean);
+    emit settingsChanged();
+}
+
 void SyncEngine::saveSettings()
 {
     Settings::self()->save();
@@ -135,7 +144,10 @@ void SyncEngine::performSync()
         return;
     }
 
-    qDebug() << "Starting sync with URL:" << m_apiUrl;
+    qDebug() << "Starting sync with URL:" << m_apiUrl << (m_cleanSync ? "[CLEAN SYNC]" : "");
+    if (m_cleanSync) {
+        DatabaseManager::instance().clearAllData();
+    }
     m_isSyncing = true;
     emit syncStatusChanged();
     emit syncStarted();
@@ -152,6 +164,10 @@ void SyncEngine::fetchFullContent(long entryId)
 void SyncEngine::saveToService(long entryId)
 {
     if (m_apiUrl.isEmpty() || m_apiKey.isEmpty()) return;
+    if (m_cleanSync) {
+        qDebug() << "Clean Sync enabled: skipping saveToService for ID:" << entryId;
+        return;
+    }
     qDebug() << "Saving entry ID to external services:" << entryId;
     m_client->saveArticleToService(m_apiUrl, m_apiKey, entryId);
 }

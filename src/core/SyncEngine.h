@@ -12,6 +12,7 @@ class SyncEngine : public QObject
     Q_PROPERTY(QString apiKey READ apiKey WRITE setApiKey NOTIFY settingsChanged)
     Q_PROPERTY(int syncInterval READ syncInterval WRITE setSyncInterval NOTIFY settingsChanged)
     Q_PROPERTY(bool showToolbarLabels READ showToolbarLabels WRITE setShowToolbarLabels NOTIFY settingsChanged)
+    Q_PROPERTY(bool cleanSync READ cleanSync WRITE setCleanSync NOTIFY settingsChanged)
     Q_PROPERTY(bool isSyncing READ isSyncing NOTIFY syncStatusChanged)
     Q_PROPERTY(QDateTime lastSyncTime READ lastSyncTime NOTIFY lastSyncTimeChanged)
     Q_PROPERTY(QString lastSyncTimeText READ lastSyncTimeText NOTIFY lastSyncTimeChanged)
@@ -34,6 +35,9 @@ public:
 
     bool showToolbarLabels() const;
     void setShowToolbarLabels(bool show);
+
+    bool cleanSync() const;
+    void setCleanSync(bool clean);
 
 public slots:
     void startIntervalSync();
@@ -67,5 +71,6 @@ private:
     QString m_apiKey;
     int m_syncInterval = 30;
     bool m_showToolbarLabels = false;
+    bool m_cleanSync = false;
     QDateTime m_lastSyncTime;
 };

@@ -54,6 +54,7 @@ public:
     void saveArticles(const QList<Article>& articles);
     QList<Article> getArticlesForFeed(long feedId) const;
     QList<Article> getArticlesForCategory(long categoryId) const;
+    Q_INVOKABLE void clearAllData();
     QList<Article> getAllArticles() const;
     
     void markAsRead(long articleId, bool read);

@@ -258,6 +258,16 @@ QList<Article> DatabaseManager::getArticlesForFeed(long feedId) const
     return articles;
 }
 
+void DatabaseManager::clearAllData()
+{
+    m_db.transaction();
+    QSqlQuery query(m_db);
+    query.exec(QStringLiteral("DELETE FROM articles"));
+    query.exec(QStringLiteral("DELETE FROM feeds"));
+    query.exec(QStringLiteral("DELETE FROM categories"));
+    m_db.commit();
+}
+
 QList<Article> DatabaseManager::getArticlesForCategory(long categoryId) const
 {
     QList<Article> articles;
