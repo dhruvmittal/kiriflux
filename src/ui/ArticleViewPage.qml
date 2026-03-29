@@ -55,6 +55,7 @@ Kirigami.Page {
                     root.isUnread = !root.isUnread
                 }
             }
+            displayHint: syncEngine.showToolbarLabels ? 0 : Kirigami.DisplayHint.IconOnly
         },
         Kirigami.Action {
             text: i18n("Star")
@@ -64,6 +65,7 @@ Kirigami.Page {
                     articleListModel.toggleStarred(root.articleIndex)
                 }
             }
+            displayHint: syncEngine.showToolbarLabels ? 0 : Kirigami.DisplayHint.IconOnly
         },
         Kirigami.Action {
             text: i18n("Full Content")
@@ -73,6 +75,7 @@ Kirigami.Page {
                     syncEngine.fetchFullContent(root.articleId)
                 }
             }
+            displayHint: syncEngine.showToolbarLabels ? 0 : Kirigami.DisplayHint.IconOnly
         },
         Kirigami.Action {
             text: i18n("Open Browser")
@@ -82,6 +85,7 @@ Kirigami.Page {
                     Qt.openUrlExternally(root.articleUrl)
                 }
             }
+            displayHint: syncEngine.showToolbarLabels ? Kirigami.DisplayHint.AlwaysDesignated : Kirigami.DisplayHint.HideText
         }
     ]
 

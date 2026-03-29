@@ -32,10 +32,12 @@ Kirigami.Page {
             icon.name: "mail-mark-read"
             onTriggered: articleListModel.markAllAsRead()
             visible: articleListModel.rowCount() > 0
+            displayHint: syncEngine.showToolbarLabels ? 0 : Kirigami.DisplayHint.IconOnly
         },
         Kirigami.Action {
             id: filterAction
             text: i18n("Filter")
+            displayHint: syncEngine.showToolbarLabels ? 0 : Kirigami.DisplayHint.IconOnly
             icon.name: articleListModel.filterStarred ? "favorite" : (articleListModel.filterStatus === "unread" ? "mail-unread" : "view-list-details")
             Kirigami.Action {
                 text: i18n("All")

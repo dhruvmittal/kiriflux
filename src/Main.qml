@@ -59,7 +59,6 @@ Kirigami.ApplicationWindow {
     onColumnViewSettingsChanged: {
         if (pageStack.columnView) {
             pageStack.columnView.columnWidth = Kirigami.Units.gridUnit * 25;
-            pageStack.columnView.resizableLabels = true;
         }
     }
 
