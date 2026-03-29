@@ -8,6 +8,9 @@ import QtWebEngine
 Kirigami.Page {
     id: root
     objectName: "articleViewPage"
+
+    // Hint for Kirigami.PageRow (column view)
+    Layout.fillWidth: true
     
     // Properties passed when pushing the page
     property int articleIndex: -1

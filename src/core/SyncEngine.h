@@ -13,6 +13,8 @@ class SyncEngine : public QObject
     Q_PROPERTY(int syncInterval READ syncInterval WRITE setSyncInterval NOTIFY settingsChanged)
     Q_PROPERTY(bool showToolbarLabels READ showToolbarLabels WRITE setShowToolbarLabels NOTIFY settingsChanged)
     Q_PROPERTY(bool cleanSync READ cleanSync WRITE setCleanSync NOTIFY settingsChanged)
+    Q_PROPERTY(bool markAsReadOnOpen READ markAsReadOnOpen WRITE setMarkAsReadOnOpen NOTIFY settingsChanged)
+    Q_PROPERTY(bool markAsReadOnScroll READ markAsReadOnScroll WRITE setMarkAsReadOnScroll NOTIFY settingsChanged)
     Q_PROPERTY(bool isSyncing READ isSyncing NOTIFY syncStatusChanged)
     Q_PROPERTY(QDateTime lastSyncTime READ lastSyncTime NOTIFY lastSyncTimeChanged)
     Q_PROPERTY(QString lastSyncTimeText READ lastSyncTimeText NOTIFY lastSyncTimeChanged)
@@ -39,11 +41,18 @@ public:
     bool cleanSync() const;
     void setCleanSync(bool clean);
 
+    bool markAsReadOnOpen() const;
+    void setMarkAsReadOnOpen(bool mark);
+
+    bool markAsReadOnScroll() const;
+    void setMarkAsReadOnScroll(bool mark);
+
 public slots:
     void startIntervalSync();
     void forceSync();
     void fetchFullContent(long entryId);
-    void saveToService(long entryId);
+    void updateArticleStatus(long entryId, const QString& status);
+    void toggleArticleBookmark(long entryId);
     void saveSettings();
 
 signals:
@@ -53,7 +62,8 @@ signals:
     void syncStatusChanged();
     void articlesUpdated();
     void lastSyncTimeChanged();
-    void articleSavedToService(long entryId);
+    void articleStatusUpdated(long entryId, const QString& status);
+    void articleBookmarkToggled(long entryId);
 
 private:
     explicit SyncEngine(QObject *parent = nullptr);
@@ -72,5 +82,7 @@ private:
     int m_syncInterval = 30;
     bool m_showToolbarLabels = false;
     bool m_cleanSync = false;
+    bool m_markAsReadOnOpen = false;
+    bool m_markAsReadOnScroll = false;
     QDateTime m_lastSyncTime;
 };

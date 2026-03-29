@@ -53,9 +53,15 @@ Kirigami.ApplicationWindow {
     // In Kirigami, wideScreen true allows side-by-side pages.
     wideScreen: layoutMode !== 1
 
-    // Enable resizing between columns on desktop
-    // Some Kirigami versions use 'interactive' on the pageStack
-    // pageStack.interactive: layoutMode !== 1
+    // Configuration for Kirigami PageRow (columnView)
+    // Ensure columns have a sensible default width and don't collapse to 0
+    property var columnViewSettings: pageStack.columnView
+    onColumnViewSettingsChanged: {
+        if (pageStack.columnView) {
+            pageStack.columnView.columnWidth = Kirigami.Units.gridUnit * 25;
+            pageStack.columnView.resizableLabels = true;
+        }
+    }
 
     // ── Layout Menu ────────────────────────────────────────────────
     Platform.MenuBar {

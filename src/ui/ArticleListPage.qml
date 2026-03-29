@@ -12,6 +12,9 @@ Kirigami.Page {
     rightPadding: 0
     topPadding: 0
     bottomPadding: 0
+
+    // Hints for Kirigami.PageRow (column view)
+    implicitWidth: Kirigami.Units.gridUnit * 25
     
     // Dynamically set title based on the selected feed/category
     title: {
@@ -102,6 +105,11 @@ Kirigami.Page {
             // Push new page
             applicationWindow().pageStack.push(Qt.resolvedUrl("ArticleViewPage.qml"), props);
         }
+
+        // Automatic Read Marking: On Open
+        if (syncEngine.markAsReadOnOpen && model.status === "unread") {
+            articleListModel.markAsRead(index, true);
+        }
     }
 
     Shortcut {
@@ -140,6 +148,36 @@ Kirigami.Page {
                 currentIndex: -1
                 highlightFollowsCurrentItem: true
                 boundsBehavior: Flickable.StopAtBounds
+
+                onContentYChanged: {
+                    if (!syncEngine.markAsReadOnScroll) return;
+                    if (contentY <= 0) return;
+                    scrollMarkTimer.restart();
+                }
+
+                Timer {
+                    id: scrollMarkTimer
+                    interval: 300
+                    repeat: false
+                    onTriggered: {
+                        let topY = articleListView.contentY;
+                        // Try sampling a few pixels down to hit a valid delegate bounds
+                        let topIndex = articleListView.indexAt(articleListView.width / 2, topY + 10);
+                        if (topIndex === -1) {
+                            topIndex = articleListView.indexAt(articleListView.width / 2, topY + 40);
+                        }
+                        
+                        if (topIndex > 0) {
+                            // Any item with index < topIndex has scrolled out of view at the top 
+                            for (let i = 0; i < topIndex; i++) {
+                                let modelItem = articleListModel.get(i);
+                                if (modelItem && modelItem.status === "unread") {
+                                    articleListModel.markAsRead(i, true);
+                                }
+                            }
+                        }
+                    }
+                }
 
                 delegate: QQC2.ItemDelegate {
                     id: delegate

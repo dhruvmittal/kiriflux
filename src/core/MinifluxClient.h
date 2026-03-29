@@ -15,7 +15,8 @@ public:
     void fetchCategories(const QString& url, const QString& apiKey);
     void fetchArticles(const QString& url, const QString& apiKey);
     void fetchArticleContent(const QString& url, const QString& apiKey, long entryId);
-    void saveArticleToService(const QString& url, const QString& apiKey, long entryId);
+    void updateArticleStatus(const QString& url, const QString& apiKey, long entryId, const QString& status);
+    void toggleArticleBookmark(const QString& url, const QString& apiKey, long entryId);
     void fetchVersion(const QString& url, const QString& apiKey);
 
 signals:
@@ -25,7 +26,8 @@ signals:
     void articlesFetched(const QList<Article>& articles);
     void articleUpdated(const Article& article);
     void contentFetched(long entryId, const QString& content);
-    void articleSavedToService(long entryId);
+    void articleStatusUpdated(long entryId, const QString& status);
+    void articleBookmarkToggled(long entryId);
     void errorOccurred(const QString& message);
 
 private:

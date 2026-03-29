@@ -21,6 +21,8 @@ SyncEngine::SyncEngine(QObject *parent)
     m_syncInterval = Settings::self()->syncInterval();
     m_showToolbarLabels = Settings::self()->showToolbarLabels();
     m_cleanSync = Settings::self()->cleanSync();
+    m_markAsReadOnOpen = Settings::self()->markAsReadOnOpen();
+    m_markAsReadOnScroll = Settings::self()->markAsReadOnScroll();
     m_lastSyncTime = Settings::self()->lastSyncTime();
     emit lastSyncTimeChanged();
     
@@ -65,8 +67,12 @@ SyncEngine::SyncEngine(QObject *parent)
         emit articlesUpdated();
     });
 
-    connect(m_client, &MinifluxClient::articleSavedToService, this, [this](long entryId) {
-        emit articleSavedToService(entryId);
+    connect(m_client, &MinifluxClient::articleStatusUpdated, this, [this](long entryId, const QString& status) {
+        emit articleStatusUpdated(entryId, status);
+    });
+
+    connect(m_client, &MinifluxClient::articleBookmarkToggled, this, [this](long entryId) {
+        emit articleBookmarkToggled(entryId);
     });
 
     connect(m_client, &MinifluxClient::errorOccurred, this, [this](const QString& error) {
@@ -119,6 +125,22 @@ void SyncEngine::setCleanSync(bool clean)
     emit settingsChanged();
 }
 
+bool SyncEngine::markAsReadOnOpen() const { return m_markAsReadOnOpen; }
+void SyncEngine::setMarkAsReadOnOpen(bool mark)
+{
+    m_markAsReadOnOpen = mark;
+    Settings::setMarkAsReadOnOpen(mark);
+    emit settingsChanged();
+}
+
+bool SyncEngine::markAsReadOnScroll() const { return m_markAsReadOnScroll; }
+void SyncEngine::setMarkAsReadOnScroll(bool mark)
+{
+    m_markAsReadOnScroll = mark;
+    Settings::setMarkAsReadOnScroll(mark);
+    emit settingsChanged();
+}
+
 void SyncEngine::saveSettings()
 {
     Settings::self()->save();
@@ -161,15 +183,26 @@ void SyncEngine::fetchFullContent(long entryId)
     m_client->fetchArticleContent(m_apiUrl, m_apiKey, entryId);
 }
 
-void SyncEngine::saveToService(long entryId)
+void SyncEngine::updateArticleStatus(long entryId, const QString& status)
 {
     if (m_apiUrl.isEmpty() || m_apiKey.isEmpty()) return;
     if (m_cleanSync) {
-        qDebug() << "Clean Sync enabled: skipping saveToService for ID:" << entryId;
+        qDebug() << "Clean Sync enabled: skipping updateArticleStatus for ID:" << entryId;
         return;
     }
-    qDebug() << "Saving entry ID to external services:" << entryId;
-    m_client->saveArticleToService(m_apiUrl, m_apiKey, entryId);
+    qDebug() << "Updating article status on server:" << entryId << "to" << status;
+    m_client->updateArticleStatus(m_apiUrl, m_apiKey, entryId, status);
+}
+
+void SyncEngine::toggleArticleBookmark(long entryId)
+{
+    if (m_apiUrl.isEmpty() || m_apiKey.isEmpty()) return;
+    if (m_cleanSync) {
+        qDebug() << "Clean Sync enabled: skipping toggleArticleBookmark for ID:" << entryId;
+        return;
+    }
+    qDebug() << "Toggling article bookmark on server:" << entryId;
+    m_client->toggleArticleBookmark(m_apiUrl, m_apiKey, entryId);
 }
 
 QString SyncEngine::lastSyncTimeText() const

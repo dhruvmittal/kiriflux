@@ -81,6 +81,27 @@ QQC2.Dialog {
                 checked: syncEngine.showToolbarLabels
                 onToggled: syncEngine.showToolbarLabels = checked
             }
+
+            Kirigami.Separator {
+                Kirigami.FormData.label: i18n("Reading")
+                Kirigami.FormData.isSection: true
+            }
+
+            QQC2.CheckBox {
+                id: markOpenCheck
+                Kirigami.FormData.label: i18n("Automatic Marking")
+                text: i18n("Mark article as read when opened")
+                checked: syncEngine.markAsReadOnOpen
+                onToggled: syncEngine.markAsReadOnOpen = checked
+            }
+
+            QQC2.CheckBox {
+                id: markScrollCheck
+                Kirigami.FormData.label: "" 
+                text: i18n("Mark article as read when scrolled past top")
+                checked: syncEngine.markAsReadOnScroll
+                onToggled: syncEngine.markAsReadOnScroll = checked
+            }
         }
     }
 }

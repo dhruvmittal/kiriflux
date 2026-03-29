@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "ArticleListModel.h"
+#include "SyncEngine.h"
 
 ArticleListModel::ArticleListModel(QObject *parent)
     : QAbstractListModel(parent)
@@ -34,8 +35,11 @@ void ArticleListModel::markAsRead(int index, bool read)
     long id = m_articles.at(index).id;
     DatabaseManager::instance().markAsRead(id, read);
     
+    QString statusString = read ? QStringLiteral("read") : QStringLiteral("unread");
+    SyncEngine::instance().updateArticleStatus(id, statusString);
+    
     // Update local data and notify view
-    m_articles[index].status = read ? QStringLiteral("read") : QStringLiteral("unread");
+    m_articles[index].status = statusString;
     QModelIndex qidx = this->index(index, 0);
     emit dataChanged(qidx, qidx, {StatusRole});
 }
@@ -72,6 +76,8 @@ void ArticleListModel::toggleStarred(int index)
     Article article = m_articles.at(index);
     article.starred = !article.starred;
     DatabaseManager::instance().toggleStar(article.id, article.starred);
+    
+    SyncEngine::instance().toggleArticleBookmark(article.id);
     
     m_articles[index] = article;
     QModelIndex qidx = this->index(index, 0);

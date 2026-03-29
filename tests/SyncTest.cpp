@@ -52,7 +52,7 @@ void SyncTest::testEndToEndSync()
     QVERIFY(feeds.count() > 0);
     
     // Verify articles
-    auto articles = DatabaseManager::instance().getArticlesForFeed(-1);
+    auto articles = DatabaseManager::instance().getAllArticles();
     QVERIFY(articles.count() > 0);
 }
 

@@ -31,4 +31,14 @@
       <default>false</default>
     </entry>
   </group>
+  <group name="Reading">
+    <entry name="MarkAsReadOnOpen" type="Bool">
+      <label>Mark article as read when opened</label>
+      <default>false</default>
+    </entry>
+    <entry name="MarkAsReadOnScroll" type="Bool">
+      <label>Mark article as read when scrolled past top</label>
+      <default>false</default>
+    </entry>
+  </group>
 </kcfg>
