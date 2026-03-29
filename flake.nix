@@ -13,7 +13,7 @@
     {
       packages.${system}.default = pkgs.stdenv.mkDerivation {
         pname = "kiriflux";
-        version = "0.1.0";
+        version = "0.1.1";
         src = ./.;
 
         nativeBuildInputs = with pkgs; [
