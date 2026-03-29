@@ -150,6 +150,7 @@ Kirigami.ApplicationWindow {
                         QQC2.ToolTip.visible: hovered
                     }
                 }
+                Rectangle { width: 1; Layout.fillHeight: true; color: Kirigami.Theme.separatorColor; anchors.right: parent.right }
             }
 
             // Pane 2 Header
