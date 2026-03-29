@@ -94,11 +94,20 @@ Kirigami.GlobalDrawer {
                                 Layout.fillWidth: true
                                 elide: Text.ElideRight
                             }
-                            QQC2.Label {
-                                text: model.unreadCount
+                            Rectangle {
                                 visible: model.unreadCount > 0
-                                font.pixelSize: 10
-                                opacity: 0.7
+                                implicitWidth: Math.max(20, catLabel.implicitWidth + 8)
+                                implicitHeight: 16
+                                radius: 8
+                                color: Kirigami.Theme.highlightColor
+                                QQC2.Label {
+                                    id: catLabel
+                                    anchors.centerIn: parent
+                                    text: model.unreadCount
+                                    font.pixelSize: 10
+                                    font.bold: true
+                                    color: "white"
+                                }
                             }
                         }
                     }
@@ -112,8 +121,31 @@ Kirigami.GlobalDrawer {
                             height: visible ? implicitHeight : 0
                             Layout.leftMargin: Kirigami.Units.largeSpacing
                             highlighted: articleListModel.currentFeedId === model.id
-                            text: model.title
                             onClicked: articleListModel.currentFeedId = model.id
+                            
+                            contentItem: RowLayout {
+                                QQC2.Label {
+                                    text: model.title
+                                    Layout.fillWidth: true
+                                    elide: Text.ElideRight
+                                    font.bold: model.unreadCount > 0
+                                }
+                                Rectangle {
+                                    visible: model.unreadCount > 0
+                                    implicitWidth: Math.max(20, nestedLabel.implicitWidth + 8)
+                                    implicitHeight: 16
+                                    radius: 8
+                                    color: Kirigami.Theme.highlightColor
+                                    QQC2.Label {
+                                        id: nestedLabel
+                                        anchors.centerIn: parent
+                                        text: model.unreadCount
+                                        font.pixelSize: 10
+                                        font.bold: true
+                                        color: "white"
+                                    }
+                                }
+                            }
                         }
                     }
                 }
