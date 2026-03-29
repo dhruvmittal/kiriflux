@@ -30,6 +30,14 @@
       <label>Clean Sync (Reset local state on sync, no server updates)</label>
       <default>false</default>
     </entry>
+    <entry name="FilterStatus" type="String">
+      <label>Last selected filter status</label>
+      <default>all</default>
+    </entry>
+    <entry name="FilterStarred" type="Bool">
+      <label>Last selected filter starred state</label>
+      <default>false</default>
+    </entry>
   </group>
   <group name="Reading">
     <entry name="MarkAsReadOnOpen" type="Bool">

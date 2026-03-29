@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "ArticleListModel.h"
 #include "SyncEngine.h"
+#include "kiriflux.h"
 
 ArticleListModel::ArticleListModel(QObject *parent)
     : QAbstractListModel(parent)
 {
+    m_filterStatus = Settings::self()->filterStatus();
+    m_filterStarred = Settings::self()->filterStarred();
     refresh();
 }
 
@@ -48,6 +51,8 @@ void ArticleListModel::setFilterStatus(const QString &status)
 {
     if (m_filterStatus == status) return;
     m_filterStatus = status;
+    Settings::setFilterStatus(status);
+    Settings::self()->save();
     refresh();
     emit filterChanged();
 }
@@ -56,6 +61,8 @@ void ArticleListModel::setFilterStarred(bool starred)
 {
     if (m_filterStarred == starred) return;
     m_filterStarred = starred;
+    Settings::setFilterStarred(starred);
+    Settings::self()->save();
     refresh();
     emit filterChanged();
 }
