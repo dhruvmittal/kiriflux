@@ -29,7 +29,7 @@ Kirigami.Page {
         Kirigami.Action {
             id: filterAction
             text: articleListModel.filterStarred ? i18n("Starred") : (articleListModel.filterStatus === "unread" ? i18n("Unread") : i18n("All"))
-            displayHint: syncEngine.showToolbarLabels ? 0 : Kirigami.DisplayHint.IconOnly
+            displayHint: syncEngine.showToolbarLabels ? 0 : 1
             icon.name: articleListModel.filterStarred ? "favorite" : (articleListModel.filterStatus === "unread" ? "mail-unread" : "view-list-details")
             Kirigami.Action {
                 text: i18n("All")

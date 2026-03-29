@@ -85,7 +85,7 @@ Kirigami.Page {
                     Qt.openUrlExternally(root.articleUrl)
                 }
             }
-            displayHint: syncEngine.showToolbarLabels ? Kirigami.DisplayHint.AlwaysDesignated : Kirigami.DisplayHint.HideText
+            displayHint: syncEngine.showToolbarLabels ? 0 : 1
         }
     ]
 
