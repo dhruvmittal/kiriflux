@@ -45,10 +45,12 @@ public:
     // Feeds
     void saveFeeds(const QList<Feed>& feeds);
     QList<Feed> getAllFeeds() const;
+    QString getFeedTitle(long feedId) const;
 
     // Categories
     void saveCategories(const QList<Category>& categories);
     QList<Category> getAllCategories() const;
+    QString getCategoryTitle(long categoryId) const;
 
     // Articles
     void saveArticles(const QList<Article>& articles);

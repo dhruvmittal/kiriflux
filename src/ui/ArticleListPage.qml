@@ -16,15 +16,7 @@ Kirigami.Page {
     // Hints for Kirigami.PageRow (column view)
     implicitWidth: Kirigami.Units.gridUnit * 25
     
-    // Dynamically set title based on the selected feed/category
-    title: {
-        if (articleListModel.currentFeedId !== -1) {
-            return i18n("Feed Articles")
-        } else if (articleListModel.currentCategoryId !== -1) {
-            return i18n("Category Articles")
-        }
-        return i18n("All Articles")
-    }
+    title: articleListModel.currentName
 
     actions: [
         Kirigami.Action {
@@ -211,6 +203,8 @@ Kirigami.Page {
                                 text: model.title
                                 font.bold: model.status === "unread"
                                 elide: Text.ElideRight
+                                maximumLineCount: syncEngine.titleLines
+                                wrapMode: syncEngine.titleLines > 1 ? Text.WordWrap : Text.NoWrap
                                 Layout.fillWidth: true
                                 Layout.alignment: Qt.AlignVCenter
                             }

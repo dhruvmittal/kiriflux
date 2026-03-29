@@ -13,6 +13,7 @@ class ArticleListModel : public QAbstractListModel
     Q_PROPERTY(long currentCategoryId READ currentCategoryId WRITE setCurrentCategoryId NOTIFY currentCategoryIdChanged)
     Q_PROPERTY(QString filterStatus READ filterStatus WRITE setFilterStatus NOTIFY filterChanged)
     Q_PROPERTY(bool filterStarred READ filterStarred WRITE setFilterStarred NOTIFY filterChanged)
+    Q_PROPERTY(QString currentName READ currentName NOTIFY currentNameChanged)
 
 public:
     enum Roles {
@@ -48,6 +49,8 @@ public:
     bool filterStarred() const { return m_filterStarred; }
     void setFilterStarred(bool starred);
 
+    QString currentName() const;
+
 public slots:
     void refresh();
     void markAsRead(int index, bool read);
@@ -59,6 +62,7 @@ signals:
     void currentFeedIdChanged();
     void currentCategoryIdChanged();
     void filterChanged();
+    void currentNameChanged();
 
 private:
     QList<Article> m_articles;

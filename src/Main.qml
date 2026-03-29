@@ -123,6 +123,30 @@ Kirigami.ApplicationWindow {
             }
 
             Platform.MenuSeparator {}
+            
+            Platform.Menu {
+                title: i18n("Title Lines")
+                Platform.MenuItem {
+                    text: i18n("1 Line")
+                    checkable: true
+                    checked: syncEngine.titleLines === 1
+                    onTriggered: syncEngine.titleLines = 1
+                }
+                Platform.MenuItem {
+                    text: i18n("2 Lines")
+                    checkable: true
+                    checked: syncEngine.titleLines === 2
+                    onTriggered: syncEngine.titleLines = 2
+                }
+                Platform.MenuItem {
+                    text: i18n("3 Lines")
+                    checkable: true
+                    checked: syncEngine.titleLines === 3
+                    onTriggered: syncEngine.titleLines = 3
+                }
+            }
+
+            Platform.MenuSeparator {}
 
             Platform.MenuItem {
                 text: i18n("&All Articles")

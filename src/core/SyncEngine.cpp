@@ -23,6 +23,7 @@ SyncEngine::SyncEngine(QObject *parent)
     m_cleanSync = Settings::self()->cleanSync();
     m_markAsReadOnOpen = Settings::self()->markAsReadOnOpen();
     m_markAsReadOnScroll = Settings::self()->markAsReadOnScroll();
+    m_titleLines = Settings::self()->titleLines();
     m_lastSyncTime = Settings::self()->lastSyncTime();
     emit lastSyncTimeChanged();
     
@@ -112,9 +113,25 @@ void SyncEngine::setSyncInterval(int interval)
 bool SyncEngine::showToolbarLabels() const { return m_showToolbarLabels; }
 void SyncEngine::setShowToolbarLabels(bool show)
 {
+    if (m_showToolbarLabels == show) return;
     m_showToolbarLabels = show;
     Settings::setShowToolbarLabels(show);
-    emit settingsChanged();
+    Settings::self()->save();
+    emit showToolbarLabelsChanged();
+}
+
+int SyncEngine::titleLines() const
+{
+    return m_titleLines;
+}
+
+void SyncEngine::setTitleLines(int lines)
+{
+    if (m_titleLines == lines) return;
+    m_titleLines = lines;
+    Settings::setTitleLines(lines);
+    Settings::self()->save();
+    emit titleLinesChanged();
 }
 
 bool SyncEngine::cleanSync() const { return m_cleanSync; }

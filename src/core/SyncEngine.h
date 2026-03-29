@@ -11,13 +11,14 @@ class SyncEngine : public QObject
     Q_PROPERTY(QString apiUrl READ apiUrl WRITE setApiUrl NOTIFY settingsChanged)
     Q_PROPERTY(QString apiKey READ apiKey WRITE setApiKey NOTIFY settingsChanged)
     Q_PROPERTY(int syncInterval READ syncInterval WRITE setSyncInterval NOTIFY settingsChanged)
-    Q_PROPERTY(bool showToolbarLabels READ showToolbarLabels WRITE setShowToolbarLabels NOTIFY settingsChanged)
+    Q_PROPERTY(QString lastSyncTimeText READ lastSyncTimeText NOTIFY lastSyncTimeChanged)
+    Q_PROPERTY(bool showToolbarLabels READ showToolbarLabels WRITE setShowToolbarLabels NOTIFY showToolbarLabelsChanged)
+    Q_PROPERTY(int titleLines READ titleLines WRITE setTitleLines NOTIFY titleLinesChanged)
     Q_PROPERTY(bool cleanSync READ cleanSync WRITE setCleanSync NOTIFY settingsChanged)
     Q_PROPERTY(bool markAsReadOnOpen READ markAsReadOnOpen WRITE setMarkAsReadOnOpen NOTIFY settingsChanged)
     Q_PROPERTY(bool markAsReadOnScroll READ markAsReadOnScroll WRITE setMarkAsReadOnScroll NOTIFY settingsChanged)
     Q_PROPERTY(bool isSyncing READ isSyncing NOTIFY syncStatusChanged)
     Q_PROPERTY(QDateTime lastSyncTime READ lastSyncTime NOTIFY lastSyncTimeChanged)
-    Q_PROPERTY(QString lastSyncTimeText READ lastSyncTimeText NOTIFY lastSyncTimeChanged)
 
 public:
     static SyncEngine& instance();
@@ -37,6 +38,9 @@ public:
 
     bool showToolbarLabels() const;
     void setShowToolbarLabels(bool show);
+
+    int titleLines() const;
+    void setTitleLines(int lines);
 
     bool cleanSync() const;
     void setCleanSync(bool clean);
@@ -62,6 +66,8 @@ signals:
     void syncStatusChanged();
     void articlesUpdated();
     void lastSyncTimeChanged();
+    void showToolbarLabelsChanged();
+    void titleLinesChanged();
     void articleStatusUpdated(long entryId, const QString& status);
     void articleBookmarkToggled(long entryId);
 
@@ -84,5 +90,6 @@ private:
     bool m_cleanSync = false;
     bool m_markAsReadOnOpen = false;
     bool m_markAsReadOnScroll = false;
+    int m_titleLines = 2;
     QDateTime m_lastSyncTime;
 };

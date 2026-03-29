@@ -38,6 +38,12 @@
       <label>Last selected filter starred state</label>
       <default>false</default>
     </entry>
+    <entry name="TitleLines" type="Int">
+      <label>Maximum number of lines for article titles</label>
+      <default>2</default>
+      <min>1</min>
+      <max>3</max>
+    </entry>
   </group>
   <group name="Reading">
     <entry name="MarkAsReadOnOpen" type="Bool">

@@ -2,6 +2,7 @@
 #include "ArticleListModel.h"
 #include "SyncEngine.h"
 #include "kiriflux.h"
+#include <KLocalizedString>
 
 ArticleListModel::ArticleListModel(QObject *parent)
     : QAbstractListModel(parent)
@@ -19,6 +20,7 @@ void ArticleListModel::setCurrentFeedId(long id)
     refresh();
     emit currentFeedIdChanged();
     emit currentCategoryIdChanged();
+    emit currentNameChanged();
 }
 
 void ArticleListModel::setCurrentCategoryId(long id)
@@ -29,6 +31,7 @@ void ArticleListModel::setCurrentCategoryId(long id)
     refresh();
     emit currentCategoryIdChanged();
     emit currentFeedIdChanged();
+    emit currentNameChanged();
 }
 
 void ArticleListModel::markAsRead(int index, bool read)
@@ -55,6 +58,16 @@ void ArticleListModel::setFilterStatus(const QString &status)
     Settings::self()->save();
     refresh();
     emit filterChanged();
+}
+
+QString ArticleListModel::currentName() const
+{
+    if (m_currentFeedId != -1) {
+        return DatabaseManager::instance().getFeedTitle(m_currentFeedId);
+    } else if (m_currentCategoryId != -1) {
+        return DatabaseManager::instance().getCategoryTitle(m_currentCategoryId);
+    }
+    return i18n("All Articles");
 }
 
 void ArticleListModel::setFilterStarred(bool starred)

@@ -136,6 +136,17 @@ QList<Feed> DatabaseManager::getAllFeeds() const
     return feeds;
 }
 
+QString DatabaseManager::getFeedTitle(long feedId) const
+{
+    QSqlQuery query(m_db);
+    query.prepare(QStringLiteral("SELECT title FROM feeds WHERE id = ?"));
+    query.addBindValue(qlonglong(feedId));
+    if (query.exec() && query.next()) {
+        return query.value(0).toString();
+    }
+    return {};
+}
+
 void DatabaseManager::saveCategories(const QList<Category>& categories)
 {
     m_db.transaction();
@@ -174,6 +185,17 @@ QList<Category> DatabaseManager::getAllCategories() const
         }
     }
     return categories;
+}
+
+QString DatabaseManager::getCategoryTitle(long categoryId) const
+{
+    QSqlQuery query(m_db);
+    query.prepare(QStringLiteral("SELECT title FROM categories WHERE id = ?"));
+    query.addBindValue(qlonglong(categoryId));
+    if (query.exec() && query.next()) {
+        return query.value(0).toString();
+    }
+    return {};
 }
 
 void DatabaseManager::saveArticles(const QList<Article>& articles)
