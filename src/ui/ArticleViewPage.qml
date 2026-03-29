@@ -35,15 +35,9 @@ Kirigami.Page {
 
     onArticleContentChanged: articleWebView.updateContent()
     onArticleTitleChanged: articleWebView.updateContent()
-    onThemedTextColorChanged: articleWebView.updateContent()
-    onThemedBgColorChanged: articleWebView.updateContent()
 
     Kirigami.Theme.colorSet: Kirigami.Theme.Window
     Kirigami.Theme.inherit: true
-
-    Component.onCompleted: {
-        console.log("ArticleViewPage loaded. Text color:", themedTextColor, "BG color:", themedBgColor);
-    }
 
     // Track whether the WebEngine is ready to render
     property bool webViewReady: false
@@ -277,7 +271,6 @@ Kirigami.Page {
             interval: 50
             repeat: false
             onTriggered: {
-                console.log("Timer triggered. Current Text color:", themedTextColor, "BG color:", themedBgColor);
                 root.webViewReady = true;
                 articleWebView.updateContent();
             }
