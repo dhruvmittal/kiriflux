@@ -11,6 +11,7 @@ qt_add_executable(kiriflux
     core/SyncEngine.cpp
     core/FeedListModel.cpp
     core/ArticleListModel.cpp
+    core/CategoryListModel.cpp
 )
 
 # Manual resource embedding for guaranteed QRC paths

@@ -12,6 +12,7 @@ public:
     explicit MinifluxClient(QObject *parent = nullptr);
 
     void fetchFeeds(const QString& url, const QString& apiKey);
+    void fetchCategories(const QString& url, const QString& apiKey);
     void fetchArticles(const QString& url, const QString& apiKey);
     void fetchArticleContent(const QString& url, const QString& apiKey, long entryId);
     void saveArticleToService(const QString& url, const QString& apiKey, long entryId);
@@ -19,6 +20,7 @@ public:
 
 signals:
     void feedsFetched(const QList<Feed>& feeds);
+    void categoriesFetched(const QList<Category>& categories);
     void versionFetched(const QString& version);
     void articlesFetched(const QList<Article>& articles);
     void articleUpdated(const Article& article);

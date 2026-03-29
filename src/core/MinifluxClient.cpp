@@ -49,6 +49,40 @@ void MinifluxClient::fetchFeeds(const QString& url, const QString& apiKey)
     });
 }
 
+void MinifluxClient::fetchCategories(const QString& url, const QString& apiKey)
+{
+    QString sanitizedUrl = url.trimmed();
+    if (sanitizedUrl.endsWith(QLatin1Char('/'))) {
+        sanitizedUrl.chop(1);
+    }
+    
+    QUrl qurl(sanitizedUrl + QStringLiteral("/v1/categories"));
+    QNetworkRequest request(qurl);
+    request.setRawHeader("X-Auth-Token", apiKey.trimmed().toUtf8());
+
+    QNetworkReply *reply = m_nam->get(request);
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit errorOccurred(reply->errorString());
+            return;
+        }
+
+        const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+        const QJsonArray array = doc.array();
+        QList<Category> categories;
+        for (const auto& value : array) {
+            const QJsonObject obj = value.toObject();
+            categories.append({
+                obj["id"].toVariant().toLongLong(),
+                obj["title"].toString(),
+                0 // unreadCount
+            });
+        }
+        emit categoriesFetched(categories);
+    });
+}
+
 void MinifluxClient::fetchArticles(const QString& url, const QString& apiKey)
 {
     QString sanitizedUrl = url.trimmed();

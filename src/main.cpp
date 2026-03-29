@@ -18,6 +18,7 @@
 #include "core/SyncEngine.h"
 #include "core/FeedListModel.h"
 #include "core/ArticleListModel.h"
+#include "core/CategoryListModel.h"
 
 int main(int argc, char *argv[])
 {
@@ -61,6 +62,7 @@ int main(int argc, char *argv[])
     // 6. Manual QML Registration
     qmlRegisterType<FeedListModel>("org.kde.kiriflux", 1, 0, "FeedListModel");
     qmlRegisterType<ArticleListModel>("org.kde.kiriflux", 1, 0, "ArticleListModel");
+    qmlRegisterType<CategoryListModel>("org.kde.kiriflux", 1, 0, "CategoryListModel");
 
     // 7. QML Engine Setup
     QQmlApplicationEngine engine;

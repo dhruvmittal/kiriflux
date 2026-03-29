@@ -22,6 +22,10 @@ Kirigami.ApplicationWindow {
         id: feedListModel
     }
 
+    CategoryListModel {
+        id: categoryListModel
+    }
+
     ArticleListModel {
         id: articleListModel
     }
@@ -30,6 +34,8 @@ Kirigami.ApplicationWindow {
         target: syncEngine
         function onArticlesUpdated() {
             articleListModel.refresh();
+            feedListModel.refresh();
+            categoryListModel.refresh();
         }
         function onArticleSavedToService(entryId) {
             root.showPassiveNotification(i18n("Article saved to external services."));
@@ -84,7 +90,7 @@ Kirigami.ApplicationWindow {
                 icon.name: "view-list-details"
                 onTriggered: {
                     articleListModel.currentFeedId = -1;
-                    feedListView.currentIndex = -1;
+                    articleListModel.currentCategoryId = -1;
                 }
             }
         }
@@ -155,58 +161,142 @@ Kirigami.ApplicationWindow {
                         }
                     }
 
-                    ListView {
-                        id: feedListView
+                    QQC2.ScrollView {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
+                        contentWidth: -1
                         clip: true
-                        model: feedListModel
-                        currentIndex: -1
 
-                        header: QQC2.ItemDelegate {
-                            width: feedListView.width
-                            highlighted: articleListModel.currentFeedId === -1
-                            text: i18n("All Articles")
-                            icon.name: "view-list-details"
-                            onClicked: {
-                                articleListModel.currentFeedId = -1;
-                                feedListView.currentIndex = -1;
-                            }
-                        }
+                        ColumnLayout {
+                            width: parent.width
+                            spacing: 0
 
-                        delegate: QQC2.ItemDelegate {
-                            width: feedListView.width
-                            highlighted: ListView.isCurrentItem
-                            onClicked: {
-                                feedListView.currentIndex = index;
-                                articleListModel.currentFeedId = model.id;
-                            }
-                            
-                            contentItem: RowLayout {
-                                Kirigami.Icon {
-                                    source: "rss" 
-                                    implicitWidth: 16
-                                    implicitHeight: 16
+                            // 1. All Articles
+                            QQC2.ItemDelegate {
+                                Layout.fillWidth: true
+                                highlighted: articleListModel.currentFeedId === -1 && articleListModel.currentCategoryId === -1
+                                text: i18n("All Articles")
+                                icon.name: "view-list-details"
+                                onClicked: {
+                                    articleListModel.currentFeedId = -1;
+                                    articleListModel.currentCategoryId = -1;
                                 }
-                                QQC2.Label {
-                                    text: model.title
+                            }
+
+                            Kirigami.Separator { Layout.fillWidth: true; Layout.margins: Kirigami.Units.smallSpacing }
+
+                            // 2. Categories Section
+                            QQC2.Label {
+                                text: i18n("Categories")
+                                font.bold: true
+                                opacity: 0.6
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.7
+                                Layout.margins: Kirigami.Units.smallSpacing
+                            }
+
+                            Repeater {
+                                model: categoryListModel
+                                delegate: ColumnLayout {
+                                    id: categoryItem
                                     Layout.fillWidth: true
-                                    elide: Text.ElideRight
-                                    font.bold: model.unreadCount > 0
+                                    spacing: 0
+                                    property bool expanded: false
+                                    property var catId: model.id
+
+                                    QQC2.ItemDelegate {
+                                        Layout.fillWidth: true
+                                        highlighted: articleListModel.currentCategoryId === categoryItem.catId
+                                        onClicked: {
+                                            articleListModel.currentCategoryId = categoryItem.catId;
+                                        }
+
+                                        contentItem: RowLayout {
+                                            Kirigami.Icon {
+                                                source: categoryItem.expanded ? "arrow-down" : "arrow-right"
+                                                implicitWidth: 12; implicitHeight: 12
+                                                MouseArea {
+                                                    anchors.fill: parent
+                                                    onClicked: {
+                                                        categoryItem.expanded = !categoryItem.expanded
+                                                        mouse.accepted = true
+                                                    }
+                                                }
+                                            }
+                                            QQC2.Label {
+                                                text: model.title
+                                                Layout.fillWidth: true
+                                                elide: Text.ElideRight
+                                            }
+                                            QQC2.Label {
+                                                text: model.unreadCount
+                                                visible: model.unreadCount > 0
+                                                font.pixelSize: 10
+                                                opacity: 0.7
+                                            }
+                                        }
+                                    }
+
+                                    // Feeds in this category
+                                    Repeater {
+                                        model: feedListModel
+                                        delegate: QQC2.ItemDelegate {
+                                            Layout.fillWidth: true
+                                            visible: categoryItem.expanded && model.categoryId === categoryItem.catId
+                                            height: visible ? implicitHeight : 0
+                                            Layout.leftMargin: Kirigami.Units.largeSpacing
+                                            highlighted: articleListModel.currentFeedId === model.id
+                                            text: model.title
+                                            onClicked: articleListModel.currentFeedId = model.id
+                                        }
+                                    }
                                 }
-                                Rectangle {
-                                    visible: model.unreadCount > 0
-                                    implicitWidth: Math.max(20, countLabel.implicitWidth + 8)
-                                    implicitHeight: 16
-                                    radius: 8
-                                    color: Kirigami.Theme.highlightColor
-                                    QQC2.Label {
-                                        id: countLabel
-                                        anchors.centerIn: parent
-                                        text: model.unreadCount
-                                        font.pixelSize: 10
-                                        font.bold: true
-                                        color: "white"
+                            }
+
+                            Kirigami.Separator { Layout.fillWidth: true; Layout.margins: Kirigami.Units.smallSpacing }
+
+                            // 3. Feeds Section (Flat list)
+                            QQC2.Label {
+                                text: i18n("Feeds")
+                                font.bold: true
+                                opacity: 0.6
+                                font.pixelSize: Kirigami.Units.gridUnit * 0.7
+                                Layout.margins: Kirigami.Units.smallSpacing
+                            }
+
+                            Repeater {
+                                model: feedListModel
+                                delegate: QQC2.ItemDelegate {
+                                    Layout.fillWidth: true
+                                    highlighted: articleListModel.currentFeedId === model.id
+                                    onClicked: articleListModel.currentFeedId = model.id
+                                    
+                                    contentItem: RowLayout {
+                                        Kirigami.Icon {
+                                            source: model.siteUrl ? "https://www.google.com/s2/favicons?domain=" + model.siteUrl : "rss"
+                                            implicitWidth: 16
+                                            implicitHeight: 16
+                                        }
+                                        QQC2.Label {
+                                            text: model.title
+                                            Layout.fillWidth: true
+                                            elide: Text.ElideRight
+                                            font.bold: model.unreadCount > 0
+                                        }
+                                        Rectangle {
+                                            visible: model.unreadCount > 0
+                                            implicitWidth: Math.max(20, cLabel.implicitWidth + 8)
+                                            implicitHeight: 16
+                                            radius: 8
+                                            color: Kirigami.Theme.highlightColor
+                                            QQC2.Label {
+                                                id: cLabel
+                                                anchors.centerIn: parent
+                                                text: model.unreadCount
+                                                font.pixelSize: 10
+                                                font.bold: true
+                                                color: "white"
+                                            }
+                                        }
                                     }
                                 }
                             }

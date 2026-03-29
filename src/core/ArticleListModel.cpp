@@ -11,7 +11,19 @@ void ArticleListModel::setCurrentFeedId(long id)
 {
     if (m_currentFeedId == id) return;
     m_currentFeedId = id;
+    m_currentCategoryId = -1;
     refresh();
+    emit currentFeedIdChanged();
+    emit currentCategoryIdChanged();
+}
+
+void ArticleListModel::setCurrentCategoryId(long id)
+{
+    if (m_currentCategoryId == id) return;
+    m_currentCategoryId = id;
+    m_currentFeedId = -1;
+    refresh();
+    emit currentCategoryIdChanged();
     emit currentFeedIdChanged();
 }
 
@@ -69,10 +81,12 @@ void ArticleListModel::toggleStarred(int index)
 void ArticleListModel::refresh()
 {
     beginResetModel();
-    if (m_currentFeedId == -1) {
-        m_articles = DatabaseManager::instance().getAllArticles();
-    } else {
+    if (m_currentFeedId != -1) {
         m_articles = DatabaseManager::instance().getArticlesForFeed(m_currentFeedId);
+    } else if (m_currentCategoryId != -1) {
+        m_articles = DatabaseManager::instance().getArticlesForCategory(m_currentCategoryId);
+    } else {
+        m_articles = DatabaseManager::instance().getAllArticles();
     }
 
     // Apply client-side filters (for now, eventually move to DB queries if performance allows)

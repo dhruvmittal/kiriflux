@@ -47,6 +47,15 @@ bool DatabaseManager::init()
         qWarning() << "Failed to create feeds table:" << query.lastError().text();
     }
 
+    // Create categories table
+    if (!query.exec(QStringLiteral(
+            "CREATE TABLE IF NOT EXISTS categories ("
+            "id INTEGER PRIMARY KEY, "
+            "title TEXT"
+            ")"))) {
+        qWarning() << "Failed to create categories table:" << query.lastError().text();
+    }
+
     // Create articles table
     if (!query.exec(QStringLiteral(
             "CREATE TABLE IF NOT EXISTS articles ("
@@ -123,6 +132,46 @@ QList<Feed> DatabaseManager::getAllFeeds() const
     return feeds;
 }
 
+void DatabaseManager::saveCategories(const QList<Category>& categories)
+{
+    m_db.transaction();
+    QSqlQuery query;
+    query.prepare(QStringLiteral(
+        "INSERT OR REPLACE INTO categories (id, title) "
+        "VALUES (?, ?)"));
+
+    for (const auto& category : categories) {
+        query.addBindValue(qlonglong(category.id));
+        query.addBindValue(category.title);
+        query.exec();
+    }
+    m_db.commit();
+}
+
+QList<Category> DatabaseManager::getAllCategories() const
+{
+    QList<Category> categories;
+    QSqlQuery query(m_db);
+    // Aggregate unread count from all feeds in the category
+    query.prepare(QStringLiteral(
+        "SELECT c.id, c.title, "
+        "(SELECT COUNT(*) FROM articles a "
+        " JOIN feeds f ON a.feed_id = f.id "
+        " WHERE f.category_id = c.id AND a.status = 'unread') as unread_count "
+        "FROM categories c ORDER BY c.title"));
+    
+    if (query.exec()) {
+        while (query.next()) {
+            categories.append({
+                query.value("id").toLongLong(),
+                query.value("title").toString(),
+                query.value("unread_count").toInt()
+            });
+        }
+    }
+    return categories;
+}
+
 void DatabaseManager::saveArticles(const QList<Article>& articles)
 {
     m_db.transaction();
@@ -185,6 +234,38 @@ QList<Article> DatabaseManager::getArticlesForFeed(long feedId) const
         "WHERE a.feed_id = ? "
         "ORDER BY a.published_at DESC"));
     query.addBindValue(qlonglong(feedId));
+    if (query.exec()) {
+        while (query.next()) {
+            articles.append({
+                query.value(0).toLongLong(),
+                query.value(1).toLongLong(),
+                query.value(2).toString(),
+                query.value(3).toString(),
+                query.value(4).toString(),
+                query.value(5).toString(),
+                query.value(6).toString(),
+                query.value(7).toString(),
+                query.value(8).toBool(),
+                query.value(9).toString(),  // feed_title
+                query.value(10).toString()  // site_url
+            });
+        }
+    }
+    return articles;
+}
+
+QList<Article> DatabaseManager::getArticlesForCategory(long categoryId) const
+{
+    QList<Article> articles;
+    QSqlQuery query;
+    query.prepare(QStringLiteral(
+        "SELECT a.id, a.feed_id, a.title, a.author, a.content, a.url, a.published_at, a.status, a.starred, "
+        "f.title as feed_title, f.site_url "
+        "FROM articles a "
+        "JOIN feeds f ON a.feed_id = f.id "
+        "WHERE f.category_id = ? "
+        "ORDER BY a.published_at DESC"));
+    query.addBindValue(qlonglong(categoryId));
     if (query.exec()) {
         while (query.next()) {
             articles.append({

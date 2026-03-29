@@ -14,6 +14,12 @@ struct Feed {
     int unreadCount;
 };
 
+struct Category {
+    long id;
+    QString title;
+    int unreadCount;
+};
+
 struct Article {
     long id;
     long feedId;
@@ -40,9 +46,14 @@ public:
     void saveFeeds(const QList<Feed>& feeds);
     QList<Feed> getAllFeeds() const;
 
+    // Categories
+    void saveCategories(const QList<Category>& categories);
+    QList<Category> getAllCategories() const;
+
     // Articles
     void saveArticles(const QList<Article>& articles);
     QList<Article> getArticlesForFeed(long feedId) const;
+    QList<Article> getArticlesForCategory(long categoryId) const;
     QList<Article> getAllArticles() const;
     
     void markAsRead(long articleId, bool read);

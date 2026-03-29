@@ -29,6 +29,11 @@ SyncEngine::SyncEngine(QObject *parent)
              << "\n  Last Sync Time:" << m_lastSyncTime.toString()
              << "\n  Config File:" << Settings::self()->config()->name();
  
+    connect(m_client, &MinifluxClient::categoriesFetched, this, [this](const QList<Category>& categories) {
+        DatabaseManager::instance().saveCategories(categories);
+        m_client->fetchFeeds(m_apiUrl, m_apiKey);
+    });
+
     connect(m_client, &MinifluxClient::feedsFetched, this, [this](const QList<Feed>& feeds) {
         DatabaseManager::instance().saveFeeds(feeds);
         // After feeds, fetch articles using cached credentials
@@ -134,7 +139,7 @@ void SyncEngine::performSync()
     m_isSyncing = true;
     emit syncStatusChanged();
     emit syncStarted();
-    m_client->fetchFeeds(m_apiUrl, m_apiKey);
+    m_client->fetchCategories(m_apiUrl, m_apiKey);
 }
 
 void SyncEngine::fetchFullContent(long entryId)
