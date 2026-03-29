@@ -113,10 +113,149 @@ Kirigami.ApplicationWindow {
     // ── Main Content ───────────────────────────────────────────────
     pageStack.initialPage: Kirigami.Page {
         id: mainPage
-        title: "Kiriflux"
         padding: 0
 
-        // No page-level actions — everything is in the menu bar
+        actions: [
+            // Internal actions keep shortcuts working even if buttons are custom handled
+            Kirigami.Action { shortcut: "Ctrl+R"; onTriggered: syncEngine.forceSync() }
+        ]
+
+        title: "" // We will handle the title in our custom header
+
+        header: RowLayout {
+            spacing: 0
+            implicitHeight: Kirigami.Units.gridUnit * 2.5
+            
+            // Pane 1 Header
+            Item {
+                implicitWidth: feedPane.width
+                Layout.fillHeight: true
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: Kirigami.Units.largeSpacing
+                    anchors.rightMargin: Kirigami.Units.smallSpacing
+                    
+                    QQC2.Label {
+                        text: "Kiriflux"
+                        font.bold: true
+                        font.pixelSize: Kirigami.Units.gridUnit * 1.1
+                    }
+                    
+                    Item { Layout.fillWidth: true }
+
+                    QQC2.ToolButton {
+                        icon.name: "view-refresh"
+                        onClicked: syncEngine.forceSync()
+                        QQC2.ToolTip.text: syncEngine.lastSyncTimeText
+                        QQC2.ToolTip.visible: hovered
+                    }
+                }
+                Rectangle { width: 1; Layout.fillHeight: true; color: Kirigami.Theme.separatorColor; anchors.right: parent.right }
+            }
+
+            // Pane 2 Header
+            Item {
+                implicitWidth: articlePane.width
+                Layout.fillHeight: true
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: Kirigami.Units.smallSpacing
+                    anchors.rightMargin: Kirigami.Units.smallSpacing
+                    
+                    QQC2.ToolButton {
+                        icon.name: "mail-mark-read"
+                        onClicked: articleListModel.markAllAsRead()
+                        visible: articleListModel.rowCount() > 0
+                        QQC2.ToolTip.text: i18n("Mark All Read")
+                        QQC2.ToolTip.visible: hovered
+                    }
+
+                    Item { Layout.fillWidth: true }
+
+                    QQC2.ToolButton {
+                        property bool active: articleListModel.filterStatus === "unread" && !articleListModel.filterStarred
+                        icon.name: "mail-unread"
+                        onClicked: {
+                            articleListModel.filterStatus = "unread";
+                            articleListModel.filterStarred = false;
+                        }
+                        highlighted: active
+                        QQC2.ToolTip.text: i18n("Unread Only")
+                        QQC2.ToolTip.visible: hovered
+                    }
+                    QQC2.ToolButton {
+                        icon.name: "favorite"
+                        onClicked: articleListModel.filterStarred = true
+                        highlighted: articleListModel.filterStarred
+                        QQC2.ToolTip.text: i18n("Starred Only")
+                        QQC2.ToolTip.visible: hovered
+                    }
+                    QQC2.ToolButton {
+                        property bool active: articleListModel.filterStatus === "all" && !articleListModel.filterStarred
+                        icon.name: "view-list-details"
+                        onClicked: {
+                            articleListModel.filterStatus = "all";
+                            articleListModel.filterStarred = false;
+                        }
+                        highlighted: active
+                        QQC2.ToolTip.text: i18n("All Articles")
+                        QQC2.ToolTip.visible: hovered
+                    }
+                }
+                Rectangle { width: 1; Layout.fillHeight: true; color: Kirigami.Theme.separatorColor; anchors.right: parent.right }
+            }
+
+            // Pane 3 Header
+            Item {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                visible: articleListView.currentIndex >= 0
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: Kirigami.Units.smallSpacing
+                    anchors.rightMargin: Kirigami.Units.largeSpacing
+                    
+                    QQC2.ToolButton {
+                        icon.name: (articleListView.currentItem && articleListView.currentItem.isUnread) ? "mail-mark-read" : "mail-mark-unread"
+                        onClicked: articleListModel.markAsRead(articleListView.currentIndex, articleListView.currentItem.isUnread)
+                        QQC2.ToolTip.text: (articleListView.currentItem && articleListView.currentItem.isUnread) ? i18n("Mark Read") : i18n("Mark Unread")
+                        QQC2.ToolTip.visible: hovered
+                    }
+                    QQC2.ToolButton {
+                        icon.name: "favorite"
+                        onClicked: articleListModel.toggleStarred(articleListView.currentIndex)
+                        QQC2.ToolTip.text: i18n("Star")
+                        QQC2.ToolTip.visible: hovered
+                    }
+                    
+                    Item { Layout.fillWidth: true }
+
+                    QQC2.ToolButton {
+                        icon.name: "document-import"
+                        onClicked: syncEngine.fetchFullContent(articleListModel.data(articleListModel.index(articleListView.currentIndex, 0), ArticleListModel.IdRole))
+                        QQC2.ToolTip.text: i18n("Fetch Full Text")
+                        QQC2.ToolTip.visible: hovered
+                    }
+                    QQC2.ToolButton {
+                        icon.name: "internet-services"
+                        onClicked: Qt.openUrlExternally(articleListModel.data(articleListModel.index(articleListView.currentIndex, 0), ArticleListModel.UrlRole))
+                        QQC2.ToolTip.text: i18n("Open in Browser")
+                        QQC2.ToolTip.visible: hovered
+                    }
+                }
+            }
+
+            // Sync Progress at very bottom of header
+            QQC2.ProgressBar {
+                anchors.bottom: parent.bottom
+                anchors.left: parent.left
+                anchors.right: parent.right
+                height: 2
+                indeterminate: true
+                visible: syncEngine.isSyncing
+            }
+        }
+
         Kirigami.Theme.colorSet: Kirigami.Theme.View
 
         QQC2.SplitView {
@@ -125,6 +264,7 @@ Kirigami.ApplicationWindow {
 
             // ── Pane 1: Feeds List ────────────────────────────────
             QQC2.Pane {
+                id: feedPane
                 QQC2.SplitView.preferredWidth: 250
                 QQC2.SplitView.minimumWidth: 200
                 padding: 0
@@ -134,32 +274,6 @@ Kirigami.ApplicationWindow {
                 ColumnLayout {
                     anchors.fill: parent
                     spacing: 0
-
-                    // Left Pane Toolbar
-                    QQC2.ToolBar {
-                        Layout.fillWidth: true
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.leftMargin: Kirigami.Units.smallSpacing
-                            anchors.rightMargin: Kirigami.Units.smallSpacing
-                            
-                            QQC2.Label {
-                                text: syncEngine.lastSyncTimeText
-                                font.pixelSize: 10
-                                opacity: 0.6
-                                Layout.fillWidth: true
-                            }
-
-                            QQC2.ToolButton {
-                                icon.name: "view-refresh"
-                                text: i18n("Refresh")
-                                display: syncEngine.showToolbarLabels ? QQC2.AbstractButton.TextBesideIcon : QQC2.AbstractButton.IconOnly
-                                onClicked: syncEngine.forceSync()
-                                QQC2.ToolTip.text: text
-                                QQC2.ToolTip.visible: hovered
-                            }
-                        }
-                    }
 
                     QQC2.ScrollView {
                         Layout.fillWidth: true
@@ -307,6 +421,7 @@ Kirigami.ApplicationWindow {
 
             // ── Pane 2: Article List ───────────────────────────────
             QQC2.Pane {
+                id: articlePane
                 QQC2.SplitView.preferredWidth: 350
                 QQC2.SplitView.minimumWidth: 250
                 padding: 0
@@ -315,88 +430,6 @@ Kirigami.ApplicationWindow {
                     anchors.fill: parent
                     spacing: 0
 
-                    // Center Pane Toolbar
-                    QQC2.ToolBar {
-                        Layout.fillWidth: true
-                        RowLayout {
-                            anchors.fill: parent
-                            spacing: 0
-
-                            Item { Layout.fillWidth: true } // Left Spacer
-
-                            QQC2.ToolButton {
-                                icon.name: "mail-mark-read"
-                                text: i18n("Mark All Read")
-                                display: syncEngine.showToolbarLabels ? QQC2.AbstractButton.TextBesideIcon : QQC2.AbstractButton.IconOnly
-                                onClicked: articleListModel.markAllAsRead()
-                                QQC2.ToolTip.text: text
-                            }
-
-                            QQC2.ToolSeparator {}
-
-                            QQC2.ToolButton {
-                                checkable: true
-                                checked: articleListModel.filterStatus === "unread" && !articleListModel.filterStarred
-                                icon.name: "mail-unread"
-                                text: i18n("Unread")
-                                display: syncEngine.showToolbarLabels ? QQC2.AbstractButton.TextBesideIcon : QQC2.AbstractButton.IconOnly
-                                onClicked: {
-                                    articleListModel.filterStatus = "unread";
-                                    articleListModel.filterStarred = false;
-                                }
-                                QQC2.ToolTip.text: text
-                            }
-
-                            QQC2.ToolButton {
-                                checkable: true
-                                checked: articleListModel.filterStarred
-                                icon.name: "favorite"
-                                text: i18n("Starred")
-                                display: syncEngine.showToolbarLabels ? QQC2.AbstractButton.TextBesideIcon : QQC2.AbstractButton.IconOnly
-                                onClicked: articleListModel.filterStarred = true
-                                QQC2.ToolTip.text: text
-                            }
-
-                            QQC2.ToolButton {
-                                checkable: true
-                                checked: articleListModel.filterStatus === "all" && !articleListModel.filterStarred
-                                icon.name: "view-list-details"
-                                text: i18n("All")
-                                display: syncEngine.showToolbarLabels ? QQC2.AbstractButton.TextBesideIcon : QQC2.AbstractButton.IconOnly
-                                onClicked: {
-                                    articleListModel.filterStatus = "all";
-                                    articleListModel.filterStarred = false;
-                                }
-                                QQC2.ToolTip.text: text
-                            }
-
-                            Item { Layout.fillWidth: true } // Right Spacer
-                        }
-                    }
-
-                    // Sync Status Indicator
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: Kirigami.Units.gridUnit * 1.5
-                        color: Kirigami.Theme.highlightColor
-                        opacity: 0.1
-                        visible: syncEngine.isSyncing
-                        
-                        RowLayout {
-                            anchors.centerIn: parent
-                            spacing: Kirigami.Units.smallSpacing
-                            QQC2.BusyIndicator {
-                                implicitWidth: Kirigami.Units.gridUnit
-                                implicitHeight: Kirigami.Units.gridUnit
-                                running: syncEngine.isSyncing
-                            }
-                            QQC2.Label {
-                                text: i18n("Syncing...")
-                                font.italic: true
-                                font.pixelSize: Kirigami.Units.gridUnit * 0.8
-                            }
-                        }
-                    }
 
                     QQC2.TextField {
                         id: searchField
@@ -472,6 +505,7 @@ Kirigami.ApplicationWindow {
 
             // ── Pane 3: Article Content ────────────────────────────
             QQC2.Pane {
+                id: contentPane
                 QQC2.SplitView.fillWidth: true
                 QQC2.SplitView.minimumWidth: 400
                 padding: 0
@@ -479,52 +513,6 @@ Kirigami.ApplicationWindow {
                 ColumnLayout {
                     anchors.fill: parent
                     spacing: 0
-
-                    // Right Pane Toolbar (unchanged ...)
-                    QQC2.ToolBar {
-                        Layout.fillWidth: true
-                        visible: articleListView.currentIndex >= 0
-                        RowLayout {
-                             anchors.fill: parent
-                             spacing: 0
-                             Item { Layout.fillWidth: true } // Left Spacer
-                             QQC2.ToolButton {
-                                 icon.name: articleListView.currentItem && articleListView.currentItem.isUnread ? "mail-mark-read" : "mail-mark-unread"
-                                 text: articleListView.currentItem && articleListView.currentItem.isUnread ? i18n("Mark Read") : i18n("Mark Unread")
-                                 display: syncEngine.showToolbarLabels ? QQC2.AbstractButton.TextBesideIcon : QQC2.AbstractButton.IconOnly
-                                 onClicked: articleListModel.markAsRead(articleListView.currentIndex, articleListView.currentItem.isUnread)
-                                 QQC2.ToolTip.text: text
-                             }
-                             QQC2.ToolButton {
-                                 icon.name: "favorite"
-                                 text: i18n("Star")
-                                 display: syncEngine.showToolbarLabels ? QQC2.AbstractButton.TextBesideIcon : QQC2.AbstractButton.IconOnly
-                                 onClicked: articleListModel.toggleStarred(articleListView.currentIndex)
-                                 QQC2.ToolTip.text: text
-                             }
-                             QQC2.ToolButton {
-                                 icon.name: "document-export"
-                                 text: i18n("Save to Service")
-                                 display: syncEngine.showToolbarLabels ? QQC2.AbstractButton.TextBesideIcon : QQC2.AbstractButton.IconOnly
-                                 onClicked: syncEngine.saveToService(articleListModel.data(articleListModel.index(articleListView.currentIndex, 0), ArticleListModel.IdRole))
-                                 QQC2.ToolTip.text: text
-                             }
-                             QQC2.ToolButton {
-                                 icon.name: "document-import"
-                                 text: i18n("Fetch Text")
-                                 display: syncEngine.showToolbarLabels ? QQC2.AbstractButton.TextBesideIcon : QQC2.AbstractButton.IconOnly
-                                 onClicked: syncEngine.fetchFullContent(articleListModel.data(articleListModel.index(articleListView.currentIndex, 0), ArticleListModel.IdRole))
-                                 QQC2.ToolTip.text: text
-                             }
-                             QQC2.ToolButton {
-                                 icon.name: "internet-services"
-                                 text: i18n("Open Browser")
-                                 display: syncEngine.showToolbarLabels ? QQC2.AbstractButton.TextBesideIcon : QQC2.AbstractButton.IconOnly
-                                 onClicked: Qt.openUrlExternally(articleListModel.data(articleListModel.index(articleListView.currentIndex, 0), ArticleListModel.UrlRole))
-                                 QQC2.ToolTip.text: text
-                             }
-                        }
-                    }
 
                     Kirigami.Page {
                         Layout.fillWidth: true
