@@ -176,6 +176,7 @@ Kirigami.Page {
                 delegate: QQC2.ItemDelegate {
                     id: delegate
                     width: articleListView.width
+                    padding: Kirigami.Units.largeSpacing
                     highlighted: ListView.isCurrentItem
                     
                     onClicked: root.openArticle(index)
@@ -183,7 +184,7 @@ Kirigami.Page {
                     contentItem: ColumnLayout {
                         spacing: 4
                         RowLayout {
-                            width: parent.width
+                            Layout.fillWidth: true
                             spacing: 8
                             Rectangle {
                                 width: 8; height: 8; radius: 4

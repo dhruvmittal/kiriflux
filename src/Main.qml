@@ -61,13 +61,8 @@ Kirigami.ApplicationWindow {
     wideScreen: layoutMode !== 1
 
     // Configuration for Kirigami PageRow (columnView)
-    // Ensure columns have a sensible default width and don't collapse to 0
+    // We let Kirigami handle column widths automatically for smoother transitions
     property var columnViewSettings: pageStack.columnView
-    onColumnViewSettingsChanged: {
-        if (pageStack.columnView) {
-            pageStack.columnView.columnWidth = Kirigami.Units.gridUnit * 25;
-        }
-    }
 
     // ── Layout Menu ────────────────────────────────────────────────
     Platform.MenuBar {
