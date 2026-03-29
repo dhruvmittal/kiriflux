@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty(QStringLiteral("syncEngine"), &SyncEngine::instance());
 
     // 8. Load from explicit QRC path
-    const QUrl url(QStringLiteral("qrc:/Main.qml"));
+    const QUrl url(QStringLiteral("qrc:/ui/Main.qml"));
     qDebug() << "Loading QML from:" << url;
     
     engine.load(url);

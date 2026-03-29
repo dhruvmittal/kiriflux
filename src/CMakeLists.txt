@@ -16,7 +16,7 @@ qt_add_executable(kiriflux
 
 # Manual resource embedding for guaranteed QRC paths
 qt_add_resources(kiriflux "qml"
-    PREFIX "/"
+    PREFIX "/ui/"
     FILES
         Main.qml
         SettingsPage.qml
