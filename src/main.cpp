@@ -57,17 +57,23 @@ int main(int argc, char *argv[])
     if (!DatabaseManager::instance().init()) {
         qWarning() << "Failed to initialize database.";
     }
-    SyncEngine::instance().startIntervalSync();
 
-    // 6. Manual QML Registration
-    qmlRegisterType<FeedListModel>("org.kde.kiriflux", 1, 0, "FeedListModel");
-    qmlRegisterType<ArticleListModel>("org.kde.kiriflux", 1, 0, "ArticleListModel");
-    qmlRegisterType<CategoryListModel>("org.kde.kiriflux", 1, 0, "CategoryListModel");
+    // 6. Instantiate Persistent Models
+    FeedListModel *feedListModel = new FeedListModel(&app);
+    ArticleListModel *articleListModel = new ArticleListModel(&app);
+    CategoryListModel *categoryListModel = new CategoryListModel(&app);
+
+    SyncEngine::instance().startIntervalSync();
 
     // 7. QML Engine Setup
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextObject(new KLocalizedContext(&engine));
+    
+    // Expose objects as global context properties
     engine.rootContext()->setContextProperty(QStringLiteral("syncEngine"), &SyncEngine::instance());
+    engine.rootContext()->setContextProperty(QStringLiteral("feedListModel"), feedListModel);
+    engine.rootContext()->setContextProperty(QStringLiteral("articleListModel"), articleListModel);
+    engine.rootContext()->setContextProperty(QStringLiteral("categoryListModel"), categoryListModel);
 
     // 8. Load from explicit QRC path
     const QUrl url(QStringLiteral("qrc:/ui/Main.qml"));

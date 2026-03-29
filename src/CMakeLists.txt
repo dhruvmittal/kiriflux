@@ -20,6 +20,9 @@ qt_add_resources(kiriflux "qml"
     FILES
         Main.qml
         SettingsPage.qml
+        ui/FeedsDrawer.qml
+        ui/ArticleListPage.qml
+        ui/ArticleViewPage.qml
 )
 
 target_include_directories(kiriflux PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/core)

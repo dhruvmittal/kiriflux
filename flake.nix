@@ -52,6 +52,7 @@
         # Explicitly wrap the app with required QML paths and KDE theme
         postInstall = ''
           wrapProgram $out/bin/kiriflux \
+            --set QML_DISABLE_DISK_CACHE "1" \
             --prefix QML2_IMPORT_PATH : "${pkgs.kdePackages.kirigami}/lib/qt-6/qml" \
             --prefix QML2_IMPORT_PATH : "${pkgs.kdePackages.qqc2-desktop-style}/lib/qt-6/qml" \
             --prefix QML2_IMPORT_PATH : "${pkgs.kdePackages.kitemmodels}/lib/qt-6/qml" \

@@ -3,10 +3,10 @@ import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
-import org.kde.kiriflux 1.0
-import QtWebEngine
 
 import Qt.labs.platform as Platform
+
+import "ui"
 
 Kirigami.ApplicationWindow {
     id: root
@@ -17,17 +17,9 @@ Kirigami.ApplicationWindow {
     minimumWidth: 900
     minimumHeight: 600
 
-    // ── Models ─────────────────────────────────────────────────────
-    FeedListModel {
-        id: feedListModel
-    }
-
-    CategoryListModel {
-        id: categoryListModel
-    }
-
-    ArticleListModel {
-        id: articleListModel
+    // ── Preferences Dialog ─────────────────────────────────────────
+    SettingsPage {
+        id: settingsDialog
     }
 
     Connections {
@@ -42,27 +34,38 @@ Kirigami.ApplicationWindow {
         }
     }
 
-    // ── Preferences Dialog ─────────────────────────────────────────
-    SettingsPage {
-        id: settingsDialog
+    Component.onCompleted: {
+        articleListModel.refresh();
+        feedListModel.refresh();
+        categoryListModel.refresh();
     }
 
-    // ── Menu Bar (KDE Global Menu compatible) ─────────────────────
+    // ── Layout Control Properties ──────────────────────────────────
+    // 3 columns: Drawer pinned (modal=false) + pageStack wide
+    // 2 columns: Drawer collapsed (modal=true) + pageStack wide
+    // 1 column: Drawer collapsed (modal=true) + pageStack narrow
+    property int layoutMode: 3 // Default to 3-column
+
+    pageStack.globalToolBar.style: Kirigami.ApplicationHeaderStyle.ToolBar
+    pageStack.globalToolBar.showNavigationButtons: Kirigami.ApplicationHeaderStyle.ShowBackButton
+
+    // Force pageStack column mode based on layout selection
+    // In Kirigami, wideScreen true allows side-by-side pages.
+    wideScreen: layoutMode !== 1
+
+    // ── Layout Menu ────────────────────────────────────────────────
     Platform.MenuBar {
         id: globalMenuBar
 
         Platform.Menu {
             title: i18n("&File")
-
             Platform.MenuItem {
                 text: i18n("&Sync Now")
                 icon.name: "view-refresh"
                 shortcut: "Ctrl+R"
                 onTriggered: syncEngine.forceSync()
             }
-
             Platform.MenuSeparator {}
-
             Platform.MenuItem {
                 text: i18n("&Quit")
                 icon.name: "application-exit"
@@ -73,7 +76,6 @@ Kirigami.ApplicationWindow {
 
         Platform.Menu {
             title: i18n("&Edit")
-
             Platform.MenuItem {
                 text: i18n("&Preferences…")
                 icon.name: "settings-configure"
@@ -86,6 +88,27 @@ Kirigami.ApplicationWindow {
             title: i18n("&View")
 
             Platform.MenuItem {
+                text: i18n("3-Column Layout (Pinned Drawer)")
+                checkable: true
+                checked: root.layoutMode === 3
+                onTriggered: root.layoutMode = 3
+            }
+            Platform.MenuItem {
+                text: i18n("2-Column Layout (Collapsible Drawer)")
+                checkable: true
+                checked: root.layoutMode === 2
+                onTriggered: root.layoutMode = 2
+            }
+            Platform.MenuItem {
+                text: i18n("1-Column Layout (Mobile Style)")
+                checkable: true
+                checked: root.layoutMode === 1
+                onTriggered: root.layoutMode = 1
+            }
+
+            Platform.MenuSeparator {}
+
+            Platform.MenuItem {
                 text: i18n("&All Articles")
                 icon.name: "view-list-details"
                 onTriggered: {
@@ -96,477 +119,31 @@ Kirigami.ApplicationWindow {
         }
     }
 
-    // ── Global Keyboard Shortcuts ──────────────────────────────────
-    Shortcut { sequence: "J"; onActivated: articleListView.incrementCurrentIndex() }
-    Shortcut { sequence: "K"; onActivated: articleListView.decrementCurrentIndex() }
-    Shortcut {
-        sequence: "M"
-        onActivated: {
-            if (articleListView.currentIndex >= 0) {
-                let isUnread = articleListView.currentItem.isUnread;
-                articleListModel.markAsRead(articleListView.currentIndex, isUnread);
-            }
-        }
+    // ── Global Drawer (Left Pane: Feeds) ───────────────────────────
+    globalDrawer: FeedsDrawer {
+        // Inherit dynamic layout mode
+        modal: root.layoutMode !== 3 || Kirigami.Settings.isMobile
     }
-    Shortcut { sequence: "R"; onActivated: syncEngine.forceSync() }
 
-    // ── Main Content ───────────────────────────────────────────────
-    pageStack.initialPage: Kirigami.Page {
-        id: mainPage
-        title: "Kiriflux"
-        padding: 0
+    // ── Global Keyboard Shortcuts ──────────────────────────────────
+    // Assuming article listView is inside the active page now, we handle shortcuts contextually
+    Shortcut {
+        sequence: "R"
+        onActivated: syncEngine.forceSync()
+    }
 
-        actions: [
-            Kirigami.Action {
-                text: i18n("Sync")
-                icon.name: "view-refresh"
-                onTriggered: syncEngine.forceSync()
-                tooltip: syncEngine.lastSyncTimeText
-            },
-            Kirigami.Action {
-                text: i18n("Mark All Read")
-                icon.name: "mail-mark-read"
-                onTriggered: articleListModel.markAllAsRead()
-                visible: articleListModel.rowCount() > 0
-            },
-            Kirigami.Action {
-                id: filterAction
-                text: i18n("Filter")
-                icon.name: articleListModel.filterStarred ? "favorite" : (articleListModel.filterStatus === "unread" ? "mail-unread" : "view-list-details")
-                Kirigami.Action {
-                    text: i18n("All")
-                    icon.name: "view-list-details"
-                    checkable: true
-                    checked: articleListModel.filterStatus === "all" && !articleListModel.filterStarred
-                    onTriggered: {
-                        articleListModel.filterStatus = "all";
-                        articleListModel.filterStarred = false;
-                    }
-                }
-                Kirigami.Action {
-                    text: i18n("Unread")
-                    icon.name: "mail-unread"
-                    checkable: true
-                    checked: articleListModel.filterStatus === "unread" && !articleListModel.filterStarred
-                    onTriggered: {
-                        articleListModel.filterStatus = "unread";
-                        articleListModel.filterStarred = false;
-                    }
-                }
-                Kirigami.Action {
-                    text: i18n("Starred")
-                    icon.name: "favorite"
-                    checkable: true
-                    checked: articleListModel.filterStarred
-                    onTriggered: articleListModel.filterStarred = true
-                }
-            },
-            // Article Context Actions
-            Kirigami.Action {
-                separator: true
-                visible: articleListView.currentIndex >= 0
-            },
-            Kirigami.Action {
-                text: (articleListView.currentItem && articleListView.currentItem.isUnread) ? i18n("Mark Read") : i18n("Mark Unread")
-                icon.name: (articleListView.currentItem && articleListView.currentItem.isUnread) ? "mail-mark-read" : "mail-mark-unread"
-                onTriggered: articleListModel.markAsRead(articleListView.currentIndex, articleListView.currentItem.isUnread)
-                visible: articleListView.currentIndex >= 0
-            },
-            Kirigami.Action {
-                text: i18n("Star")
-                icon.name: "favorite"
-                onTriggered: articleListModel.toggleStarred(articleListView.currentIndex)
-                visible: articleListView.currentIndex >= 0
-            },
-            Kirigami.Action {
-                text: i18n("Full Content")
-                icon.name: "document-import"
-                onTriggered: syncEngine.fetchFullContent(articleListModel.data(articleListModel.index(articleListView.currentIndex, 0), ArticleListModel.IdRole))
-                visible: articleListView.currentIndex >= 0
-            },
-            Kirigami.Action {
-                text: i18n("Open Browser")
-                icon.name: "internet-services"
-                onTriggered: Qt.openUrlExternally(articleListModel.data(articleListModel.index(articleListView.currentIndex, 0), ArticleListModel.UrlRole))
-                visible: articleListView.currentIndex >= 0
-            }
-        ]
+    // ── Pre-instantiated Pages ─────────────────────────────────────
+    ArticleListPage {
+        id: articleListPage
+    }
 
-        header: QQC2.ProgressBar {
-            indeterminate: true
-            visible: syncEngine.isSyncing
-            Layout.fillWidth: true
-        }
+    // ── Main Content (Middle Pane: Article List) ───────────────────
+    pageStack.initialPage: articleListPage
 
-        Kirigami.Theme.colorSet: Kirigami.Theme.View
-
-        QQC2.SplitView {
-            anchors.fill: parent
-            orientation: Qt.Horizontal
-
-            // ── Pane 1: Feeds List ────────────────────────────────
-            QQC2.Pane {
-                id: feedPane
-                QQC2.SplitView.preferredWidth: 250
-                QQC2.SplitView.minimumWidth: 200
-                padding: 0
-                
-                Kirigami.Theme.colorSet: Kirigami.Theme.Window
-
-                ColumnLayout {
-                    anchors.fill: parent
-                    spacing: 0
-
-                    QQC2.ScrollView {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        contentWidth: -1
-                        clip: true
-
-                        ColumnLayout {
-                            width: parent.width
-                            spacing: 0
-
-                            // 1. All Articles
-                            QQC2.ItemDelegate {
-                                Layout.fillWidth: true
-                                highlighted: articleListModel.currentFeedId === -1 && articleListModel.currentCategoryId === -1
-                                text: i18n("All Articles")
-                                icon.name: "view-list-details"
-                                onClicked: {
-                                    articleListModel.currentFeedId = -1;
-                                    articleListModel.currentCategoryId = -1;
-                                }
-                            }
-
-                            Kirigami.Separator { Layout.fillWidth: true; Layout.margins: Kirigami.Units.smallSpacing }
-
-                            // 2. Categories Section
-                            QQC2.Label {
-                                text: i18n("Categories")
-                                font.bold: true
-                                opacity: 0.6
-                                font.pixelSize: Kirigami.Units.gridUnit * 0.7
-                                Layout.margins: Kirigami.Units.smallSpacing
-                            }
-
-                            Repeater {
-                                model: categoryListModel
-                                delegate: ColumnLayout {
-                                    id: categoryItem
-                                    Layout.fillWidth: true
-                                    spacing: 0
-                                    property bool expanded: false
-                                    property var catId: model.id
-
-                                    QQC2.ItemDelegate {
-                                        Layout.fillWidth: true
-                                        highlighted: articleListModel.currentCategoryId === categoryItem.catId
-                                        onClicked: {
-                                            articleListModel.currentCategoryId = categoryItem.catId;
-                                        }
-
-                                        contentItem: RowLayout {
-                                            Kirigami.Icon {
-                                                source: categoryItem.expanded ? "arrow-down" : "arrow-right"
-                                                implicitWidth: 12; implicitHeight: 12
-                                                MouseArea {
-                                                    anchors.fill: parent
-                                                    onClicked: {
-                                                        categoryItem.expanded = !categoryItem.expanded
-                                                        mouse.accepted = true
-                                                    }
-                                                }
-                                            }
-                                            QQC2.Label {
-                                                text: model.title
-                                                Layout.fillWidth: true
-                                                elide: Text.ElideRight
-                                            }
-                                            QQC2.Label {
-                                                text: model.unreadCount
-                                                visible: model.unreadCount > 0
-                                                font.pixelSize: 10
-                                                opacity: 0.7
-                                            }
-                                        }
-                                    }
-
-                                    // Feeds in this category
-                                    Repeater {
-                                        model: feedListModel
-                                        delegate: QQC2.ItemDelegate {
-                                            Layout.fillWidth: true
-                                            visible: categoryItem.expanded && model.categoryId === categoryItem.catId
-                                            height: visible ? implicitHeight : 0
-                                            Layout.leftMargin: Kirigami.Units.largeSpacing
-                                            highlighted: articleListModel.currentFeedId === model.id
-                                            text: model.title
-                                            onClicked: articleListModel.currentFeedId = model.id
-                                        }
-                                    }
-                                }
-                            }
-
-                            Kirigami.Separator { Layout.fillWidth: true; Layout.margins: Kirigami.Units.smallSpacing }
-
-                            // 3. Feeds Section (Flat list)
-                            QQC2.Label {
-                                text: i18n("Feeds")
-                                font.bold: true
-                                opacity: 0.6
-                                font.pixelSize: Kirigami.Units.gridUnit * 0.7
-                                Layout.margins: Kirigami.Units.smallSpacing
-                            }
-
-                            Repeater {
-                                model: feedListModel
-                                delegate: QQC2.ItemDelegate {
-                                    Layout.fillWidth: true
-                                    highlighted: articleListModel.currentFeedId === model.id
-                                    onClicked: articleListModel.currentFeedId = model.id
-                                    
-                                    contentItem: RowLayout {
-                                        Kirigami.Icon {
-                                            source: model.siteUrl ? "https://www.google.com/s2/favicons?domain=" + model.siteUrl : "rss"
-                                            implicitWidth: 16
-                                            implicitHeight: 16
-                                        }
-                                        QQC2.Label {
-                                            text: model.title
-                                            Layout.fillWidth: true
-                                            elide: Text.ElideRight
-                                            font.bold: model.unreadCount > 0
-                                        }
-                                        Rectangle {
-                                            visible: model.unreadCount > 0
-                                            implicitWidth: Math.max(20, cLabel.implicitWidth + 8)
-                                            implicitHeight: 16
-                                            radius: 8
-                                            color: Kirigami.Theme.highlightColor
-                                            QQC2.Label {
-                                                id: cLabel
-                                                anchors.centerIn: parent
-                                                text: model.unreadCount
-                                                font.pixelSize: 10
-                                                font.bold: true
-                                                color: "white"
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // ── Pane 2: Article List ───────────────────────────────
-            QQC2.Pane {
-                id: articlePane
-                QQC2.SplitView.preferredWidth: 350
-                QQC2.SplitView.minimumWidth: 250
-                padding: 0
-
-                ColumnLayout {
-                    anchors.fill: parent
-                    spacing: 0
-
-
-                    QQC2.TextField {
-                        id: searchField
-                        Layout.fillWidth: true
-                        Layout.margins: 8
-                        placeholderText: i18n("Search articles…")
-                    }
-
-                    ListView {
-                        id: articleListView
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        clip: true
-                        model: articleListModel
-                        currentIndex: 0
-                        highlightFollowsCurrentItem: true
-
-                        delegate: QQC2.ItemDelegate {
-                            width: articleListView.width
-                            highlighted: ListView.isCurrentItem
-                            
-                            // Expose data to detail pane and shortcuts
-                            property string articleTitle: model.title
-                            property string articleContent: model.content
-                            property bool isUnread: model.status === "unread"
-                            property string feedTitle: model.feedTitle
-                            property string feedSiteUrl: model.feedSiteUrl
-                            property string author: model.author
-                            property string publishedAt: model.publishedAt
-
-                            onClicked: articleListView.currentIndex = index
-
-                            contentItem: ColumnLayout {
-                                spacing: 4
-                                RowLayout {
-                                    spacing: 8
-                                    Rectangle {
-                                        width: 8; height: 8; radius: 4
-                                        color: Kirigami.Theme.highlightColor
-                                        visible: model.status === "unread"
-                                        Layout.alignment: Qt.AlignVCenter
-                                    }
-                                    
-                                    Kirigami.Icon {
-                                        source: model.feedSiteUrl ? "https://www.google.com/s2/favicons?domain=" + model.feedSiteUrl : "rss"
-                                        implicitWidth: 16
-                                        implicitHeight: 16
-                                        Layout.alignment: Qt.AlignVCenter
-                                    }
-
-                                    QQC2.Label {
-                                        text: model.title
-                                        font.bold: model.status === "unread"
-                                        elide: Text.ElideRight
-                                        Layout.fillWidth: true
-                                        Layout.alignment: Qt.AlignVCenter
-                                    }
-                                }
-                                QQC2.Label {
-                                    text: (model.author ? model.author + " • " : "") + 
-                                          (model.publishedAt ? new Date(model.publishedAt).toLocaleTimeString(Qt.locale(), "hh:mm") : "")
-                                    font.pixelSize: 11
-                                    opacity: 0.6
-                                    elide: Text.ElideRight
-                                    Layout.fillWidth: true
-                                    Layout.leftMargin: 24 // Align with title
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // ── Pane 3: Article Content ────────────────────────────
-            QQC2.Pane {
-                id: contentPane
-                QQC2.SplitView.fillWidth: true
-                QQC2.SplitView.minimumWidth: 400
-                padding: 0
-
-                ColumnLayout {
-                    anchors.fill: parent
-                    spacing: 0
-
-                    Kirigami.Page {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        
-                        ColumnLayout {
-                            anchors.fill: parent
-                            spacing: 0
-
-                            Shortcut {
-                                sequence: "Space"
-                                onActivated: articleWebView.runJavaScript("window.scrollBy(0, window.innerHeight);")
-                            }
-
-                            // Subtitle Area (stays native)
-                            Kirigami.AbstractCard {
-                                Layout.fillWidth: true
-                                visible: articleListView.currentItem !== null
-                                contentItem: ColumnLayout {
-                                    QQC2.Label {
-                                        text: articleListView.currentItem ? articleListView.currentItem.articleTitle : ""
-                                        font.pixelSize: 24
-                                        font.bold: true
-                                        wrapMode: Text.WordWrap
-                                        Layout.fillWidth: true
-                                    }
-                                    RowLayout {
-                                        spacing: 8
-                                        Kirigami.Icon {
-                                            source: articleListView.currentItem ? "https://www.google.com/s2/favicons?domain=" + articleListView.currentItem.feedSiteUrl : ""
-                                            implicitWidth: 16
-                                            implicitHeight: 16
-                                        }
-                                        QQC2.Label {
-                                            text: articleListView.currentItem ? 
-                                                  (articleListView.currentItem.feedTitle + " • " + 
-                                                   (articleListView.currentItem.author ? articleListView.currentItem.author + " • " : "") + 
-                                                   new Date(articleListView.currentItem.publishedAt).toLocaleString(Qt.locale())) : ""
-                                            font.pixelSize: 11
-                                            opacity: 0.7
-                                            elide: Text.ElideRight
-                                            Layout.fillWidth: true
-                                        }
-                                    }
-                                }
-                            }
-
-                            WebEngineView {
-                                id: articleWebView
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                backgroundColor: Kirigami.Theme.backgroundColor
-                                
-                                settings.pluginsEnabled: false
-                                settings.javascriptEnabled: true
-                                
-                                // Reset scroll on article change
-                                onLoadingChanged: (loadingInfo) => {
-                                    if (loadingInfo.status === WebEngineView.LoadSucceededStatus) {
-                                        runJavaScript("window.scrollTo(0, 0);")
-                                    }
-                                }
-
-                                function updateContent() {
-                                    if (articleListView.currentItem) {
-                                        let html = `
-                                            <html>
-                                            <head>
-                                                <style>
-                                                    body {
-                                                        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-                                                        padding: 20px;
-                                                        line-height: 1.6;
-                                                        font-size: 16px;
-                                                        color: ${Kirigami.Theme.textColor};
-                                                        background-color: ${Kirigami.Theme.backgroundColor};
-                                                    }
-                                                    img {
-                                                        max-width: 100% !important;
-                                                        height: auto !important;
-                                                        border-radius: 4px;
-                                                    }
-                                                    pre {
-                                                        background-color: #f4f4f4;
-                                                        padding: 10px;
-                                                        overflow-x: auto;
-                                                    }
-                                                    a { color: ${Kirigami.Theme.highlightColor}; }
-                                                </style>
-                                            </head>
-                                            <body>
-                                                ${articleListView.currentItem.articleContent}
-                                            </body>
-                                            </html>
-                                        `;
-                                        loadHtml(html);
-                                    } else {
-                                        loadHtml("<html><body style='display:flex; justify-content:center; align-items:center; height:90vh; color:#888; font-family:sans-serif;'>Select an article to read</body></html>");
-                                    }
-                                }
-
-                                Connections {
-                                    target: articleListView
-                                    function onCurrentIndexChanged() { articleWebView.updateContent(); }
-                                }
-                                
-                                Component.onCompleted: updateContent()
-                            }
-                        }
-                    }
-                }
-            }
-        }
+    // Progress Bar for global sync
+    header: QQC2.ProgressBar {
+        indeterminate: true
+        visible: syncEngine.isSyncing
+        Layout.fillWidth: true
     }
 }
