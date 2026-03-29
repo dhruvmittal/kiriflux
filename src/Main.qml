@@ -53,6 +53,10 @@ Kirigami.ApplicationWindow {
     // In Kirigami, wideScreen true allows side-by-side pages.
     wideScreen: layoutMode !== 1
 
+    // Enable resizing between columns on desktop
+    // Some Kirigami versions use 'interactive' on the pageStack
+    // pageStack.interactive: layoutMode !== 1
+
     // ── Layout Menu ────────────────────────────────────────────────
     Platform.MenuBar {
         id: globalMenuBar

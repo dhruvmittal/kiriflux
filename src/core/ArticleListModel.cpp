@@ -148,3 +148,16 @@ QHash<int, QByteArray> ArticleListModel::roleNames() const
     roles[FeedSiteUrlRole] = "feedSiteUrl";
     return roles;
 }
+QVariantMap ArticleListModel::get(int row) const
+{
+    if (row < 0 || row >= m_articles.count()) return {};
+
+    QVariantMap res;
+    QHash<int, QByteArray> roles = roleNames();
+    QHashIterator<int, QByteArray> i(roles);
+    while (i.hasNext()) {
+        i.next();
+        res[QString::fromUtf8(i.value())] = data(index(row, 0), i.key());
+    }
+    return res;
+}

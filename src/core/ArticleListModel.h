@@ -53,6 +53,7 @@ public slots:
     void markAsRead(int index, bool read);
     void markAllAsRead();
     void toggleStarred(int index);
+    Q_INVOKABLE QVariantMap get(int row) const;
 
 signals:
     void currentFeedIdChanged();

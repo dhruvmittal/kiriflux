@@ -73,6 +73,9 @@ bool DatabaseManager::init()
         qWarning() << "Failed to create articles table:" << query.lastError().text();
     }
 
+    // Add index for faster sorting by time
+    query.exec(QStringLiteral("CREATE INDEX IF NOT EXISTS idx_articles_published_at ON articles(published_at DESC)"));
+
     // Seed with welcome article if empty
     query.exec(QStringLiteral("SELECT count(*) FROM articles"));
     if (query.next() && query.value(0).toInt() == 0) {
@@ -84,6 +87,7 @@ bool DatabaseManager::init()
         welcome.content = QStringLiteral("<h1>Welcome!</h1><p>Kiriflux is a desktop-first RSS reader for KDE Plasma 6.</p><p>Go to settings to configure your Miniflux API details and start syncing!</p><p><b>Shortcuts:</b><br/><b>J/K</b>: Navigation<br/><b>M</b>: Mark Read<br/><b>R</b>: Sync</p>");
         welcome.status = QStringLiteral("unread");
         welcome.starred = false;
+        welcome.publishedAt = QDateTime::currentDateTime().toString(Qt::ISODate);
         saveArticles({welcome});
     }
 
@@ -203,7 +207,7 @@ QList<Article> DatabaseManager::getAllArticles() const
         "f.title as feed_title, f.site_url "
         "FROM articles a "
         "LEFT JOIN feeds f ON a.feed_id = f.id "
-        "ORDER BY a.published_at DESC"));
+        "ORDER BY a.published_at DESC, a.id DESC"));
     while (query.next()) {
         articles.append({
             query.value(0).toLongLong(),
@@ -232,7 +236,7 @@ QList<Article> DatabaseManager::getArticlesForFeed(long feedId) const
         "FROM articles a "
         "LEFT JOIN feeds f ON a.feed_id = f.id "
         "WHERE a.feed_id = ? "
-        "ORDER BY a.published_at DESC"));
+        "ORDER BY a.published_at DESC, a.id DESC"));
     query.addBindValue(qlonglong(feedId));
     if (query.exec()) {
         while (query.next()) {
@@ -264,7 +268,7 @@ QList<Article> DatabaseManager::getArticlesForCategory(long categoryId) const
         "FROM articles a "
         "JOIN feeds f ON a.feed_id = f.id "
         "WHERE f.category_id = ? "
-        "ORDER BY a.published_at DESC"));
+        "ORDER BY a.published_at DESC, a.id DESC"));
     query.addBindValue(qlonglong(categoryId));
     if (query.exec()) {
         while (query.next()) {

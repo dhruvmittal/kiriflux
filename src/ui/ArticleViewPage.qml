@@ -7,6 +7,7 @@ import QtWebEngine
 
 Kirigami.Page {
     id: root
+    objectName: "articleViewPage"
     
     // Properties passed when pushing the page
     property int articleIndex: -1
@@ -20,7 +21,16 @@ Kirigami.Page {
     property string articleUrl: ""
     property var articleId: null
 
-    title: articleTitle
+    // Properties for robust color-to-CSS conversion
+    readonly property string themedTextColor: Kirigami.Theme.textColor
+    readonly property string themedBgColor: Kirigami.Theme.backgroundColor
+    readonly property string themedAlternateBgColor: Kirigami.Theme.alternateBackgroundColor
+    readonly property string themedHighlightColor: Kirigami.Theme.highlightColor
+    readonly property string themedFocusColor: Kirigami.Theme.focusColor
+
+    onArticleContentChanged: articleWebView.updateContent()
+    onArticleTitleChanged: articleWebView.updateContent()
+    // Removed focus-return and color-change triggers to prevent unnecessary refreshes
 
     actions: [
         Kirigami.Action {
@@ -62,97 +72,149 @@ Kirigami.Page {
         }
     ]
 
-    ColumnLayout {
+    WebEngineView {
+        id: articleWebView
         anchors.fill: parent
-        spacing: 0
+        backgroundColor: root.themedBgColor
+        
+        settings.pluginsEnabled: false
+        settings.javascriptEnabled: true
+        
+        onLoadingChanged: (loadingInfo) => {
+            if (loadingInfo.status === WebEngineView.LoadSucceededStatus) {
+                runJavaScript("window.scrollTo(0, 0);")
+            }
+        }
+
+        function updateContent() {
+            if (root.articleContent || root.articleTitle) {
+                let dateStr = root.publishedAt ? new Date(root.publishedAt).toLocaleString(Qt.locale()) : "";
+                let metadata = (root.feedTitle ? root.feedTitle : "") + 
+                               (root.feedTitle && root.author ? " • " : "") + 
+                               (root.author ? root.author : "") + 
+                               ((root.feedTitle || root.author) && dateStr ? " • " : "") + 
+                               dateStr;
+
+                let html = `
+                    <html>
+                    <head>
+                        <style>
+                            :root {
+                                color-scheme: ${Kirigami.Theme.colorSet === Kirigami.Theme.Dark ? 'dark' : 'light'};
+                            }
+                            body {
+                                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                                padding: 40px;
+                                line-height: 1.6;
+                                font-size: 16px;
+                                color: ${root.themedTextColor} !important;
+                                background-color: ${root.themedBgColor} !important;
+                                margin: 0 auto;
+                                max-width: 800px;
+                            }
+                            .header {
+                                margin-bottom: 40px;
+                                border-bottom: 1px solid ${root.themedAlternateBgColor};
+                                padding-bottom: 20px;
+                            }
+                            .title {
+                                font-size: 2.5em;
+                                font-weight: 800;
+                                line-height: 1.2;
+                                margin-bottom: 15px;
+                                color: ${root.themedTextColor};
+                            }
+                            .meta {
+                                font-size: 0.9em;
+                                opacity: 0.7;
+                                color: ${root.themedTextColor};
+                            }
+                            img {
+                                max-width: 100% !important;
+                                height: auto !important;
+                                border-radius: 8px;
+                                margin: 20px 0;
+                            }
+                            pre {
+                                background-color: ${root.themedAlternateBgColor} !important;
+                                padding: 15px;
+                                border-radius: 8px;
+                                overflow-x: auto;
+                                color: ${root.themedTextColor} !important;
+                                font-family: 'Fira Code', 'Cascadia Code', monospace;
+                                font-size: 14px;
+                            }
+                            code {
+                                font-family: monospace;
+                                background-color: ${root.themedAlternateBgColor};
+                                padding: 2px 4px;
+                                border-radius: 4px;
+                            }
+                            a { 
+                                color: ${root.themedTextColor} !important; 
+                                font-weight: bold !important; 
+                                text-decoration: none !important;
+                                border-bottom: 1px solid ${root.themedHighlightColor};
+                            }
+                            a:hover { 
+                                background-color: ${root.themedHighlightColor};
+                                color: ${root.themedBgColor} !important;
+                            }
+                            blockquote {
+                                border-left: 5px solid ${root.themedFocusColor};
+                                margin: 20px 0;
+                                padding: 10px 20px;
+                                background-color: ${root.themedAlternateBgColor};
+                                font-style: italic;
+                                border-radius: 0 8px 8px 0;
+                            }
+                            /* Native-like Scrollbars */
+                            ::-webkit-scrollbar {
+                                width: 10px;
+                                height: 10px;
+                            }
+                            ::-webkit-scrollbar-track {
+                                background: transparent;
+                            }
+                            ::-webkit-scrollbar-thumb {
+                                background: ${root.themedTextColor};
+                                opacity: 0.2;
+                                border-radius: 5px;
+                                border: 3px solid transparent;
+                                background-clip: content-box;
+                            }
+                            ::-webkit-scrollbar-thumb:hover {
+                                background: ${root.themedHighlightColor};
+                                background-clip: content-box;
+                            }
+                            /* Content text colors */
+                            p, div, span, h1, h2, h3, h4, h5, h6, li {
+                                color: ${root.themedTextColor} !important;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="header">
+                            <div class="title">${root.articleTitle}</div>
+                            <div class="meta">${metadata}</div>
+                        </div>
+                        <div class="content">
+                            ${root.articleContent}
+                        </div>
+                    </body>
+                    </html>
+                `;
+                loadHtml(html);
+            } else {
+                loadHtml("<html><body style='display:flex; justify-content:center; align-items:center; height:90vh; color:#888; font-family:sans-serif; background-color:" + root.themedBgColor + ";'>Select an article to read.</body></html>");
+            }
+        }
+        
+        Component.onCompleted: updateContent()
 
         Shortcut {
             sequence: "Space"
             onActivated: articleWebView.runJavaScript("window.scrollBy(0, window.innerHeight);")
-        }
-
-        // Subtitle Area (stays native)
-        Kirigami.AbstractCard {
-            Layout.fillWidth: true
-            
-            contentItem: ColumnLayout {
-                RowLayout {
-                    spacing: 8
-                    Kirigami.Icon {
-                        source: root.feedSiteUrl ? "https://www.google.com/s2/favicons?domain=" + root.feedSiteUrl : ""
-                        implicitWidth: Kirigami.Units.iconSizes.small
-                        implicitHeight: Kirigami.Units.iconSizes.small
-                        visible: root.feedSiteUrl !== ""
-                    }
-                    QQC2.Label {
-                        text: (root.feedTitle ? root.feedTitle : "") + 
-                              (root.feedTitle && root.author ? " • " : "") + 
-                              (root.author ? root.author : "") + 
-                              ((root.feedTitle || root.author) && root.publishedAt ? " • " : "") + 
-                              (root.publishedAt ? new Date(root.publishedAt).toLocaleString(Qt.locale()) : "")
-                        font.pixelSize: 11
-                        opacity: 0.7
-                        elide: Text.ElideRight
-                        Layout.fillWidth: true
-                    }
-                }
-            }
-        }
-
-        WebEngineView {
-            id: articleWebView
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            backgroundColor: Kirigami.Theme.backgroundColor
-            
-            settings.pluginsEnabled: false
-            settings.javascriptEnabled: true
-            
-            onLoadingChanged: (loadingInfo) => {
-                if (loadingInfo.status === WebEngineView.LoadSucceededStatus) {
-                    runJavaScript("window.scrollTo(0, 0);")
-                }
-            }
-
-            function updateContent() {
-                if (root.articleContent) {
-                    let html = `
-                        <html>
-                        <head>
-                            <style>
-                                body {
-                                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-                                    padding: 20px;
-                                    line-height: 1.6;
-                                    font-size: 16px;
-                                    color: ${Kirigami.Theme.textColor};
-                                    background-color: ${Kirigami.Theme.backgroundColor};
-                                }
-                                img {
-                                    max-width: 100% !important;
-                                    height: auto !important;
-                                    border-radius: 4px;
-                                }
-                                pre {
-                                    background-color: #f4f4f4;
-                                    padding: 10px;
-                                    overflow-x: auto;
-                                }
-                                a { color: ${Kirigami.Theme.highlightColor}; }
-                            </style>
-                        </head>
-                        <body>
-                            ${root.articleContent}
-                        </body>
-                        </html>
-                    `;
-                    loadHtml(html);
-                } else {
-                    loadHtml("<html><body style='display:flex; justify-content:center; align-items:center; height:90vh; color:#888; font-family:sans-serif;'>No content available.</body></html>");
-                }
-            }
-            
-            Component.onCompleted: updateContent()
         }
     }
 }

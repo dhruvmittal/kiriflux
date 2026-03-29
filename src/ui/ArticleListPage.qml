@@ -7,6 +7,12 @@ import org.kde.kirigami as Kirigami
 Kirigami.Page {
     id: root
     
+    padding: 0
+    leftPadding: 0
+    rightPadding: 0
+    topPadding: 0
+    bottomPadding: 0
+    
     // Dynamically set title based on the selected feed/category
     title: {
         if (articleListModel.currentFeedId !== -1) {
@@ -58,82 +64,126 @@ Kirigami.Page {
         }
     ]
 
+    // Function to select and open an article (reused by click and shortcuts)
+    function openArticle(index) {
+        if (index < 0 || index >= articleListModel.rowCount()) return;
+        
+        articleListView.currentIndex = index
+        let model = articleListModel.get(index);
+        let props = {
+            articleIndex: index,
+            articleTitle: model.title,
+            articleContent: model.content,
+            feedSiteUrl: model.feedSiteUrl,
+            feedTitle: model.feedTitle,
+            author: model.author,
+            publishedAt: model.publishedAt,
+            isUnread: model.status === "unread",
+            articleUrl: model.url,
+            articleId: model.id
+        };
+
+        // Check if an ArticleViewPage is already on the stack (manual lookup for Kirigami PageRow)
+        let page = null;
+        for (let i = 0; i < applicationWindow().pageStack.depth; ++i) {
+            let item = applicationWindow().pageStack.get(i);
+            if (item && item.objectName === "articleViewPage") {
+                page = item;
+                break;
+            }
+        }
+
+        if (page) {
+            // Update existing page properties
+            for (let p in props) {
+                page[p] = props[p];
+            }
+        } else {
+            // Push new page
+            applicationWindow().pageStack.push(Qt.resolvedUrl("ArticleViewPage.qml"), props);
+        }
+    }
+
+    Shortcut {
+        sequence: "J"
+        onActivated: {
+            let nextIndex = articleListView.currentIndex + 1;
+            if (nextIndex < articleListModel.rowCount()) {
+                root.openArticle(nextIndex);
+            }
+        }
+    }
+    Shortcut {
+        sequence: "K"
+        onActivated: {
+            let prevIndex = articleListView.currentIndex - 1;
+            if (prevIndex >= 0) {
+                root.openArticle(prevIndex);
+            }
+        }
+    }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
 
-        QQC2.TextField {
-            id: searchField
-            Layout.fillWidth: true
-            Layout.margins: Kirigami.Units.smallSpacing
-            placeholderText: i18n("Search articles…")
-        }
-
-        ListView {
-            id: articleListView
+        QQC2.ScrollView {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
-            model: articleListModel
-            currentIndex: -1
-            highlightFollowsCurrentItem: true
+            QQC2.ScrollBar.horizontal.policy: QQC2.ScrollBar.AlwaysOff
 
-            delegate: QQC2.ItemDelegate {
-                id: delegate
-                width: articleListView.width
-                highlighted: ListView.isCurrentItem
-                
-                onClicked: {
-                    articleListView.currentIndex = index
-                    // Push the Article View Page onto the stack
-                    applicationWindow().pageStack.push(Qt.resolvedUrl("ArticleViewPage.qml"), {
-                        articleIndex: index,
-                        articleTitle: model.title,
-                        articleContent: model.content,
-                        feedSiteUrl: model.feedSiteUrl,
-                        feedTitle: model.feedTitle,
-                        author: model.author,
-                        publishedAt: model.publishedAt,
-                        isUnread: model.status === "unread",
-                        articleUrl: model.url,
-                        articleId: model.id
-                    });
-                }
+            ListView {
+                id: articleListView
+                width: parent.width
+                model: articleListModel
+                currentIndex: -1
+                highlightFollowsCurrentItem: true
+                boundsBehavior: Flickable.StopAtBounds
 
-                contentItem: ColumnLayout {
-                    spacing: 4
-                    RowLayout {
-                        spacing: 8
-                        Rectangle {
-                            width: 8; height: 8; radius: 4
-                            color: Kirigami.Theme.highlightColor
-                            visible: model.status === "unread"
-                            Layout.alignment: Qt.AlignVCenter
+                delegate: QQC2.ItemDelegate {
+                    id: delegate
+                    width: articleListView.width
+                    highlighted: ListView.isCurrentItem
+                    
+                    onClicked: root.openArticle(index)
+
+                    contentItem: ColumnLayout {
+                        spacing: 4
+                        RowLayout {
+                            width: parent.width
+                            spacing: 8
+                            Rectangle {
+                                width: 8; height: 8; radius: 4
+                                color: Kirigami.Theme.highlightColor
+                                visible: model.status === "unread"
+                                Layout.alignment: Qt.AlignVCenter
+                            }
+                            
+                            Kirigami.Icon {
+                                source: model.feedSiteUrl ? "https://www.google.com/s2/favicons?domain=" + model.feedSiteUrl : "rss"
+                                implicitWidth: Kirigami.Units.iconSizes.small
+                                implicitHeight: Kirigami.Units.iconSizes.small
+                                Layout.alignment: Qt.AlignVCenter
+                            }
+
+                            QQC2.Label {
+                                text: model.title
+                                font.bold: model.status === "unread"
+                                elide: Text.ElideRight
+                                Layout.fillWidth: true
+                                Layout.alignment: Qt.AlignVCenter
+                            }
                         }
-                        
-                        Kirigami.Icon {
-                            source: model.feedSiteUrl ? "https://www.google.com/s2/favicons?domain=" + model.feedSiteUrl : "rss"
-                            implicitWidth: Kirigami.Units.iconSizes.small
-                            implicitHeight: Kirigami.Units.iconSizes.small
-                            Layout.alignment: Qt.AlignVCenter
-                        }
-
                         QQC2.Label {
-                            text: model.title
-                            font.bold: model.status === "unread"
+                            text: (model.author ? model.author + " • " : "") + 
+                                  (model.publishedAt ? new Date(model.publishedAt).toLocaleString(Qt.locale(), "MMM d, hh:mm") : "")
+                            font.pixelSize: 11
+                            opacity: 0.6
                             elide: Text.ElideRight
                             Layout.fillWidth: true
-                            Layout.alignment: Qt.AlignVCenter
+                            Layout.leftMargin: 24 // Align with title
                         }
-                    }
-                    QQC2.Label {
-                        text: (model.author ? model.author + " • " : "") + 
-                              (model.publishedAt ? new Date(model.publishedAt).toLocaleTimeString(Qt.locale(), "hh:mm") : "")
-                        font.pixelSize: 11
-                        opacity: 0.6
-                        elide: Text.ElideRight
-                        Layout.fillWidth: true
-                        Layout.leftMargin: 24 // Align with title
                     }
                 }
             }
