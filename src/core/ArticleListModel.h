@@ -53,10 +53,14 @@ public:
 
 public slots:
     void refresh();
+    void onArticleContentUpdated(long id);
     void markAsRead(int index, bool read);
+    void markAsReadById(long id, bool read);
     void markAllAsRead();
     void toggleStarred(int index);
+    void toggleStarredById(long id);
     Q_INVOKABLE QVariantMap get(int row) const;
+    Q_INVOKABLE QVariantMap getById(long id) const;
 
 signals:
     void currentFeedIdChanged();

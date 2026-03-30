@@ -65,6 +65,7 @@ signals:
     void syncFinished(bool success);
     void syncStatusChanged();
     void articlesUpdated();
+    void articleContentUpdated(long articleId);
     void lastSyncTimeChanged();
     void showToolbarLabelsChanged();
     void titleLinesChanged();

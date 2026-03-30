@@ -9,6 +9,10 @@ ArticleListModel::ArticleListModel(QObject *parent)
 {
     m_filterStatus = Settings::self()->filterStatus();
     m_filterStarred = Settings::self()->filterStarred();
+    
+    connect(&SyncEngine::instance(), &SyncEngine::articlesUpdated, this, &ArticleListModel::refresh);
+    connect(&SyncEngine::instance(), &SyncEngine::articleContentUpdated, this, &ArticleListModel::onArticleContentUpdated);
+
     refresh();
 }
 
@@ -37,17 +41,25 @@ void ArticleListModel::setCurrentCategoryId(long id)
 void ArticleListModel::markAsRead(int index, bool read)
 {
     if (index < 0 || index >= m_articles.count()) return;
-    
-    long id = m_articles.at(index).id;
+    markAsReadById(m_articles.at(index).id, read);
+}
+
+void ArticleListModel::markAsReadById(long id, bool read)
+{
     DatabaseManager::instance().markAsRead(id, read);
     
     QString statusString = read ? QStringLiteral("read") : QStringLiteral("unread");
     SyncEngine::instance().updateArticleStatus(id, statusString);
     
-    // Update local data and notify view
-    m_articles[index].status = statusString;
-    QModelIndex qidx = this->index(index, 0);
-    emit dataChanged(qidx, qidx, {StatusRole});
+    // Find and update local list for immediate UI feedback
+    for (int i = 0; i < m_articles.count(); ++i) {
+        if (m_articles.at(i).id == id) {
+            m_articles[i].status = statusString;
+            QModelIndex qidx = this->index(i, 0);
+            emit dataChanged(qidx, qidx, {StatusRole});
+            break;
+        }
+    }
 }
 
 void ArticleListModel::setFilterStatus(const QString &status)
@@ -92,16 +104,66 @@ void ArticleListModel::markAllAsRead()
 void ArticleListModel::toggleStarred(int index)
 {
     if (index < 0 || index >= m_articles.count()) return;
+    toggleStarredById(m_articles.at(index).id);
+}
+
+void ArticleListModel::toggleStarredById(long id)
+{
+    // Find current state
+    bool currentStarred = false;
+    bool foundInModel = false;
+    int modelIndex = -1;
     
-    Article article = m_articles.at(index);
-    article.starred = !article.starred;
-    DatabaseManager::instance().toggleStar(article.id, article.starred);
+    for (int i = 0; i < m_articles.count(); ++i) {
+        if (m_articles.at(i).id == id) {
+            currentStarred = m_articles.at(i).starred;
+            modelIndex = i;
+            foundInModel = true;
+            break;
+        }
+    }
     
-    SyncEngine::instance().toggleArticleBookmark(article.id);
+    if (!foundInModel) {
+        // Must check DB if not in current view
+        auto all = DatabaseManager::instance().getAllArticles();
+        for (const auto& a : all) {
+            if (a.id == id) {
+                currentStarred = a.starred;
+                break;
+            }
+        }
+    }
     
-    m_articles[index] = article;
-    QModelIndex qidx = this->index(index, 0);
-    emit dataChanged(qidx, qidx, {StarredRole});
+    bool nextStarred = !currentStarred;
+    DatabaseManager::instance().toggleStar(id, nextStarred);
+    SyncEngine::instance().toggleArticleBookmark(id);
+    
+    if (foundInModel) {
+        m_articles[modelIndex].starred = nextStarred;
+        QModelIndex qidx = index(modelIndex, 0);
+        emit dataChanged(qidx, qidx, {StarredRole});
+    }
+}
+
+void ArticleListModel::onArticleContentUpdated(long id)
+{
+    // Find the item in our list and update its content from DB
+    for (int i = 0; i < m_articles.count(); ++i) {
+        if (m_articles.at(i).id == id) {
+            // Re-fetch this article from DB to get NEW content
+            auto all = DatabaseManager::instance().getAllArticles();
+            for (const auto& a : all) {
+                if (a.id == id) {
+                    m_articles[i] = a;
+                    QModelIndex qidx = index(i, 0);
+                    // Emit dataChanged for all relevant roles (content, etc.)
+                    emit dataChanged(qidx, qidx); 
+                    return;
+                }
+            }
+            break;
+        }
+    }
 }
 
 void ArticleListModel::refresh()
@@ -186,4 +248,34 @@ QVariantMap ArticleListModel::get(int row) const
         res[QString::fromUtf8(i.value())] = data(index(row, 0), i.key());
     }
     return res;
+}
+QVariantMap ArticleListModel::getById(long id) const
+{
+    // Search cached list first
+    for (int i = 0; i < m_articles.count(); ++i) {
+        if (m_articles.at(i).id == id) {
+            return get(i);
+        }
+    }
+    
+    // Fallback to database
+    auto all = DatabaseManager::instance().getAllArticles();
+    for (const auto& a : all) {
+        if (a.id == id) {
+            QVariantMap res;
+            res["id"] = qlonglong(a.id);
+            res["feedId"] = qlonglong(a.feedId);
+            res["title"] = a.title;
+            res["author"] = a.author;
+            res["content"] = a.content;
+            res["url"] = a.url;
+            res["publishedAt"] = a.publishedAt;
+            res["status"] = a.status;
+            res["starred"] = a.starred;
+            res["feedTitle"] = a.feedTitle;
+            res["feedSiteUrl"] = a.feedSiteUrl;
+            return res;
+        }
+    }
+    return {};
 }

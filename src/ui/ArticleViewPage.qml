@@ -50,8 +50,9 @@ Kirigami.Page {
             text: root.isUnread ? i18n("Mark Read") : i18n("Mark Unread")
             icon.name: root.isUnread ? "mail-mark-read" : "mail-mark-unread"
             onTriggered: {
-                if (root.articleIndex >= 0) {
-                    articleListModel.markAsRead(root.articleIndex, root.isUnread)
+                if (root.articleId !== null) {
+                    articleListModel.markAsReadById(root.articleId, root.isUnread)
+                    // Local state update for immediate UI feedback
                     root.isUnread = !root.isUnread
                 }
             }
@@ -61,8 +62,8 @@ Kirigami.Page {
             text: i18n("Star")
             icon.name: "favorite"
             onTriggered: {
-                if (root.articleIndex >= 0) {
-                    articleListModel.toggleStarred(root.articleIndex)
+                if (root.articleId !== null) {
+                    articleListModel.toggleStarredById(root.articleId)
                 }
             }
             displayHint: syncEngine.showToolbarLabels ? 0 : 1

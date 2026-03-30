@@ -125,6 +125,26 @@ Kirigami.Page {
         }
     }
 
+    Connections {
+        target: articleListModel
+        function onModelReset() { root.updateOpenArticle(); }
+        function onDataChanged() { root.updateOpenArticle(); }
+    }
+
+    function updateOpenArticle() {
+        for (let i = 0; i < applicationWindow().pageStack.depth; ++i) {
+            let item = applicationWindow().pageStack.get(i);
+            if (item && item.objectName === "articleViewPage" && item.articleId !== null) {
+                let modelData = articleListModel.getById(item.articleId);
+                if (modelData) {
+                    item.articleContent = modelData.content;
+                    item.isUnread = (modelData.status === "unread");
+                }
+                break;
+            }
+        }
+    }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 0

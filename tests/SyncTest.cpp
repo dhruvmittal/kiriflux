@@ -12,6 +12,7 @@ private slots:
     void initTestCase();
     void testRealConnection();
     void testEndToEndSync();
+    void testFetchFullContent();
 
 private:
 };
@@ -51,9 +52,37 @@ void SyncTest::testEndToEndSync()
     auto feeds = DatabaseManager::instance().getAllFeeds();
     QVERIFY(feeds.count() > 0);
     
-    // Verify articles
     auto articles = DatabaseManager::instance().getAllArticles();
     QVERIFY(articles.count() > 0);
+}
+
+void SyncTest::testFetchFullContent()
+{
+    if (Secrets::API_KEY.isEmpty()) {
+        QSKIP("No secrets provided, skipping full content test.");
+    }
+
+    auto articles = DatabaseManager::instance().getAllArticles();
+    QVERIFY(!articles.isEmpty());
+    long testId = articles.first().id;
+
+    QSignalSpy spyUpdated(&SyncEngine::instance(), &SyncEngine::articleContentUpdated);
+    SyncEngine::instance().fetchFullContent(testId);
+
+    // Wait for the update (Miniflux can be slow to reach upstream)
+    QVERIFY(spyUpdated.wait(10000));
+
+    auto updatedArticles = DatabaseManager::instance().getAllArticles();
+    QString newContent;
+    for (const auto& a : updatedArticles) {
+        if (a.id == testId) {
+            newContent = a.content;
+            break;
+        }
+    }
+
+    qDebug() << "Fetched content for ID" << testId << "length:" << newContent.length();
+    QVERIFY(!newContent.isEmpty());
 }
 
 QTEST_GUILESS_MAIN(SyncTest)

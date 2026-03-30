@@ -59,13 +59,13 @@ SyncEngine::SyncEngine(QObject *parent)
     connect(m_client, &MinifluxClient::articleUpdated, this, [this](const Article& article) {
         qDebug() << "Received article update for ID:" << article.id << "Title:" << article.title;
         DatabaseManager::instance().saveArticles({article});
-        emit articlesUpdated();
+        emit articleContentUpdated(article.id);
     });
 
     connect(m_client, &MinifluxClient::contentFetched, this, [this](long entryId, const QString& content) {
         qDebug() << "Received fetched content for entry ID:" << entryId << "Content length:" << content.length();
         DatabaseManager::instance().updateArticleContent(entryId, content);
-        emit articlesUpdated();
+        emit articleContentUpdated(entryId);
     });
 
     connect(m_client, &MinifluxClient::articleStatusUpdated, this, [this](long entryId, const QString& status) {
