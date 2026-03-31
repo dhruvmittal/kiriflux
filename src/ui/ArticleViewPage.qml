@@ -288,5 +288,23 @@ Kirigami.Page {
             sequence: "Space"
             onActivated: articleWebView.runJavaScript("window.scrollBy(0, window.innerHeight);")
         }
+
+        Shortcut {
+            sequence: "s"
+            onActivated: {
+                if (root.articleId !== null) {
+                    articleListModel.toggleStarredById(root.articleId)
+                }
+            }
+        }
+
+        Shortcut {
+            sequence: "d"
+            onActivated: {
+                if (root.articleId !== null) {
+                    syncEngine.fetchFullContent(root.articleId)
+                }
+            }
+        }
     }
 }
