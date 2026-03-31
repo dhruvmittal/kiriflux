@@ -18,9 +18,11 @@
 #include "core/SyncEngine.h"
 #include "core/FeedListModel.h"
 #include "core/ArticleListModel.h"
+#include "core/CategoryListModel.h"
 
 int main(int argc, char *argv[])
 {
+    qputenv("QTWEBENGINE_CHROMIUM_FLAGS", "--disable-gpu-compositing");
     QtWebEngineQuick::initialize();
     qDebug() << "Kiriflux starting...";
 
@@ -56,19 +58,26 @@ int main(int argc, char *argv[])
     if (!DatabaseManager::instance().init()) {
         qWarning() << "Failed to initialize database.";
     }
-    SyncEngine::instance().startIntervalSync();
 
-    // 6. Manual QML Registration
-    qmlRegisterType<FeedListModel>("org.kde.kiriflux", 1, 0, "FeedListModel");
-    qmlRegisterType<ArticleListModel>("org.kde.kiriflux", 1, 0, "ArticleListModel");
+    // 6. Instantiate Persistent Models
+    FeedListModel *feedListModel = new FeedListModel(&app);
+    ArticleListModel *articleListModel = new ArticleListModel(&app);
+    CategoryListModel *categoryListModel = new CategoryListModel(&app);
+
+    SyncEngine::instance().startIntervalSync();
 
     // 7. QML Engine Setup
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextObject(new KLocalizedContext(&engine));
+    
+    // Expose objects as global context properties
     engine.rootContext()->setContextProperty(QStringLiteral("syncEngine"), &SyncEngine::instance());
+    engine.rootContext()->setContextProperty(QStringLiteral("feedListModel"), feedListModel);
+    engine.rootContext()->setContextProperty(QStringLiteral("articleListModel"), articleListModel);
+    engine.rootContext()->setContextProperty(QStringLiteral("categoryListModel"), categoryListModel);
 
     // 8. Load from explicit QRC path
-    const QUrl url(QStringLiteral("qrc:/Main.qml"));
+    const QUrl url(QStringLiteral("qrc:/ui/Main.qml"));
     qDebug() << "Loading QML from:" << url;
     
     engine.load(url);

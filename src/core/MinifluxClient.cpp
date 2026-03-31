@@ -49,6 +49,40 @@ void MinifluxClient::fetchFeeds(const QString& url, const QString& apiKey)
     });
 }
 
+void MinifluxClient::fetchCategories(const QString& url, const QString& apiKey)
+{
+    QString sanitizedUrl = url.trimmed();
+    if (sanitizedUrl.endsWith(QLatin1Char('/'))) {
+        sanitizedUrl.chop(1);
+    }
+    
+    QUrl qurl(sanitizedUrl + QStringLiteral("/v1/categories"));
+    QNetworkRequest request(qurl);
+    request.setRawHeader("X-Auth-Token", apiKey.trimmed().toUtf8());
+
+    QNetworkReply *reply = m_nam->get(request);
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit errorOccurred(reply->errorString());
+            return;
+        }
+
+        const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+        const QJsonArray array = doc.array();
+        QList<Category> categories;
+        for (const auto& value : array) {
+            const QJsonObject obj = value.toObject();
+            categories.append({
+                obj["id"].toVariant().toLongLong(),
+                obj["title"].toString(),
+                0 // unreadCount
+            });
+        }
+        emit categoriesFetched(categories);
+    });
+}
+
 void MinifluxClient::fetchArticles(const QString& url, const QString& apiKey)
 {
     QString sanitizedUrl = url.trimmed();
@@ -60,9 +94,13 @@ void MinifluxClient::fetchArticles(const QString& url, const QString& apiKey)
     // Miniflux doesn't have a simple "all recent" if we want to be efficient,
     // so we combine two requests or just fetch unread and starred.
     QStringList endpoints = {
-        QStringLiteral("/v1/entries?status=unread"),
-        QStringLiteral("/v1/entries?starred=1")
+        QStringLiteral("/v1/entries?status=unread&order=published_at&direction=desc&limit=500"),
+        QStringLiteral("/v1/entries?starred=1&order=published_at&direction=desc&limit=100")
     };
+
+    QSharedPointer<int> pendingRequests(new int(endpoints.size()));
+    QSharedPointer<QList<Article>> allArticles(new QList<Article>());
+    QSharedPointer<bool> hasError(new bool(false));
 
     for (const auto& endpoint : endpoints) {
         QUrl qurl(sanitizedUrl + endpoint);
@@ -70,32 +108,43 @@ void MinifluxClient::fetchArticles(const QString& url, const QString& apiKey)
         request.setRawHeader("X-Auth-Token", apiKey.trimmed().toUtf8());
 
         QNetworkReply *reply = m_nam->get(request);
-        connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        connect(reply, &QNetworkReply::finished, this, [this, reply, pendingRequests, allArticles, hasError, endpoint]() {
             reply->deleteLater();
+            (*pendingRequests)--;
+            
             if (reply->error() != QNetworkReply::NoError) {
-                emit errorOccurred(reply->errorString());
-                return;
+                if (!*hasError) {
+                    *hasError = true;
+                    QString errorMsg = reply->errorString() + " Body: " + reply->readAll();
+                    qWarning() << "Miniflux API Error:" << errorMsg;
+                    emit errorOccurred(errorMsg);
+                }
+            } else {
+                QByteArray body = reply->readAll();
+                const QJsonDocument doc = QJsonDocument::fromJson(body);
+                const QJsonObject root = doc.object();
+                const QJsonArray array = root["entries"].toArray();
+                qDebug() << "Miniflux API returned" << array.size() << "articles for endpoint:" << endpoint;
+                for (const auto& value : array) {
+                    const QJsonObject obj = value.toObject();
+                    Article a;
+                    a.id = obj["id"].toVariant().toLongLong();
+                    a.feedId = obj["feed_id"].toVariant().toLongLong();
+                    a.title = obj["title"].toString();
+                    a.author = obj["author"].toString();
+                    a.content = obj["content"].toString();
+                    a.url = obj["url"].toString();
+                    a.publishedAt = obj["published_at"].toString();
+                    a.status = obj["status"].toString();
+                    a.starred = obj["starred"].toBool();
+                    allArticles->append(a);
+                }
             }
-
-            const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
-            const QJsonObject root = doc.object();
-            const QJsonArray array = root["entries"].toArray();
-            QList<Article> articles;
-            for (const auto& value : array) {
-                const QJsonObject obj = value.toObject();
-                articles.append({
-                    obj["id"].toVariant().toLongLong(),
-                    obj["feed_id"].toVariant().toLongLong(),
-                    obj["title"].toString(),
-                    obj["author"].toString(),
-                    obj["content"].toString(),
-                    obj["url"].toString(),
-                    obj["published_at"].toString(),
-                    obj["status"].toString(),
-                    obj["starred"].toBool()
-                });
+            
+            if (*pendingRequests == 0 && !*hasError) {
+                qDebug() << "All requests finished. Emitting articlesFetched with" << allArticles->size() << "articles total.";
+                emit articlesFetched(*allArticles);
             }
-            emit articlesFetched(articles);
         });
     }
 }
@@ -135,25 +184,55 @@ void MinifluxClient::fetchArticleContent(const QString& url, const QString& apiK
     });
 }
 
-void MinifluxClient::saveArticleToService(const QString& url, const QString& apiKey, long entryId)
+void MinifluxClient::updateArticleStatus(const QString& url, const QString& apiKey, long entryId, const QString& status)
 {
     QString sanitizedUrl = url.trimmed();
     if (sanitizedUrl.endsWith(QLatin1Char('/'))) {
         sanitizedUrl.chop(1);
     }
 
-    QUrl qurl(sanitizedUrl + QStringLiteral("/v1/entries/%1/save").arg(entryId));
+    QUrl qurl(sanitizedUrl + QStringLiteral("/v1/entries"));
     QNetworkRequest request(qurl);
     request.setRawHeader("X-Auth-Token", apiKey.trimmed().toUtf8());
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+    QJsonObject json;
+    QJsonArray entryIds;
+    entryIds.append(qlonglong(entryId));
+    json["entry_ids"] = entryIds;
+    json["status"] = status;
+
+    QNetworkReply *reply = m_nam->put(request, QJsonDocument(json).toJson());
+    connect(reply, &QNetworkReply::finished, this, [this, reply, entryId, status]() {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit errorOccurred(reply->errorString());
+            return;
+        }
+        emit articleStatusUpdated(entryId, status);
+    });
+}
+
+void MinifluxClient::toggleArticleBookmark(const QString& url, const QString& apiKey, long entryId)
+{
+    QString sanitizedUrl = url.trimmed();
+    if (sanitizedUrl.endsWith(QLatin1Char('/'))) {
+        sanitizedUrl.chop(1);
+    }
+
+    QUrl qurl(sanitizedUrl + QStringLiteral("/v1/entries/%1/bookmark").arg(entryId));
+    QNetworkRequest request(qurl);
+    request.setRawHeader("X-Auth-Token", apiKey.trimmed().toUtf8());
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     
-    QNetworkReply *reply = m_nam->post(request, QByteArray());
+    QNetworkReply *reply = m_nam->put(request, QByteArray("{}"));
     connect(reply, &QNetworkReply::finished, this, [this, reply, entryId]() {
         reply->deleteLater();
         if (reply->error() != QNetworkReply::NoError) {
             emit errorOccurred(reply->errorString());
             return;
         }
-        emit articleSavedToService(entryId);
+        emit articleBookmarkToggled(entryId);
     });
 }
 

@@ -8,6 +8,7 @@ set(kiriflux_core_SRCS
     SyncEngine.cpp
     FeedListModel.cpp
     ArticleListModel.cpp
+    CategoryListModel.cpp
 )
 
 # KConfigXT setup 

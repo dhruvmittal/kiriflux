@@ -10,8 +10,10 @@ class ArticleListModel : public QAbstractListModel
     Q_OBJECT
     QML_ELEMENT
     Q_PROPERTY(long currentFeedId READ currentFeedId WRITE setCurrentFeedId NOTIFY currentFeedIdChanged)
+    Q_PROPERTY(long currentCategoryId READ currentCategoryId WRITE setCurrentCategoryId NOTIFY currentCategoryIdChanged)
     Q_PROPERTY(QString filterStatus READ filterStatus WRITE setFilterStatus NOTIFY filterChanged)
     Q_PROPERTY(bool filterStarred READ filterStarred WRITE setFilterStarred NOTIFY filterChanged)
+    Q_PROPERTY(QString currentName READ currentName NOTIFY currentNameChanged)
 
 public:
     enum Roles {
@@ -38,25 +40,38 @@ public:
     long currentFeedId() const { return m_currentFeedId; }
     void setCurrentFeedId(long id);
 
+    long currentCategoryId() const { return m_currentCategoryId; }
+    void setCurrentCategoryId(long id);
+
     QString filterStatus() const { return m_filterStatus; }
     void setFilterStatus(const QString &status);
 
     bool filterStarred() const { return m_filterStarred; }
     void setFilterStarred(bool starred);
 
+    QString currentName() const;
+
 public slots:
     void refresh();
+    void onArticleContentUpdated(long id);
     void markAsRead(int index, bool read);
+    void markAsReadById(long id, bool read);
     void markAllAsRead();
     void toggleStarred(int index);
+    void toggleStarredById(long id);
+    Q_INVOKABLE QVariantMap get(int row) const;
+    Q_INVOKABLE QVariantMap getById(long id) const;
 
 signals:
     void currentFeedIdChanged();
+    void currentCategoryIdChanged();
     void filterChanged();
+    void currentNameChanged();
 
 private:
     QList<Article> m_articles;
     long m_currentFeedId = -1; // -1 for "All Articles"
+    long m_currentCategoryId = -1;
     QString m_filterStatus = "all"; // "all" or "unread"
     bool m_filterStarred = false;
 };

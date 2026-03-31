@@ -26,5 +26,33 @@
     <entry name="LastSyncTime" type="DateTime">
       <label>Last Synchronized Time</label>
     </entry>
+    <entry name="CleanSync" type="Bool">
+      <label>Clean Sync (Reset local state on sync, no server updates)</label>
+      <default>false</default>
+    </entry>
+    <entry name="FilterStatus" type="String">
+      <label>Last selected filter status</label>
+      <default>all</default>
+    </entry>
+    <entry name="FilterStarred" type="Bool">
+      <label>Last selected filter starred state</label>
+      <default>false</default>
+    </entry>
+    <entry name="TitleLines" type="Int">
+      <label>Maximum number of lines for article titles</label>
+      <default>2</default>
+      <min>1</min>
+      <max>3</max>
+    </entry>
+  </group>
+  <group name="Reading">
+    <entry name="MarkAsReadOnOpen" type="Bool">
+      <label>Mark article as read when opened</label>
+      <default>false</default>
+    </entry>
+    <entry name="MarkAsReadOnScroll" type="Bool">
+      <label>Mark article as read when scrolled past top</label>
+      <default>false</default>
+    </entry>
   </group>
 </kcfg>

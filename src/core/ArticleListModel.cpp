@@ -1,9 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "ArticleListModel.h"
+#include "SyncEngine.h"
+#include "kiriflux.h"
+#include <KLocalizedString>
 
 ArticleListModel::ArticleListModel(QObject *parent)
     : QAbstractListModel(parent)
 {
+    m_filterStatus = Settings::self()->filterStatus();
+    m_filterStarred = Settings::self()->filterStarred();
+    
+    connect(&SyncEngine::instance(), &SyncEngine::articlesUpdated, this, &ArticleListModel::refresh);
+    connect(&SyncEngine::instance(), &SyncEngine::articleContentUpdated, this, &ArticleListModel::onArticleContentUpdated);
+
     refresh();
 }
 
@@ -11,35 +20,74 @@ void ArticleListModel::setCurrentFeedId(long id)
 {
     if (m_currentFeedId == id) return;
     m_currentFeedId = id;
+    m_currentCategoryId = -1;
     refresh();
     emit currentFeedIdChanged();
+    emit currentCategoryIdChanged();
+    emit currentNameChanged();
+}
+
+void ArticleListModel::setCurrentCategoryId(long id)
+{
+    if (m_currentCategoryId == id) return;
+    m_currentCategoryId = id;
+    m_currentFeedId = -1;
+    refresh();
+    emit currentCategoryIdChanged();
+    emit currentFeedIdChanged();
+    emit currentNameChanged();
 }
 
 void ArticleListModel::markAsRead(int index, bool read)
 {
     if (index < 0 || index >= m_articles.count()) return;
-    
-    long id = m_articles.at(index).id;
+    markAsReadById(m_articles.at(index).id, read);
+}
+
+void ArticleListModel::markAsReadById(long id, bool read)
+{
     DatabaseManager::instance().markAsRead(id, read);
     
-    // Update local data and notify view
-    m_articles[index].status = read ? QStringLiteral("read") : QStringLiteral("unread");
-    QModelIndex qidx = this->index(index, 0);
-    emit dataChanged(qidx, qidx, {StatusRole});
+    QString statusString = read ? QStringLiteral("read") : QStringLiteral("unread");
+    SyncEngine::instance().updateArticleStatus(id, statusString);
+    
+    // Find and update local list for immediate UI feedback
+    for (int i = 0; i < m_articles.count(); ++i) {
+        if (m_articles.at(i).id == id) {
+            m_articles[i].status = statusString;
+            QModelIndex qidx = this->index(i, 0);
+            emit dataChanged(qidx, qidx, {StatusRole});
+            break;
+        }
+    }
 }
 
 void ArticleListModel::setFilterStatus(const QString &status)
 {
     if (m_filterStatus == status) return;
     m_filterStatus = status;
+    Settings::setFilterStatus(status);
+    Settings::self()->save();
     refresh();
     emit filterChanged();
+}
+
+QString ArticleListModel::currentName() const
+{
+    if (m_currentFeedId != -1) {
+        return DatabaseManager::instance().getFeedTitle(m_currentFeedId);
+    } else if (m_currentCategoryId != -1) {
+        return DatabaseManager::instance().getCategoryTitle(m_currentCategoryId);
+    }
+    return i18n("All Articles");
 }
 
 void ArticleListModel::setFilterStarred(bool starred)
 {
     if (m_filterStarred == starred) return;
     m_filterStarred = starred;
+    Settings::setFilterStarred(starred);
+    Settings::self()->save();
     refresh();
     emit filterChanged();
 }
@@ -56,23 +104,77 @@ void ArticleListModel::markAllAsRead()
 void ArticleListModel::toggleStarred(int index)
 {
     if (index < 0 || index >= m_articles.count()) return;
+    toggleStarredById(m_articles.at(index).id);
+}
+
+void ArticleListModel::toggleStarredById(long id)
+{
+    // Find current state
+    bool currentStarred = false;
+    bool foundInModel = false;
+    int modelIndex = -1;
     
-    Article article = m_articles.at(index);
-    article.starred = !article.starred;
-    DatabaseManager::instance().toggleStar(article.id, article.starred);
+    for (int i = 0; i < m_articles.count(); ++i) {
+        if (m_articles.at(i).id == id) {
+            currentStarred = m_articles.at(i).starred;
+            modelIndex = i;
+            foundInModel = true;
+            break;
+        }
+    }
     
-    m_articles[index] = article;
-    QModelIndex qidx = this->index(index, 0);
-    emit dataChanged(qidx, qidx, {StarredRole});
+    if (!foundInModel) {
+        // Must check DB if not in current view
+        auto all = DatabaseManager::instance().getAllArticles();
+        for (const auto& a : all) {
+            if (a.id == id) {
+                currentStarred = a.starred;
+                break;
+            }
+        }
+    }
+    
+    bool nextStarred = !currentStarred;
+    DatabaseManager::instance().toggleStar(id, nextStarred);
+    SyncEngine::instance().toggleArticleBookmark(id);
+    
+    if (foundInModel) {
+        m_articles[modelIndex].starred = nextStarred;
+        QModelIndex qidx = index(modelIndex, 0);
+        emit dataChanged(qidx, qidx, {StarredRole});
+    }
+}
+
+void ArticleListModel::onArticleContentUpdated(long id)
+{
+    // Find the item in our list and update its content from DB
+    for (int i = 0; i < m_articles.count(); ++i) {
+        if (m_articles.at(i).id == id) {
+            // Re-fetch this article from DB to get NEW content
+            auto all = DatabaseManager::instance().getAllArticles();
+            for (const auto& a : all) {
+                if (a.id == id) {
+                    m_articles[i] = a;
+                    QModelIndex qidx = index(i, 0);
+                    // Emit dataChanged for all relevant roles (content, etc.)
+                    emit dataChanged(qidx, qidx); 
+                    return;
+                }
+            }
+            break;
+        }
+    }
 }
 
 void ArticleListModel::refresh()
 {
     beginResetModel();
-    if (m_currentFeedId == -1) {
-        m_articles = DatabaseManager::instance().getAllArticles();
-    } else {
+    if (m_currentFeedId != -1) {
         m_articles = DatabaseManager::instance().getArticlesForFeed(m_currentFeedId);
+    } else if (m_currentCategoryId != -1) {
+        m_articles = DatabaseManager::instance().getArticlesForCategory(m_currentCategoryId);
+    } else {
+        m_articles = DatabaseManager::instance().getAllArticles();
     }
 
     // Apply client-side filters (for now, eventually move to DB queries if performance allows)
@@ -133,4 +235,47 @@ QHash<int, QByteArray> ArticleListModel::roleNames() const
     roles[FeedTitleRole] = "feedTitle";
     roles[FeedSiteUrlRole] = "feedSiteUrl";
     return roles;
+}
+QVariantMap ArticleListModel::get(int row) const
+{
+    if (row < 0 || row >= m_articles.count()) return {};
+
+    QVariantMap res;
+    QHash<int, QByteArray> roles = roleNames();
+    QHashIterator<int, QByteArray> i(roles);
+    while (i.hasNext()) {
+        i.next();
+        res[QString::fromUtf8(i.value())] = data(index(row, 0), i.key());
+    }
+    return res;
+}
+QVariantMap ArticleListModel::getById(long id) const
+{
+    // Search cached list first
+    for (int i = 0; i < m_articles.count(); ++i) {
+        if (m_articles.at(i).id == id) {
+            return get(i);
+        }
+    }
+    
+    // Fallback to database
+    auto all = DatabaseManager::instance().getAllArticles();
+    for (const auto& a : all) {
+        if (a.id == id) {
+            QVariantMap res;
+            res["id"] = qlonglong(a.id);
+            res["feedId"] = qlonglong(a.feedId);
+            res["title"] = a.title;
+            res["author"] = a.author;
+            res["content"] = a.content;
+            res["url"] = a.url;
+            res["publishedAt"] = a.publishedAt;
+            res["status"] = a.status;
+            res["starred"] = a.starred;
+            res["feedTitle"] = a.feedTitle;
+            res["feedSiteUrl"] = a.feedSiteUrl;
+            return res;
+        }
+    }
+    return {};
 }
