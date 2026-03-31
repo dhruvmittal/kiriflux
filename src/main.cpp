@@ -22,6 +22,7 @@
 
 int main(int argc, char *argv[])
 {
+    qputenv("QTWEBENGINE_CHROMIUM_FLAGS", "--disable-gpu-compositing");
     QtWebEngineQuick::initialize();
     qDebug() << "Kiriflux starting...";
 
