@@ -57,6 +57,9 @@
           postInstall = ''
             wrapProgram $out/bin/kiriflux \
               --set QML_DISABLE_DISK_CACHE "1" \
+              --set QTWEBENGINEPROCESS_PATH "${pkgs.kdePackages.qtwebengine}/libexec/QtWebEngineProcess" \
+              --set QTWEBENGINE_RESOURCES_PATH "${pkgs.kdePackages.qtwebengine}/resources" \
+              --set QTWEBENGINE_LOCALES_PATH "${pkgs.kdePackages.qtwebengine}/translations/qtwebengine_locales" \
               --prefix QML2_IMPORT_PATH : "${pkgs.kdePackages.kirigami}/lib/qt-6/qml" \
               --prefix QML2_IMPORT_PATH : "${pkgs.kdePackages.qqc2-desktop-style}/lib/qt-6/qml" \
               --prefix QML2_IMPORT_PATH : "${pkgs.kdePackages.kitemmodels}/lib/qt-6/qml" \
