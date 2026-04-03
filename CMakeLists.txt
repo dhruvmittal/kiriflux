@@ -23,10 +23,12 @@ ecm_setup_version(${PROJECT_VERSION}
 )
 
 # ── Dependencies ─────────────────────────────────────────────────────
-set(QT_MAJOR_VERSION 6)
-set(QT_VERSION_MAJOR 6)
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick QuickControls2 Widgets Sql DBus WebEngineQuick)
+set(QT_DEFAULT_MAJOR_VERSION 6)
+find_package(Qt6 6.0 REQUIRED COMPONENTS Core Gui Quick QuickControls2 Widgets Sql DBus WebEngineQuick)
+
+# Policy to prioritize Qt's own plugins/paths
 qt_policy(SET QTP0004 NEW)
+
 find_package(KF6Kirigami REQUIRED)
 find_package(KF6CoreAddons REQUIRED)
 find_package(KF6I18n REQUIRED)

@@ -81,8 +81,8 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty(QStringLiteral("articleListModel"), articleListModel);
     engine.rootContext()->setContextProperty(QStringLiteral("categoryListModel"), categoryListModel);
 
-    // 8. Load from explicit QRC path
-    const QUrl url(QStringLiteral("qrc:/ui/Main.qml"));
+    // 8. Load from final QML module path
+    const QUrl url(QStringLiteral("qrc:/qt/qml/org/kde/kiriflux/Main.qml"));
     qDebug() << "Loading QML from:" << url;
     
     engine.load(url);

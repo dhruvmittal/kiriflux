@@ -1,23 +1,23 @@
 find_package(KF6Config REQUIRED)
+find_package(KF6Kirigami REQUIRED)
 
 add_subdirectory(core)
 
 # ── Kiriflux executable ──────────────────────────────────────────────
- 
-qt_add_executable(kiriflux
-    main.cpp
-    core/DatabaseManager.cpp
-    core/MinifluxClient.cpp
-    core/SyncEngine.cpp
-    core/FeedListModel.cpp
-    core/ArticleListModel.cpp
-    core/CategoryListModel.cpp
-)
 
-# Manual resource embedding for guaranteed QRC paths
-qt_add_resources(kiriflux "qml"
-    PREFIX "/ui/"
-    FILES
+# Use kiriflux_exe as the target name to avoid collision with the 'kiriflux' QML namespace
+# and its build-time directory. The output binary will still be named 'kiriflux'.
+qt_add_executable(kiriflux_exe main.cpp)
+set_target_properties(kiriflux_exe PROPERTIES OUTPUT_NAME "kiriflux")
+
+# Use qt_add_qml_module for modern QML resource management and plugin dependency resolution.
+# This ensures KF6Kirigami and other dependencies are correctly found and linked.
+# We use org.kde.kiriflux to follow KDE standards and avoid local directory naming conflicts.
+qt_add_qml_module(kiriflux_exe
+    URI org.kde.kiriflux
+    VERSION 1.0
+    RESOURCE_PREFIX "/qt/qml"
+    QML_FILES
         Main.qml
         SettingsPage.qml
         ui/FeedsDrawer.qml
@@ -33,7 +33,8 @@ qt_add_resources(kiriflux "icons"
 
 target_include_directories(kiriflux PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/core)
 
-target_link_libraries(kiriflux PRIVATE
+target_link_libraries(kiriflux_exe PRIVATE
+    kiriflux_core
     Qt6::Core
     Qt6::Gui
     Qt6::Quick
@@ -47,11 +48,12 @@ target_link_libraries(kiriflux PRIVATE
     KF6::I18n
     KF6::XmlGui
     KF6::DBusAddons
+    KF6::Kirigami
 )
 
 # Handle KConfigXT generated files for the main target
 kconfig_add_kcfg_files(kiriflux_SRCS core/kiriflux.kcfgc)
-target_sources(kiriflux PRIVATE ${kiriflux_SRCS})
+target_sources(kiriflux_exe PRIVATE ${kiriflux_SRCS})
 
 # ── Install ──────────────────────────────────────────────────────────
 install(FILES ../org.kde.kiriflux.desktop DESTINATION ${KDE_INSTALL_APPDIR})
