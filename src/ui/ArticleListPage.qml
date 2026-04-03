@@ -201,15 +201,20 @@ Kirigami.Page {
                     
                     onClicked: root.openArticle(index)
 
-                    contentItem: ColumnLayout {
-                        spacing: 4
+                    contentItem: RowLayout {
+                        spacing: Kirigami.Units.largeSpacing
+
+                        // 1. Prefix: Unread dot and Feed Icon (Fixed Width Gutter)
                         RowLayout {
-                            Layout.fillWidth: true
+                            Layout.preferredWidth: Kirigami.Units.gridUnit * 1.6
+                            Layout.alignment: Qt.AlignTop
+                            Layout.topMargin: Kirigami.Units.smallSpacing // Align with first line of title
                             spacing: 8
+
                             Rectangle {
                                 width: 8; height: 8; radius: 4
                                 color: Kirigami.Theme.highlightColor
-                                visible: model.status === "unread"
+                                opacity: model.status === "unread" ? 1 : 0
                                 Layout.alignment: Qt.AlignVCenter
                             }
                             
@@ -219,6 +224,12 @@ Kirigami.Page {
                                 implicitHeight: Kirigami.Units.iconSizes.small
                                 Layout.alignment: Qt.AlignVCenter
                             }
+                        }
+
+                        // 2. Content: Title and Metadata (Aligned)
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 4
 
                             QQC2.Label {
                                 id: titleLabel
@@ -228,20 +239,19 @@ Kirigami.Page {
                                 maximumLineCount: syncEngine.titleLines
                                 wrapMode: syncEngine.titleLines > 1 ? Text.WordWrap : Text.NoWrap
                                 Layout.fillWidth: true
-                                Layout.alignment: Qt.AlignVCenter
                             }
                             Binding {
                                 target: titleLabel; property: "font.bold"; value: model.status === "unread"
                             }
-                        }
-                        QQC2.Label {
-                            text: (model.author ? model.author + " • " : "") + 
-                                  (model.publishedAt ? new Date(model.publishedAt).toLocaleString(Qt.locale(), "MMM d, hh:mm") : "")
-                            font: syncEngine.articleListInfoFont
-                            opacity: 0.6
-                            elide: Text.ElideRight
-                            Layout.fillWidth: true
-                            Layout.leftMargin: 24 // Align with title
+
+                            QQC2.Label {
+                                text: (model.author ? model.author + " • " : "") + 
+                                      (model.publishedAt ? new Date(model.publishedAt).toLocaleString(Qt.locale(), "MMM d, hh:mm") : "")
+                                font: syncEngine.articleListInfoFont
+                                opacity: 0.6
+                                elide: Text.ElideRight
+                                Layout.fillWidth: true
+                            }
                         }
                     }
                 }
