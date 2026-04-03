@@ -31,7 +31,7 @@
             qtdeclarative
             qtsvg
             kirigami
-            qqc2-desktop-style
+            qqc2-breeze-style
             kconfig
             ki18n
             kcoreaddons
@@ -61,7 +61,7 @@
               --set QTWEBENGINE_RESOURCES_PATH "${pkgs.kdePackages.qtwebengine}/resources" \
               --set QTWEBENGINE_LOCALES_PATH "${pkgs.kdePackages.qtwebengine}/translations/qtwebengine_locales" \
               --prefix QML2_IMPORT_PATH : "${pkgs.kdePackages.kirigami}/lib/qt-6/qml" \
-              --prefix QML2_IMPORT_PATH : "${pkgs.kdePackages.qqc2-desktop-style}/lib/qt-6/qml" \
+              --prefix QML2_IMPORT_PATH : "${pkgs.kdePackages.qqc2-breeze-style}/lib/qt-6/qml" \
               --prefix QML2_IMPORT_PATH : "${pkgs.kdePackages.kitemmodels}/lib/qt-6/qml" \
               --prefix QML2_IMPORT_PATH : "${pkgs.kdePackages.qtdeclarative}/lib/qt-6/qml" \
               --prefix QML2_IMPORT_PATH : "${pkgs.kdePackages.qtwebengine}/lib/qt-6/qml" \
@@ -71,7 +71,8 @@
               --prefix XDG_DATA_DIRS : "${pkgs.kdePackages.kirigami}/share" \
               --prefix XDG_DATA_DIRS : "${pkgs.kdePackages.breeze-icons}/share" \
               --prefix XDG_DATA_DIRS : "$out/share" \
-              --set QT_QPA_PLATFORMTHEME "kde"
+              --set QT_QPA_PLATFORMTHEME "kde" \
+              --set QT_QUICK_CONTROLS_STYLE "org.kde.breeze"
           '';
         };
 
