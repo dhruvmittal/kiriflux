@@ -25,6 +25,12 @@ qt_add_resources(kiriflux "qml"
         ui/ArticleViewPage.qml
 )
 
+qt_add_resources(kiriflux "icons"
+    PREFIX "/icons/"
+    FILES
+        org.kde.kiriflux.svg
+)
+
 target_include_directories(kiriflux PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/core)
 
 target_link_libraries(kiriflux PRIVATE
@@ -49,4 +55,5 @@ target_sources(kiriflux PRIVATE ${kiriflux_SRCS})
 
 # ── Install ──────────────────────────────────────────────────────────
 install(FILES ../org.kde.kiriflux.desktop DESTINATION ${KDE_INSTALL_APPDIR})
+install(FILES ../icons/hicolor/scalable/apps/org.kde.kiriflux.svg DESTINATION ${KDE_INSTALL_ICONDIR}/hicolor/scalable/apps)
 install(TARGETS kiriflux DESTINATION ${KDE_INSTALL_BINDIR})

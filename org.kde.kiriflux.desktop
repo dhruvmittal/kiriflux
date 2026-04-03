@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Kiriflux
 Exec=kiriflux
-Icon=rss
+Icon=org.kde.kiriflux
 Type=Application
 Categories=Qt;KDE;Network;RSS;
 X-KDE-HasGlobalMenuBar=true

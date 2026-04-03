@@ -4,6 +4,7 @@
 #include <QApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QIcon>
 #include <QQuickStyle>
 #include <QUrl>
 #include <QDebug>
@@ -25,6 +26,9 @@ int main(int argc, char *argv[])
     qputenv("QTWEBENGINE_CHROMIUM_FLAGS", "--disable-gpu-compositing");
     QtWebEngineQuick::initialize();
     qDebug() << "Kiriflux starting...";
+    qDebug() << "QML2_IMPORT_PATH:" << qgetenv("QML2_IMPORT_PATH");
+    qDebug() << "QT_PLUGIN_PATH:" << qgetenv("QT_PLUGIN_PATH");
+    qDebug() << "XDG_DATA_DIRS:" << qgetenv("XDG_DATA_DIRS");
 
     // 1. Core metadata
     QCoreApplication::setApplicationName(QStringLiteral("kiriflux"));
@@ -34,6 +38,7 @@ int main(int argc, char *argv[])
 
     // 2. GUI Application initialization
     QApplication app(argc, argv);
+    app.setWindowIcon(QIcon(":/icons/org.kde.kiriflux.svg"));
     
     KLocalizedString::setApplicationDomain("kiriflux");
     QQuickStyle::setStyle(QStringLiteral("org.kde.desktop"));
