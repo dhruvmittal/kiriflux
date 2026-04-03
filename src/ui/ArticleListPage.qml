@@ -221,19 +221,23 @@ Kirigami.Page {
                             }
 
                             QQC2.Label {
+                                id: titleLabel
                                 text: model.title
-                                font.bold: model.status === "unread"
+                                font: syncEngine.articleListTitleFont
                                 elide: Text.ElideRight
                                 maximumLineCount: syncEngine.titleLines
                                 wrapMode: syncEngine.titleLines > 1 ? Text.WordWrap : Text.NoWrap
                                 Layout.fillWidth: true
                                 Layout.alignment: Qt.AlignVCenter
                             }
+                            Binding {
+                                target: titleLabel; property: "font.bold"; value: model.status === "unread"
+                            }
                         }
                         QQC2.Label {
                             text: (model.author ? model.author + " • " : "") + 
                                   (model.publishedAt ? new Date(model.publishedAt).toLocaleString(Qt.locale(), "MMM d, hh:mm") : "")
-                            font.pixelSize: 11
+                            font: syncEngine.articleListInfoFont
                             opacity: 0.6
                             elide: Text.ElideRight
                             Layout.fillWidth: true

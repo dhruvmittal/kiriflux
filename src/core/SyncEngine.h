@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QTimer>
+#include <QFont>
 #include "MinifluxClient.h"
 
 class SyncEngine : public QObject
@@ -19,6 +20,14 @@ class SyncEngine : public QObject
     Q_PROPERTY(bool markAsReadOnScroll READ markAsReadOnScroll WRITE setMarkAsReadOnScroll NOTIFY settingsChanged)
     Q_PROPERTY(bool isSyncing READ isSyncing NOTIFY syncStatusChanged)
     Q_PROPERTY(QDateTime lastSyncTime READ lastSyncTime NOTIFY lastSyncTimeChanged)
+    
+    // Fonts
+    Q_PROPERTY(QFont leftPaneFont READ leftPaneFont WRITE setLeftPaneFont NOTIFY settingsChanged)
+    Q_PROPERTY(QFont articleListTitleFont READ articleListTitleFont WRITE setArticleListTitleFont NOTIFY settingsChanged)
+    Q_PROPERTY(QFont articleListInfoFont READ articleListInfoFont WRITE setArticleListInfoFont NOTIFY settingsChanged)
+    Q_PROPERTY(QFont articleViewTitleFont READ articleViewTitleFont WRITE setArticleViewTitleFont NOTIFY settingsChanged)
+    Q_PROPERTY(QFont articleViewInfoFont READ articleViewInfoFont WRITE setArticleViewInfoFont NOTIFY settingsChanged)
+    Q_PROPERTY(QFont articleViewTextFont READ articleViewTextFont WRITE setArticleViewTextFont NOTIFY settingsChanged)
 
 public:
     static SyncEngine& instance();
@@ -50,6 +59,24 @@ public:
 
     bool markAsReadOnScroll() const;
     void setMarkAsReadOnScroll(bool mark);
+
+    QFont leftPaneFont() const;
+    void setLeftPaneFont(const QFont &font);
+
+    QFont articleListTitleFont() const;
+    void setArticleListTitleFont(const QFont &font);
+
+    QFont articleListInfoFont() const;
+    void setArticleListInfoFont(const QFont &font);
+
+    QFont articleViewTitleFont() const;
+    void setArticleViewTitleFont(const QFont &font);
+
+    QFont articleViewInfoFont() const;
+    void setArticleViewInfoFont(const QFont &font);
+
+    QFont articleViewTextFont() const;
+    void setArticleViewTextFont(const QFont &font);
 
 public slots:
     void startIntervalSync();
@@ -93,4 +120,11 @@ private:
     bool m_markAsReadOnScroll = false;
     int m_titleLines = 2;
     QDateTime m_lastSyncTime;
+
+    QFont m_leftPaneFont;
+    QFont m_articleListTitleFont;
+    QFont m_articleListInfoFont;
+    QFont m_articleViewTitleFont;
+    QFont m_articleViewInfoFont;
+    QFont m_articleViewTextFont;
 };

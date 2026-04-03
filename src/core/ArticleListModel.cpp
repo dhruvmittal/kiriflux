@@ -46,6 +46,7 @@ void ArticleListModel::markAsRead(int index, bool read)
 
 void ArticleListModel::markAsReadById(long id, bool read)
 {
+    qDebug() << "ArticleListModel::markAsReadById" << id << read;
     DatabaseManager::instance().markAsRead(id, read);
     
     QString statusString = read ? QStringLiteral("read") : QStringLiteral("unread");
