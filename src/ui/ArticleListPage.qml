@@ -127,7 +127,28 @@ Kirigami.Page {
 
     Connections {
         target: articleListModel
-        function onModelReset() { root.updateOpenArticle(); }
+        function onModelReset() { 
+            root.updateOpenArticle(); 
+            
+            // Reset selection and scroll position
+            articleListView.currentIndex = -1;
+            articleListView.positionViewAtIndex(0, ListView.Beginning);
+            
+            // Close any open ArticleViewPage on the stack
+            // Search from top to find and pop the article view
+            for (let i = applicationWindow().pageStack.depth - 1; i >= 0; --i) {
+                let item = applicationWindow().pageStack.get(i);
+                if (item && item.objectName === "articleViewPage") {
+                    // Pop everything from this page onwards
+                    if (i > 0) {
+                        applicationWindow().pageStack.pop(applicationWindow().pageStack.get(i-1));
+                    } else {
+                        applicationWindow().pageStack.pop();
+                    }
+                    break;
+                }
+            }
+        }
         function onDataChanged() { root.updateOpenArticle(); }
     }
 
