@@ -3,6 +3,10 @@
       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
       xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
       http://www.kde.org/standards/kcfg/1.0/kcfg.xsd" >
+
+  <include>QFontDatabase</include>
+  <include>QFont</include>
+
   <kcfgfile name="kirifluxrc" />
   <group name="General">
     <entry name="ApiUrl" type="String">
@@ -53,6 +57,32 @@
     <entry name="MarkAsReadOnScroll" type="Bool">
       <label>Mark article as read when scrolled past top</label>
       <default>false</default>
+    </entry>
+  </group>
+  <group name="Fonts">
+    <entry name="LeftPaneFont" type="Font">
+      <label>Font for left pane (category/feed list)</label>
+      <default code="true">QFontDatabase::systemFont(QFontDatabase::GeneralFont)</default>
+    </entry>
+    <entry name="ArticleListTitleFont" type="Font">
+      <label>Font for article list titles</label>
+      <default code="true">[]() { QFont f = QFontDatabase::systemFont(QFontDatabase::GeneralFont); f.setBold(true); return f; }()</default>
+    </entry>
+    <entry name="ArticleListInfoFont" type="Font">
+      <label>Font for article list info (author/date)</label>
+      <default code="true">[]() { QFont f = QFontDatabase::systemFont(QFontDatabase::GeneralFont); f.setPixelSize(11); return f; }()</default>
+    </entry>
+    <entry name="ArticleViewTitleFont" type="Font">
+      <label>Font for article view title</label>
+      <default code="true">[]() { QFont f = QFontDatabase::systemFont(QFontDatabase::GeneralFont); f.setBold(true); f.setPointSizeF(f.pointSizeF() * 2.5); return f; }()</default>
+    </entry>
+    <entry name="ArticleViewInfoFont" type="Font">
+      <label>Font for article view info</label>
+      <default code="true">[]() { QFont f = QFontDatabase::systemFont(QFontDatabase::GeneralFont); f.setPointSizeF(f.pointSizeF() * 0.9); return f; }()</default>
+    </entry>
+    <entry name="ArticleViewTextFont" type="Font">
+      <label>Font for article view body</label>
+      <default code="true">[]() { QFont f = QFontDatabase::systemFont(QFontDatabase::GeneralFont); f.setPixelSize(16); return f; }()</default>
     </entry>
   </group>
 </kcfg>

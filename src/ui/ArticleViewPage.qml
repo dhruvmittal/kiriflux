@@ -39,6 +39,13 @@ Kirigami.Page {
     onArticleContentChanged: articleWebView.updateContent()
     onArticleTitleChanged: articleWebView.updateContent()
 
+    Connections {
+        target: syncEngine
+        function onSettingsChanged() {
+            articleWebView.updateContent();
+        }
+    }
+
     Kirigami.Theme.colorSet: Kirigami.Theme.Window
     Kirigami.Theme.inherit: true
 
@@ -162,10 +169,12 @@ Kirigami.Page {
                                 color-scheme: ${Kirigami.Theme.colorSet === Kirigami.Theme.Dark ? 'dark' : 'light'};
                             }
                             body {
-                                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                                font-family: "${syncEngine.articleViewTextFont.family}", serif;
+                                font-size: ${syncEngine.articleViewTextFont.pixelSize > 0 ? syncEngine.articleViewTextFont.pixelSize + "px" : syncEngine.articleViewTextFont.pointSize + "pt"};
+                                font-weight: ${syncEngine.articleViewTextFont.weight};
+                                font-style: ${syncEngine.articleViewTextFont.italic ? 'italic' : 'normal'};
                                 padding: 40px;
                                 line-height: 1.6;
-                                font-size: 16px;
                                 color: ${textColor} !important;
                                 background-color: ${bgColor} !important;
                                 margin: 0 auto;
@@ -177,14 +186,19 @@ Kirigami.Page {
                                 padding-bottom: 20px;
                             }
                             .title {
-                                font-size: 2.5em;
-                                font-weight: 800;
+                                font-family: "${syncEngine.articleViewTitleFont.family}", sans-serif;
+                                font-size: ${syncEngine.articleViewTitleFont.pixelSize > 0 ? syncEngine.articleViewTitleFont.pixelSize + "px" : syncEngine.articleViewTitleFont.pointSize + "pt"};
+                                font-weight: ${syncEngine.articleViewTitleFont.weight};
+                                font-style: ${syncEngine.articleViewTitleFont.italic ? 'italic' : 'normal'};
                                 line-height: 1.2;
                                 margin-bottom: 15px;
                                 color: ${textColor};
                             }
                             .meta {
-                                font-size: 0.9em;
+                                font-family: "${syncEngine.articleViewInfoFont.family}", sans-serif;
+                                font-size: ${syncEngine.articleViewInfoFont.pixelSize > 0 ? syncEngine.articleViewInfoFont.pixelSize + "px" : syncEngine.articleViewInfoFont.pointSize + "pt"};
+                                font-weight: ${syncEngine.articleViewInfoFont.weight};
+                                font-style: ${syncEngine.articleViewInfoFont.italic ? 'italic' : 'normal'};
                                 opacity: 0.7;
                                 color: ${textColor};
                             }

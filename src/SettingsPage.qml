@@ -2,6 +2,7 @@
 import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
+import QtQuick.Dialogs
 import org.kde.kirigami as Kirigami
 
 QQC2.Dialog {
@@ -9,10 +10,12 @@ QQC2.Dialog {
     title: i18n("Preferences")
     modal: true
     standardButtons: QQC2.Dialog.Save | QQC2.Dialog.Cancel
-    width: 500
+    width: 600
     // Grow based on content but cap it at 80% of window height
-    height: Math.min(formLayout.implicitHeight + (Kirigami.Units.gridUnit * 5), applicationWindow().height * 0.8)
+    height: Math.min(formLayout.implicitHeight + (Kirigami.Units.gridUnit * 5), applicationWindow().height * 0.9)
     anchors.centerIn: parent
+
+    property string currentFontProperty: ""
 
     onAccepted: {
         syncEngine.saveSettings();
@@ -102,6 +105,103 @@ QQC2.Dialog {
                 checked: syncEngine.markAsReadOnScroll
                 onToggled: syncEngine.markAsReadOnScroll = checked
             }
+
+            Kirigami.Separator {
+                Kirigami.FormData.label: i18n("Fonts")
+                Kirigami.FormData.isSection: true
+            }
+
+            component FontPicker : RowLayout {
+                id: fontPickerRoot
+                property string labelText
+                property font fontValue
+                signal chooseClicked()
+                
+                Kirigami.FormData.label: labelText
+                QQC2.Label {
+                    text: fontPickerRoot.fontValue.family + " (" + (fontPickerRoot.fontValue.pixelSize > 0 ? fontPickerRoot.fontValue.pixelSize + "px" : fontPickerRoot.fontValue.pointSize + "pt") + ")"
+                    elide: Text.ElideRight
+                    Layout.fillWidth: true
+                }
+                QQC2.Button {
+                    icon.name: "preferences-desktop-font"
+                    text: i18n("Choose...")
+                    onClicked: fontPickerRoot.chooseClicked()
+                }
+            }
+
+            FontPicker {
+                labelText: i18n("Left Pane (Categories/Feeds)")
+                fontValue: syncEngine.leftPaneFont
+                onChooseClicked: {
+                    currentFontProperty = "leftPaneFont";
+                    fontDialog.selectedFont = syncEngine.leftPaneFont;
+                    fontDialog.open();
+                }
+            }
+
+            FontPicker {
+                labelText: i18n("Article List (Title)")
+                fontValue: syncEngine.articleListTitleFont
+                onChooseClicked: {
+                    currentFontProperty = "articleListTitleFont";
+                    fontDialog.selectedFont = syncEngine.articleListTitleFont;
+                    fontDialog.open();
+                }
+            }
+
+            FontPicker {
+                labelText: i18n("Article List (Info)")
+                fontValue: syncEngine.articleListInfoFont
+                onChooseClicked: {
+                    currentFontProperty = "articleListInfoFont";
+                    fontDialog.selectedFont = syncEngine.articleListInfoFont;
+                    fontDialog.open();
+                }
+            }
+
+            FontPicker {
+                labelText: i18n("Article View (Title)")
+                fontValue: syncEngine.articleViewTitleFont
+                onChooseClicked: {
+                    currentFontProperty = "articleViewTitleFont";
+                    fontDialog.selectedFont = syncEngine.articleViewTitleFont;
+                    fontDialog.open();
+                }
+            }
+
+            FontPicker {
+                labelText: i18n("Article View (Info)")
+                fontValue: syncEngine.articleViewInfoFont
+                onChooseClicked: {
+                    currentFontProperty = "articleViewInfoFont";
+                    fontDialog.selectedFont = syncEngine.articleViewInfoFont;
+                    fontDialog.open();
+                }
+            }
+
+            FontPicker {
+                labelText: i18n("Article View (Text)")
+                fontValue: syncEngine.articleViewTextFont
+                onChooseClicked: {
+                    currentFontProperty = "articleViewTextFont";
+                    fontDialog.selectedFont = syncEngine.articleViewTextFont;
+                    fontDialog.open();
+                }
+            }
+        }
+    }
+
+    FontDialog {
+        id: fontDialog
+        title: i18n("Select Font")
+        onAccepted: {
+            if (currentFontProperty === "leftPaneFont") syncEngine.leftPaneFont = selectedFont
+            else if (currentFontProperty === "articleListTitleFont") syncEngine.articleListTitleFont = selectedFont
+            else if (currentFontProperty === "articleListInfoFont") syncEngine.articleListInfoFont = selectedFont
+            else if (currentFontProperty === "articleViewTitleFont") syncEngine.articleViewTitleFont = selectedFont
+            else if (currentFontProperty === "articleViewInfoFont") syncEngine.articleViewInfoFont = selectedFont
+            else if (currentFontProperty === "articleViewTextFont") syncEngine.articleViewTextFont = selectedFont
         }
     }
 }

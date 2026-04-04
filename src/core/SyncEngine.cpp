@@ -25,6 +25,15 @@ SyncEngine::SyncEngine(QObject *parent)
     m_markAsReadOnScroll = Settings::self()->markAsReadOnScroll();
     m_titleLines = Settings::self()->titleLines();
     m_lastSyncTime = Settings::self()->lastSyncTime();
+    
+    // Load Fonts
+    m_leftPaneFont = Settings::self()->leftPaneFont();
+    m_articleListTitleFont = Settings::self()->articleListTitleFont();
+    m_articleListInfoFont = Settings::self()->articleListInfoFont();
+    m_articleViewTitleFont = Settings::self()->articleViewTitleFont();
+    m_articleViewInfoFont = Settings::self()->articleViewInfoFont();
+    m_articleViewTextFont = Settings::self()->articleViewTextFont();
+
     emit lastSyncTimeChanged();
     
     qDebug() << "SyncEngine initialized. Loaded Settings:"
@@ -155,6 +164,60 @@ void SyncEngine::setMarkAsReadOnScroll(bool mark)
 {
     m_markAsReadOnScroll = mark;
     Settings::setMarkAsReadOnScroll(mark);
+    emit settingsChanged();
+}
+
+QFont SyncEngine::leftPaneFont() const { return m_leftPaneFont; }
+void SyncEngine::setLeftPaneFont(const QFont &font)
+{
+    qDebug() << "SyncEngine::setLeftPaneFont family:" << font.family() << "size:" << font.pointSize();
+    m_leftPaneFont = font;
+    Settings::setLeftPaneFont(font);
+    emit settingsChanged();
+}
+
+QFont SyncEngine::articleListTitleFont() const { return m_articleListTitleFont; }
+void SyncEngine::setArticleListTitleFont(const QFont &font)
+{
+    qDebug() << "SyncEngine::setArticleListTitleFont family:" << font.family() << "size:" << font.pointSize();
+    m_articleListTitleFont = font;
+    Settings::setArticleListTitleFont(font);
+    emit settingsChanged();
+}
+
+QFont SyncEngine::articleListInfoFont() const { return m_articleListInfoFont; }
+void SyncEngine::setArticleListInfoFont(const QFont &font)
+{
+    qDebug() << "SyncEngine::setArticleListInfoFont family:" << font.family() << "size:" << font.pointSize();
+    m_articleListInfoFont = font;
+    Settings::setArticleListInfoFont(font);
+    emit settingsChanged();
+}
+
+QFont SyncEngine::articleViewTitleFont() const { return m_articleViewTitleFont; }
+void SyncEngine::setArticleViewTitleFont(const QFont &font)
+{
+    qDebug() << "SyncEngine::setArticleViewTitleFont family:" << font.family() << "size:" << font.pointSize();
+    m_articleViewTitleFont = font;
+    Settings::setArticleViewTitleFont(font);
+    emit settingsChanged();
+}
+
+QFont SyncEngine::articleViewInfoFont() const { return m_articleViewInfoFont; }
+void SyncEngine::setArticleViewInfoFont(const QFont &font)
+{
+    qDebug() << "SyncEngine::setArticleViewInfoFont family:" << font.family() << "size:" << font.pointSize();
+    m_articleViewInfoFont = font;
+    Settings::setArticleViewInfoFont(font);
+    emit settingsChanged();
+}
+
+QFont SyncEngine::articleViewTextFont() const { return m_articleViewTextFont; }
+void SyncEngine::setArticleViewTextFont(const QFont &font)
+{
+    qDebug() << "SyncEngine::setArticleViewTextFont family:" << font.family() << "size:" << font.pointSize();
+    m_articleViewTextFont = font;
+    Settings::setArticleViewTextFont(font);
     emit settingsChanged();
 }
 
