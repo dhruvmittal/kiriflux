@@ -85,6 +85,24 @@ QQC2.Dialog {
                 onToggled: syncEngine.showToolbarLabels = checked
             }
 
+            QQC2.SpinBox {
+                id: leftPaneWidthSpin
+                Kirigami.FormData.label: i18n("Left Pane Width")
+                from: 100
+                to: 600
+                value: syncEngine.leftPaneWidth
+                onValueModified: syncEngine.leftPaneWidth = value
+            }
+
+            QQC2.SpinBox {
+                id: centerPaneWidthSpin
+                Kirigami.FormData.label: i18n("Center Pane Width")
+                from: 200
+                to: 1000
+                value: syncEngine.centerPaneWidth
+                onValueModified: syncEngine.centerPaneWidth = value
+            }
+
             Kirigami.Separator {
                 Kirigami.FormData.label: i18n("Reading")
                 Kirigami.FormData.isSection: true

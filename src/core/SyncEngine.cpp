@@ -25,6 +25,8 @@ SyncEngine::SyncEngine(QObject *parent)
     m_markAsReadOnScroll = Settings::self()->markAsReadOnScroll();
     m_titleLines = Settings::self()->titleLines();
     m_lastSyncTime = Settings::self()->lastSyncTime();
+    m_leftPaneWidth = Settings::self()->leftPaneWidth();
+    m_centerPaneWidth = Settings::self()->centerPaneWidth();
     
     // Load Fonts
     m_leftPaneFont = Settings::self()->leftPaneFont();
@@ -218,6 +220,24 @@ void SyncEngine::setArticleViewTextFont(const QFont &font)
     qDebug() << "SyncEngine::setArticleViewTextFont family:" << font.family() << "size:" << font.pointSize();
     m_articleViewTextFont = font;
     Settings::setArticleViewTextFont(font);
+    emit settingsChanged();
+}
+
+int SyncEngine::leftPaneWidth() const { return m_leftPaneWidth; }
+void SyncEngine::setLeftPaneWidth(int width)
+{
+    if (m_leftPaneWidth == width) return;
+    m_leftPaneWidth = width;
+    Settings::setLeftPaneWidth(width);
+    emit settingsChanged();
+}
+
+int SyncEngine::centerPaneWidth() const { return m_centerPaneWidth; }
+void SyncEngine::setCenterPaneWidth(int width)
+{
+    if (m_centerPaneWidth == width) return;
+    m_centerPaneWidth = width;
+    Settings::setCenterPaneWidth(width);
     emit settingsChanged();
 }
 

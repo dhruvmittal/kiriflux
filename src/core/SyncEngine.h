@@ -20,6 +20,8 @@ class SyncEngine : public QObject
     Q_PROPERTY(bool markAsReadOnScroll READ markAsReadOnScroll WRITE setMarkAsReadOnScroll NOTIFY settingsChanged)
     Q_PROPERTY(bool isSyncing READ isSyncing NOTIFY syncStatusChanged)
     Q_PROPERTY(QDateTime lastSyncTime READ lastSyncTime NOTIFY lastSyncTimeChanged)
+    Q_PROPERTY(int leftPaneWidth READ leftPaneWidth WRITE setLeftPaneWidth NOTIFY settingsChanged)
+    Q_PROPERTY(int centerPaneWidth READ centerPaneWidth WRITE setCenterPaneWidth NOTIFY settingsChanged)
     
     // Fonts
     Q_PROPERTY(QFont leftPaneFont READ leftPaneFont WRITE setLeftPaneFont NOTIFY settingsChanged)
@@ -78,6 +80,12 @@ public:
     QFont articleViewTextFont() const;
     void setArticleViewTextFont(const QFont &font);
 
+    int leftPaneWidth() const;
+    void setLeftPaneWidth(int width);
+
+    int centerPaneWidth() const;
+    void setCenterPaneWidth(int width);
+
 public slots:
     void startIntervalSync();
     void forceSync();
@@ -127,4 +135,7 @@ private:
     QFont m_articleViewTitleFont;
     QFont m_articleViewInfoFont;
     QFont m_articleViewTextFont;
+
+    int m_leftPaneWidth = 250;
+    int m_centerPaneWidth = 450;
 };

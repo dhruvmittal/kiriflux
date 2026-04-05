@@ -37,12 +37,14 @@ target_link_libraries(kiriflux PRIVATE
     Qt6::Core
     Qt6::Gui
     Qt6::Quick
+    Qt6::Qml
     Qt6::QuickControls2
     Qt6::Widgets
     Qt6::Sql
     Qt6::Network
     Qt6::DBus
     Qt6::WebEngineQuick
+    KF6::Kirigami
     KF6::CoreAddons
     KF6::I18n
     KF6::XmlGui

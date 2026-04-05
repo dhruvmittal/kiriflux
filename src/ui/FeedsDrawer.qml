@@ -8,6 +8,7 @@ Kirigami.GlobalDrawer {
     id: root
 
     property bool isMobile: Kirigami.Settings.isMobile
+    width: syncEngine.leftPaneWidth
 
     // By default, pinning it acts as a permanent left pane on desktop
     modal: isMobile
@@ -86,7 +87,7 @@ Kirigami.GlobalDrawer {
                                 implicitHeight: Kirigami.Units.iconSizes.small
                                 MouseArea {
                                     anchors.fill: parent
-                                    onClicked: {
+                                    onClicked: (mouse) => {
                                         categoryItem.expanded = !categoryItem.expanded
                                         mouse.accepted = true
                                     }

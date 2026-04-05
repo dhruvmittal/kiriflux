@@ -14,7 +14,7 @@ Kirigami.Page {
     bottomPadding: 0
 
     // Hints for Kirigami.PageRow (column view)
-    implicitWidth: Kirigami.Units.gridUnit * 25
+    implicitWidth: syncEngine.centerPaneWidth
     
     title: articleListModel.currentName
 
@@ -260,6 +260,7 @@ Kirigami.Page {
                                 maximumLineCount: syncEngine.titleLines
                                 wrapMode: syncEngine.titleLines > 1 ? Text.WordWrap : Text.NoWrap
                                 Layout.fillWidth: true
+                                color: delegate.highlighted ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
                             }
                             Binding {
                                 target: titleLabel; property: "font.bold"; value: model.status === "unread"
@@ -269,9 +270,10 @@ Kirigami.Page {
                                 text: (model.author ? model.author + " • " : "") + 
                                       (model.publishedAt ? new Date(model.publishedAt).toLocaleString(Qt.locale(), "MMM d, hh:mm") : "")
                                 font: syncEngine.articleListInfoFont
-                                opacity: 0.6
+                                opacity: delegate.highlighted ? 1.0 : 0.6
                                 elide: Text.ElideRight
                                 Layout.fillWidth: true
+                                color: delegate.highlighted ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
                             }
                         }
                     }
