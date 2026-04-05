@@ -11,6 +11,8 @@ echo "🚀 Starting Nix build inside Podman..."
 # We use --rm to clean up the container after the build
 # We mount the current dir to /src and /nix to a temporary volume for speed
 podman run --rm \
+  -e HOST_UID=$(id -u) \
+  -e HOST_GID=$(id -g) \
   -v "$(pwd):/src:Z" \
   -w /src \
   docker.io/nixos/nix \
@@ -22,12 +24,10 @@ podman run --rm \
     mkdir -p ~/.config/nix
     echo 'experimental-features = nix-command flakes' > ~/.config/nix/nix.conf
     
-    # Run the build
-    nix build .#flatpak --no-link && \
-    
-    # Copy the actual file out of the Nix store to the mounted 'out' folder
-    # We use -L to follow the symlink and actually copy the data
-    cp -RL \$(nix build .#flatpak --print-out-paths) /src/out/
+    # Copy result and fix ownership
+    OUT_PATH=\$(nix build .#flatpak --print-out-paths)
+    cp -RL \$OUT_PATH /src/out/
+    chown -R \$HOST_UID:\$HOST_GID /src/out/
   "
 
 echo "✅ Build complete! Your Flatpak is in: $OUTPUT_DIR"
