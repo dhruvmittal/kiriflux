@@ -18,6 +18,7 @@ class SyncEngine : public QObject
     Q_PROPERTY(bool cleanSync READ cleanSync WRITE setCleanSync NOTIFY settingsChanged)
     Q_PROPERTY(bool markAsReadOnOpen READ markAsReadOnOpen WRITE setMarkAsReadOnOpen NOTIFY settingsChanged)
     Q_PROPERTY(bool markAsReadOnScroll READ markAsReadOnScroll WRITE setMarkAsReadOnScroll NOTIFY settingsChanged)
+    Q_PROPERTY(bool useReaderMode READ useReaderMode WRITE setUseReaderMode NOTIFY settingsChanged)
     Q_PROPERTY(bool isSyncing READ isSyncing NOTIFY syncStatusChanged)
     Q_PROPERTY(QDateTime lastSyncTime READ lastSyncTime NOTIFY lastSyncTimeChanged)
     Q_PROPERTY(int leftPaneWidth READ leftPaneWidth WRITE setLeftPaneWidth NOTIFY settingsChanged)
@@ -61,6 +62,9 @@ public:
 
     bool markAsReadOnScroll() const;
     void setMarkAsReadOnScroll(bool mark);
+
+    bool useReaderMode() const;
+    void setUseReaderMode(bool use);
 
     QFont leftPaneFont() const;
     void setLeftPaneFont(const QFont &font);
@@ -126,6 +130,7 @@ private:
     bool m_cleanSync = false;
     bool m_markAsReadOnOpen = false;
     bool m_markAsReadOnScroll = false;
+    bool m_useReaderMode = false;
     int m_titleLines = 2;
     QDateTime m_lastSyncTime;
 

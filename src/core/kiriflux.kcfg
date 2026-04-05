@@ -70,6 +70,10 @@
       <label>Mark article as read when scrolled past top</label>
       <default>false</default>
     </entry>
+    <entry name="UseReaderMode" type="Bool">
+      <label>Use native Qt Text instead of Chromium WebView</label>
+      <default>false</default>
+    </entry>
   </group>
   <group name="Fonts">
     <entry name="LeftPaneFont" type="Font">

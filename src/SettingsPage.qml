@@ -237,6 +237,18 @@ QQC2.Dialog {
                         onToggled: syncEngine.markAsReadOnScroll = checked
                     }
                 }
+
+                SectionHeader { title: i18n("Display Mode"); Layout.topMargin: Kirigami.Units.largeSpacing }
+                SettingsGrid {
+                    SettingLabel { text: i18n("Reader Mode") }
+                    QQC2.CheckBox {
+                        id: readerModeCheck
+                        text: i18n("Use Native Reader Mode (No Chromium)")
+                        checked: syncEngine.useReaderMode
+                        Layout.fillWidth: true
+                        onToggled: syncEngine.useReaderMode = checked
+                    }
+                }
                 Item { Layout.fillHeight: true }
             }
 

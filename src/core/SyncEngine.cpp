@@ -23,6 +23,7 @@ SyncEngine::SyncEngine(QObject *parent)
     m_cleanSync = Settings::self()->cleanSync();
     m_markAsReadOnOpen = Settings::self()->markAsReadOnOpen();
     m_markAsReadOnScroll = Settings::self()->markAsReadOnScroll();
+    m_useReaderMode = Settings::self()->useReaderMode();
     m_titleLines = Settings::self()->titleLines();
     m_lastSyncTime = Settings::self()->lastSyncTime();
     m_leftPaneWidth = Settings::self()->leftPaneWidth();
@@ -166,6 +167,14 @@ void SyncEngine::setMarkAsReadOnScroll(bool mark)
 {
     m_markAsReadOnScroll = mark;
     Settings::setMarkAsReadOnScroll(mark);
+    emit settingsChanged();
+}
+
+bool SyncEngine::useReaderMode() const { return m_useReaderMode; }
+void SyncEngine::setUseReaderMode(bool use)
+{
+    m_useReaderMode = use;
+    Settings::setUseReaderMode(use);
     emit settingsChanged();
 }
 
