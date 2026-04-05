@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # ── Options ──────────────────────────────────────────────────────────
 option(BUILD_TESTING "Build the test suite" ON)
+option(NIX_BUILD "Building inside a Nix environment (skip static QML plugin import)" OFF)
 
 # ── ECM Setup ────────────────────────────────────────────────────────
 find_package(ECM REQUIRED NO_MODULE)

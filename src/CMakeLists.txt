@@ -44,12 +44,19 @@ target_link_libraries(kiriflux PRIVATE
     Qt6::Network
     Qt6::DBus
     Qt6::WebEngineQuick
-    KF6::Kirigami
     KF6::CoreAddons
     KF6::I18n
     KF6::XmlGui
     KF6::DBusAddons
 )
+
+# On NixOS, QML modules (Kirigami, etc.) are found at runtime via QML2_IMPORT_PATH.
+# Linking KF6::Kirigami triggers qt6_import_qml_plugins which fails because plugin
+# targets live in separate Nix store paths. On standard distros (Arch, Fedora, etc.),
+# linking KF6::Kirigami directly is needed for the QML engine to find the module.
+if(NOT NIX_BUILD)
+    target_link_libraries(kiriflux PRIVATE KF6::Kirigami)
+endif()
 
 # Handle KConfigXT generated files for the main target
 kconfig_add_kcfg_files(kiriflux_SRCS core/kiriflux.kcfgc)
