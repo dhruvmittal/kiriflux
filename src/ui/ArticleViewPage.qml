@@ -191,6 +191,22 @@ Kirigami.Page {
                 }
                 
                 Component.onCompleted: updateContent()
+
+                Shortcut {
+                    sequence: "Space"
+                    onActivated: {
+                        let flick = readerScroll.contentItem
+                        flick.contentY = Math.min(flick.contentY + flick.height, flick.contentHeight - flick.height)
+                    }
+                }
+
+                Shortcut {
+                    sequence: "Shift+Space"
+                    onActivated: {
+                        let flick = readerScroll.contentItem
+                        flick.contentY = Math.max(flick.contentY - flick.height, 0)
+                    }
+                }
             }
         }
     }
