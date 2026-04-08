@@ -119,6 +119,7 @@ Kirigami.Page {
             QQC2.ScrollView {
                 id: readerScroll
                 QQC2.ScrollBar.horizontal.policy: QQC2.ScrollBar.AlwaysOff
+                contentWidth: availableWidth
 
                 property var updateContent: function() {
                     let dateStr = root.publishedAt ? new Date(root.publishedAt).toLocaleString(Qt.locale()) : "";
