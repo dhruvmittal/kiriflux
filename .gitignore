@@ -34,7 +34,9 @@
 
 # Build artifacts
 build/
+build-test/
 result
 .direnv/
 tests/secrets.h
 repo/
+out/

@@ -48,6 +48,18 @@
       <min>1</min>
       <max>3</max>
     </entry>
+    <entry name="LeftPaneWidth" type="Int">
+      <label>Width of the left (feeds) pane</label>
+      <default>250</default>
+      <min>100</min>
+      <max>600</max>
+    </entry>
+    <entry name="CenterPaneWidth" type="Int">
+      <label>Width of the center (article list) pane</label>
+      <default>450</default>
+      <min>200</min>
+      <max>1000</max>
+    </entry>
   </group>
   <group name="Reading">
     <entry name="MarkAsReadOnOpen" type="Bool">
@@ -56,6 +68,10 @@
     </entry>
     <entry name="MarkAsReadOnScroll" type="Bool">
       <label>Mark article as read when scrolled past top</label>
+      <default>false</default>
+    </entry>
+    <entry name="UseReaderMode" type="Bool">
+      <label>Use native Qt Text instead of Chromium WebView</label>
       <default>false</default>
     </entry>
   </group>

@@ -144,6 +144,15 @@ Kirigami.ApplicationWindow {
             Platform.MenuSeparator {}
 
             Platform.MenuItem {
+                text: i18n("Use Native Reader Mode")
+                checkable: true
+                checked: syncEngine.useReaderMode
+                onTriggered: syncEngine.useReaderMode = !syncEngine.useReaderMode
+            }
+
+            Platform.MenuSeparator {}
+
+            Platform.MenuItem {
                 text: i18n("&All Articles")
                 icon.name: "view-list-details"
                 onTriggered: {
