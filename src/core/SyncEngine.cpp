@@ -175,6 +175,7 @@ void SyncEngine::setUseReaderMode(bool use)
 {
     m_useReaderMode = use;
     Settings::setUseReaderMode(use);
+    Settings::self()->save();
     emit settingsChanged();
 }
 
