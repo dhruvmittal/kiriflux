@@ -35,8 +35,18 @@ Kirigami.Page {
         return "rgba(" + Math.floor(c.r*255) + "," + Math.floor(c.g*255) + "," + Math.floor(c.b*255) + "," + c.a + ")";
     }
 
-    onArticleContentChanged: updateActiveView()
-    onArticleTitleChanged: updateActiveView()
+    Timer {
+        id: renderDebouncer
+        interval: 10
+        repeat: false
+        onTriggered: updateActiveView()
+    }
+
+    onArticleContentChanged: renderDebouncer.restart()
+    onArticleTitleChanged: renderDebouncer.restart()
+    onFeedTitleChanged: renderDebouncer.restart()
+    onAuthorChanged: renderDebouncer.restart()
+    onPublishedAtChanged: renderDebouncer.restart()
 
     Connections {
         target: syncEngine
@@ -139,8 +149,11 @@ Kirigami.Page {
                                     let cleanAttrs = attributes.replace(/(width|height)=["'][^"']*["']/gi, "");
                                     return `<img width="${maxWidth}" height="${scaledH}" ${cleanAttrs}>`;
                                 }
+                                return match;
                             }
-                            return match;
+                            // Unbounded responsive image (e.g. 9to5Google). Table wrapper forces async bounding updates!
+                            let cleanAttrs = attributes.replace(/(width|height)=["'][^"']*["']/gi, "");
+                            return `<table width="${maxWidth}" cellpadding="0" cellspacing="0" style="margin:0 auto"><tr><td><img width="${maxWidth}" ${cleanAttrs}></td></tr></table>`;
                         });
                     } else {
                         processedHtml = "<p style='color:#888; text-align:center;'>Select an article to read.</p>";
