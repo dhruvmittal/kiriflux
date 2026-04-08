@@ -131,9 +131,9 @@ Kirigami.Page {
                     nativeTitle.text = root.articleTitle;
                     nativeInfo.text = metadata;
                     
-                    // Regex manipulation to constrain images to available width (with padding)
-                    // and ensure general text respects the color schema.
-                    let maxWidth = Math.max(100, readerScroll.width - Kirigami.Units.largeSpacing * 4);
+                    // We use availableWidth to account for the ScrollView's vertical scrollbar footprint.
+                    // An extra Kirigami.Units.largeSpacing * 12 ensures that inherent blockquote/paragraph indents completely safely center.
+                    let maxWidth = Math.max(100, readerScroll.availableWidth - Kirigami.Units.largeSpacing * 12);
                     let processedHtml = root.articleContent;
                     
                     if (processedHtml) {
@@ -147,13 +147,13 @@ Kirigami.Page {
                                 if (w > 0 && w > maxWidth) {
                                     let scaledH = Math.round((h / w) * maxWidth);
                                     let cleanAttrs = attributes.replace(/(width|height)=["'][^"']*["']/gi, "");
-                                    return `<img width="${maxWidth}" height="${scaledH}" ${cleanAttrs}>`;
+                                    return `<div align="center"><img width="${maxWidth}" height="${scaledH}" ${cleanAttrs}></div>`;
                                 }
-                                return match;
+                                return `<div align="center">${match}</div>`;
                             }
                             // Unbounded responsive image (e.g. 9to5Google). Table wrapper forces async bounding updates!
                             let cleanAttrs = attributes.replace(/(width|height)=["'][^"']*["']/gi, "");
-                            return `<table width="${maxWidth}" cellpadding="0" cellspacing="0" style="margin:0 auto"><tr><td><img width="${maxWidth}" ${cleanAttrs}></td></tr></table>`;
+                            return `<div align="center"><table width="${maxWidth}" cellpadding="0" cellspacing="0" style="margin:0 auto"><tr><td align="center"><img width="${maxWidth}" ${cleanAttrs}></td></tr></table></div>`;
                         });
                     } else {
                         processedHtml = "<p style='color:#888; text-align:center;'>Select an article to read.</p>";
