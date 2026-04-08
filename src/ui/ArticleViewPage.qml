@@ -127,10 +127,20 @@ Kirigami.Page {
                     let processedHtml = root.articleContent;
                     
                     if (processedHtml) {
-                        // Strip hardcoded widths and inject CSS-esque maxWidth property
+                        // Responsively scale width and height to prevent Qt layout overlap bugs
                         processedHtml = processedHtml.replace(/<img([^>]*)>/gi, function(match, attributes) {
-                            let cleanAttrs = attributes.replace(/(width|height)=["'][^"']*["']/gi, "");
-                            return `<img width="${maxWidth}" ${cleanAttrs}>`;
+                            let wMatch = attributes.match(/width=(?:["']?)(\d+)(?:["']?)/i);
+                            let hMatch = attributes.match(/height=(?:["']?)(\d+)(?:["']?)/i);
+                            if (wMatch && hMatch) {
+                                let w = parseInt(wMatch[1]);
+                                let h = parseInt(hMatch[1]);
+                                if (w > 0 && w > maxWidth) {
+                                    let scaledH = Math.round((h / w) * maxWidth);
+                                    let cleanAttrs = attributes.replace(/(width|height)=["'][^"']*["']/gi, "");
+                                    return `<img width="${maxWidth}" height="${scaledH}" ${cleanAttrs}>`;
+                                }
+                            }
+                            return match;
                         });
                     } else {
                         processedHtml = "<p style='color:#888; text-align:center;'>Select an article to read.</p>";
