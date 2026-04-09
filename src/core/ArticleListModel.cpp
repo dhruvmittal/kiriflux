@@ -126,12 +126,11 @@ void ArticleListModel::toggleStarredById(long id)
     
     if (!foundInModel) {
         // Must check DB if not in current view
-        auto all = DatabaseManager::instance().getAllArticles();
-        for (const auto& a : all) {
-            if (a.id == id) {
-                currentStarred = a.starred;
-                break;
-            }
+        auto article = DatabaseManager::instance().getArticleById(id);
+        if (article) {
+            currentStarred = article->starred;
+        } else {
+            return; // Not found in DB either
         }
     }
     
@@ -152,17 +151,14 @@ void ArticleListModel::onArticleContentUpdated(long id)
     for (int i = 0; i < m_articles.count(); ++i) {
         if (m_articles.at(i).id == id) {
             // Re-fetch this article from DB to get NEW content
-            auto all = DatabaseManager::instance().getAllArticles();
-            for (const auto& a : all) {
-                if (a.id == id) {
-                    m_articles[i] = a;
-                    QModelIndex qidx = index(i, 0);
-                    // Emit dataChanged for all relevant roles (content, etc.)
-                    emit dataChanged(qidx, qidx); 
-                    return;
-                }
+            auto article = DatabaseManager::instance().getArticleById(id);
+            if (article) {
+                m_articles[i] = *article;
+                QModelIndex qidx = index(i, 0);
+                // Emit dataChanged for all relevant roles (content, etc.)
+                emit dataChanged(qidx, qidx); 
             }
-            break;
+            return;
         }
     }
 }
@@ -260,23 +256,21 @@ QVariantMap ArticleListModel::getById(long id) const
     }
     
     // Fallback to database
-    auto all = DatabaseManager::instance().getAllArticles();
-    for (const auto& a : all) {
-        if (a.id == id) {
-            QVariantMap res;
-            res["id"] = qlonglong(a.id);
-            res["feedId"] = qlonglong(a.feedId);
-            res["title"] = a.title;
-            res["author"] = a.author;
-            res["content"] = a.content;
-            res["url"] = a.url;
-            res["publishedAt"] = a.publishedAt;
-            res["status"] = a.status;
-            res["starred"] = a.starred;
-            res["feedTitle"] = a.feedTitle;
-            res["feedSiteUrl"] = a.feedSiteUrl;
-            return res;
-        }
+    auto article = DatabaseManager::instance().getArticleById(id);
+    if (article) {
+        QVariantMap res;
+        res["id"] = qlonglong(article->id);
+        res["feedId"] = qlonglong(article->feedId);
+        res["title"] = article->title;
+        res["author"] = article->author;
+        res["content"] = article->content;
+        res["url"] = article->url;
+        res["publishedAt"] = article->publishedAt;
+        res["status"] = article->status;
+        res["starred"] = article->starred;
+        res["feedTitle"] = article->feedTitle;
+        res["feedSiteUrl"] = article->feedSiteUrl;
+        return res;
     }
     return {};
 }

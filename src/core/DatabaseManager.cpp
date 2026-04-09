@@ -22,8 +22,11 @@ bool DatabaseManager::init()
 {
     const QString dataDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     QDir(dataDir).mkpath(QStringLiteral("."));
-    const QString dbPath = dataDir + QStringLiteral("/kiriflux.db");
+    return initWithPath(dataDir + QStringLiteral("/kiriflux.db"));
+}
 
+bool DatabaseManager::initWithPath(const QString &dbPath)
+{
     m_db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"));
     m_db.setDatabaseName(dbPath);
 
@@ -34,7 +37,7 @@ bool DatabaseManager::init()
 
     qDebug() << "Database opened successfully at:" << dbPath;
 
-    QSqlQuery query;
+    QSqlQuery query(m_db);
     // Create feeds table
     if (!query.exec(QStringLiteral(
             "CREATE TABLE IF NOT EXISTS feeds ("
@@ -74,10 +77,14 @@ bool DatabaseManager::init()
     }
 
     // Add index for faster sorting by time
-    query.exec(QStringLiteral("CREATE INDEX IF NOT EXISTS idx_articles_published_at ON articles(published_at DESC)"));
+    if (!query.exec(QStringLiteral("CREATE INDEX IF NOT EXISTS idx_articles_published_at ON articles(published_at DESC)"))) {
+        qWarning() << "Failed to create articles index:" << query.lastError().text();
+    }
 
     // Seed with welcome article if empty
-    query.exec(QStringLiteral("SELECT count(*) FROM articles"));
+    if (!query.exec(QStringLiteral("SELECT count(*) FROM articles"))) {
+        qWarning() << "Failed to check article count:" << query.lastError().text();
+    }
     if (query.next() && query.value(0).toInt() == 0) {
         Article welcome;
         welcome.id = 1;
@@ -108,7 +115,9 @@ void DatabaseManager::saveFeeds(const QList<Feed>& feeds)
         query.addBindValue(feed.siteUrl);
         query.addBindValue(feed.feedUrl);
         query.addBindValue(qlonglong(feed.categoryId));
-        query.exec();
+        if (!query.exec()) {
+            qWarning() << "Failed to save feed:" << query.lastError().text();
+        }
     }
     m_db.commit();
 }
@@ -158,7 +167,9 @@ void DatabaseManager::saveCategories(const QList<Category>& categories)
     for (const auto& category : categories) {
         query.addBindValue(qlonglong(category.id));
         query.addBindValue(category.title);
-        query.exec();
+        if (!query.exec()) {
+            qWarning() << "Failed to save category:" << query.lastError().text();
+        }
     }
     m_db.commit();
 }
@@ -216,42 +227,68 @@ void DatabaseManager::saveArticles(const QList<Article>& articles)
         query.addBindValue(article.publishedAt);
         query.addBindValue(article.status);
         query.addBindValue(article.starred);
-        query.exec();
+        if (!query.exec()) {
+            qWarning() << "Failed to save article:" << query.lastError().text();
+        }
     }
     m_db.commit();
+}
+
+static Article articleFromQuery(const QSqlQuery& query)
+{
+    return {
+        query.value(0).toLongLong(),
+        query.value(1).toLongLong(),
+        query.value(2).toString(),
+        query.value(3).toString(),
+        query.value(4).toString(),
+        query.value(5).toString(),
+        query.value(6).toString(),
+        query.value(7).toString(),
+        query.value(8).toBool(),
+        query.value(9).toString(),  // feed_title
+        query.value(10).toString()  // site_url
+    };
 }
 
 QList<Article> DatabaseManager::getAllArticles() const
 {
     QList<Article> articles;
-    QSqlQuery query(QStringLiteral(
+    QSqlQuery query(m_db);
+    query.prepare(QStringLiteral(
         "SELECT a.id, a.feed_id, a.title, a.author, a.content, a.url, a.published_at, a.status, a.starred, "
         "f.title as feed_title, f.site_url "
         "FROM articles a "
         "LEFT JOIN feeds f ON a.feed_id = f.id "
         "ORDER BY a.published_at DESC, a.id DESC"));
-    while (query.next()) {
-        articles.append({
-            query.value(0).toLongLong(),
-            query.value(1).toLongLong(),
-            query.value(2).toString(),
-            query.value(3).toString(),
-            query.value(4).toString(),
-            query.value(5).toString(),
-            query.value(6).toString(),
-            query.value(7).toString(),
-            query.value(8).toBool(),
-            query.value(9).toString(),  // feed_title
-            query.value(10).toString()  // site_url
-        });
+    if (query.exec()) {
+        while (query.next()) {
+            articles.append(articleFromQuery(query));
+        }
     }
     return articles;
+}
+
+std::optional<Article> DatabaseManager::getArticleById(long id) const
+{
+    QSqlQuery query(m_db);
+    query.prepare(QStringLiteral(
+        "SELECT a.id, a.feed_id, a.title, a.author, a.content, a.url, a.published_at, a.status, a.starred, "
+        "f.title as feed_title, f.site_url "
+        "FROM articles a "
+        "LEFT JOIN feeds f ON a.feed_id = f.id "
+        "WHERE a.id = ?"));
+    query.addBindValue(qlonglong(id));
+    if (query.exec() && query.next()) {
+        return articleFromQuery(query);
+    }
+    return std::nullopt;
 }
 
 QList<Article> DatabaseManager::getArticlesForFeed(long feedId) const
 {
     QList<Article> articles;
-    QSqlQuery query;
+    QSqlQuery query(m_db);
     query.prepare(QStringLiteral(
         "SELECT a.id, a.feed_id, a.title, a.author, a.content, a.url, a.published_at, a.status, a.starred, "
         "f.title as feed_title, f.site_url "
@@ -262,19 +299,7 @@ QList<Article> DatabaseManager::getArticlesForFeed(long feedId) const
     query.addBindValue(qlonglong(feedId));
     if (query.exec()) {
         while (query.next()) {
-            articles.append({
-                query.value(0).toLongLong(),
-                query.value(1).toLongLong(),
-                query.value(2).toString(),
-                query.value(3).toString(),
-                query.value(4).toString(),
-                query.value(5).toString(),
-                query.value(6).toString(),
-                query.value(7).toString(),
-                query.value(8).toBool(),
-                query.value(9).toString(),  // feed_title
-                query.value(10).toString()  // site_url
-            });
+            articles.append(articleFromQuery(query));
         }
     }
     return articles;
@@ -284,16 +309,16 @@ void DatabaseManager::clearAllData()
 {
     m_db.transaction();
     QSqlQuery query(m_db);
-    query.exec(QStringLiteral("DELETE FROM articles"));
-    query.exec(QStringLiteral("DELETE FROM feeds"));
-    query.exec(QStringLiteral("DELETE FROM categories"));
+    if (!query.exec(QStringLiteral("DELETE FROM articles"))) qWarning() << "Clear articles failed:" << query.lastError().text();
+    if (!query.exec(QStringLiteral("DELETE FROM feeds"))) qWarning() << "Clear feeds failed:" << query.lastError().text();
+    if (!query.exec(QStringLiteral("DELETE FROM categories"))) qWarning() << "Clear categories failed:" << query.lastError().text();
     m_db.commit();
 }
 
 QList<Article> DatabaseManager::getArticlesForCategory(long categoryId) const
 {
     QList<Article> articles;
-    QSqlQuery query;
+    QSqlQuery query(m_db);
     query.prepare(QStringLiteral(
         "SELECT a.id, a.feed_id, a.title, a.author, a.content, a.url, a.published_at, a.status, a.starred, "
         "f.title as feed_title, f.site_url "
@@ -304,19 +329,7 @@ QList<Article> DatabaseManager::getArticlesForCategory(long categoryId) const
     query.addBindValue(qlonglong(categoryId));
     if (query.exec()) {
         while (query.next()) {
-            articles.append({
-                query.value(0).toLongLong(),
-                query.value(1).toLongLong(),
-                query.value(2).toString(),
-                query.value(3).toString(),
-                query.value(4).toString(),
-                query.value(5).toString(),
-                query.value(6).toString(),
-                query.value(7).toString(),
-                query.value(8).toBool(),
-                query.value(9).toString(),  // feed_title
-                query.value(10).toString()  // site_url
-            });
+            articles.append(articleFromQuery(query));
         }
     }
     return articles;
@@ -324,27 +337,33 @@ QList<Article> DatabaseManager::getArticlesForCategory(long categoryId) const
 
 void DatabaseManager::markAsRead(long articleId, bool read)
 {
-    QSqlQuery query;
+    QSqlQuery query(m_db);
     query.prepare(QStringLiteral("UPDATE articles SET status = ? WHERE id = ?"));
     query.addBindValue(read ? QStringLiteral("read") : QStringLiteral("unread"));
     query.addBindValue(qlonglong(articleId));
-    query.exec();
+    if (!query.exec()) {
+        qWarning() << "Failed to mark as read:" << query.lastError().text();
+    }
 }
 
 void DatabaseManager::toggleStar(long articleId, bool starred)
 {
-    QSqlQuery query;
+    QSqlQuery query(m_db);
     query.prepare(QStringLiteral("UPDATE articles SET starred = ? WHERE id = ?"));
     query.addBindValue(starred);
     query.addBindValue(qlonglong(articleId));
-    query.exec();
+    if (!query.exec()) {
+        qWarning() << "Failed to toggle star:" << query.lastError().text();
+    }
 }
 
 void DatabaseManager::updateArticleContent(long articleId, const QString& content)
 {
-    QSqlQuery query;
+    QSqlQuery query(m_db);
     query.prepare(QStringLiteral("UPDATE articles SET content = ? WHERE id = ?"));
     query.addBindValue(content);
     query.addBindValue(qlonglong(articleId));
-    query.exec();
+    if (!query.exec()) {
+        qWarning() << "Failed to update content:" << query.lastError().text();
+    }
 }

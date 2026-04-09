@@ -39,6 +39,9 @@ Kirigami.ApplicationWindow {
         function onArticleBookmarkToggled(entryId) {
              root.showPassiveNotification(i18n("Article star status updated."));
         }
+        function onSyncError(msg) {
+            root.showPassiveNotification(i18n("Sync error: %1", msg));
+        }
     }
 
     Component.onCompleted: {

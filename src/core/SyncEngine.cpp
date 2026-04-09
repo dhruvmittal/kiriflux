@@ -93,6 +93,7 @@ SyncEngine::SyncEngine(QObject *parent)
         m_isSyncing = false;
         emit syncStatusChanged();
         emit syncFinished(false);
+        emit syncError(error);
     });
 
     connect(m_syncTimer, &QTimer::timeout, this, &SyncEngine::performSync);

@@ -41,6 +41,7 @@ public:
     static DatabaseManager& instance();
 
     bool init();
+    bool initWithPath(const QString &dbPath);
     
     // Feeds
     void saveFeeds(const QList<Feed>& feeds);
@@ -58,6 +59,7 @@ public:
     QList<Article> getArticlesForCategory(long categoryId) const;
     Q_INVOKABLE void clearAllData();
     QList<Article> getAllArticles() const;
+    std::optional<Article> getArticleById(long id) const;
     
     void markAsRead(long articleId, bool read);
     void toggleStar(long articleId, bool starred);

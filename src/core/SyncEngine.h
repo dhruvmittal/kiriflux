@@ -110,6 +110,7 @@ signals:
     void titleLinesChanged();
     void articleStatusUpdated(long entryId, const QString& status);
     void articleBookmarkToggled(long entryId);
+    void syncError(const QString& message);
 
 private:
     explicit SyncEngine(QObject *parent = nullptr);
