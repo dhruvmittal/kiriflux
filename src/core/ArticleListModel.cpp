@@ -16,7 +16,7 @@ ArticleListModel::ArticleListModel(QObject *parent)
     refresh();
 }
 
-void ArticleListModel::setCurrentFeedId(long id)
+void ArticleListModel::setCurrentFeedId(qint64 id)
 {
     if (m_currentFeedId == id) return;
     m_currentFeedId = id;
@@ -27,7 +27,7 @@ void ArticleListModel::setCurrentFeedId(long id)
     emit currentNameChanged();
 }
 
-void ArticleListModel::setCurrentCategoryId(long id)
+void ArticleListModel::setCurrentCategoryId(qint64 id)
 {
     if (m_currentCategoryId == id) return;
     m_currentCategoryId = id;
@@ -44,7 +44,7 @@ void ArticleListModel::markAsRead(int index, bool read)
     markAsReadById(m_articles.at(index).id, read);
 }
 
-void ArticleListModel::markAsReadById(long id, bool read)
+void ArticleListModel::markAsReadById(qint64 id, bool read)
 {
     qDebug() << "ArticleListModel::markAsReadById" << id << read;
     DatabaseManager::instance().markAsRead(id, read);
@@ -55,7 +55,7 @@ void ArticleListModel::markAsReadById(long id, bool read)
     // Find and update local list for immediate UI feedback
     for (int i = 0; i < m_articles.count(); ++i) {
         if (m_articles.at(i).id == id) {
-            m_articles[i].status = statusString;
+            m_articles[i].status = read ? ArticleStatus::Read : ArticleStatus::Unread;
             QModelIndex qidx = this->index(i, 0);
             emit dataChanged(qidx, qidx, {StatusRole});
             break;
@@ -95,9 +95,24 @@ void ArticleListModel::setFilterStarred(bool starred)
 
 void ArticleListModel::markAllAsRead()
 {
+    QList<qint64> unreadIds;
+    for (const auto& a : m_articles) {
+        if (a.status == ArticleStatus::Unread) {
+            unreadIds.append(a.id);
+        }
+    }
+
+    if (unreadIds.isEmpty()) return;
+
+    DatabaseManager::instance().markArticlesAsRead(unreadIds, true);
+    SyncEngine::instance().updateArticlesStatus(unreadIds, QStringLiteral("read"));
+
+    // Update local state and notify UI
     for (int i = 0; i < m_articles.count(); ++i) {
-        if (m_articles.at(i).status == QStringLiteral("unread")) {
-            markAsRead(i, true);
+        if (m_articles[i].status == ArticleStatus::Unread) {
+            m_articles[i].status = ArticleStatus::Read;
+            QModelIndex qidx = index(i, 0);
+            emit dataChanged(qidx, qidx, {StatusRole});
         }
     }
 }
@@ -108,7 +123,7 @@ void ArticleListModel::toggleStarred(int index)
     toggleStarredById(m_articles.at(index).id);
 }
 
-void ArticleListModel::toggleStarredById(long id)
+void ArticleListModel::toggleStarredById(qint64 id)
 {
     // Find current state
     bool currentStarred = false;
@@ -145,7 +160,7 @@ void ArticleListModel::toggleStarredById(long id)
     }
 }
 
-void ArticleListModel::onArticleContentUpdated(long id)
+void ArticleListModel::onArticleContentUpdated(qint64 id)
 {
     // Find the item in our list and update its content from DB
     for (int i = 0; i < m_articles.count(); ++i) {
@@ -166,26 +181,17 @@ void ArticleListModel::onArticleContentUpdated(long id)
 void ArticleListModel::refresh()
 {
     beginResetModel();
+    ArticleStatus status = ArticleStatus::All;
+    if (m_filterStatus == "unread") status = ArticleStatus::Unread;
+    else if (m_filterStatus == "read") status = ArticleStatus::Read;
+
     if (m_currentFeedId != -1) {
-        m_articles = DatabaseManager::instance().getArticlesForFeed(m_currentFeedId);
+        m_articles = DatabaseManager::instance().getArticlesForFeed(m_currentFeedId, status, m_filterStarred);
     } else if (m_currentCategoryId != -1) {
-        m_articles = DatabaseManager::instance().getArticlesForCategory(m_currentCategoryId);
+        m_articles = DatabaseManager::instance().getArticlesForCategory(m_currentCategoryId, status, m_filterStarred);
     } else {
-        m_articles = DatabaseManager::instance().getAllArticles();
+        m_articles = DatabaseManager::instance().getAllArticles(status, m_filterStarred);
     }
-
-    // Apply client-side filters (for now, eventually move to DB queries if performance allows)
-    auto it = std::remove_if(m_articles.begin(), m_articles.end(), [this](const Article& a) {
-        if (m_filterStatus == QStringLiteral("unread") && a.status != QStringLiteral("unread")) {
-            return true;
-        }
-        if (m_filterStarred && !a.starred) {
-            return true;
-        }
-        return false;
-    });
-    m_articles.erase(it, m_articles.end());
-
     endResetModel();
 }
 
@@ -208,10 +214,17 @@ QVariant ArticleListModel::data(const QModelIndex &index, int role) const
     case ContentRole: return article.content;
     case UrlRole: return article.url;
     case PublishedAtRole: return article.publishedAt;
-    case StatusRole: return article.status;
+    case StatusRole: {
+        switch (article.status) {
+            case ArticleStatus::Read: return QStringLiteral("read");
+            case ArticleStatus::Unread: return QStringLiteral("unread");
+            case ArticleStatus::Removed: return QStringLiteral("removed");
+            default: return QStringLiteral("unknown");
+        }
+    }
     case StarredRole: return article.starred;
     case FeedTitleRole: return article.feedTitle;
-    case FeedSiteUrlRole: return article.feedSiteUrl;
+    case FeedSiteUrlRole: return article.siteUrl;
     case Qt::DisplayRole: return article.title;
     }
     return {};
@@ -246,7 +259,7 @@ QVariantMap ArticleListModel::get(int row) const
     }
     return res;
 }
-QVariantMap ArticleListModel::getById(long id) const
+QVariantMap ArticleListModel::getById(qint64 id) const
 {
     // Search cached list first
     for (int i = 0; i < m_articles.count(); ++i) {
@@ -266,10 +279,11 @@ QVariantMap ArticleListModel::getById(long id) const
         res["content"] = article->content;
         res["url"] = article->url;
         res["publishedAt"] = article->publishedAt;
-        res["status"] = article->status;
+        res["status"] = static_cast<int>(article->status);
         res["starred"] = article->starred;
+        res["isRead"] = article->status == ArticleStatus::Read;
         res["feedTitle"] = article->feedTitle;
-        res["feedSiteUrl"] = article->feedSiteUrl;
+        res["feedSiteUrl"] = article->siteUrl;
         return res;
     }
     return {};

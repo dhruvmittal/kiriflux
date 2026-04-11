@@ -52,7 +52,7 @@ void DatabaseManagerTest::testFeeds()
     auto feeds = DatabaseManager::instance().getAllFeeds();
     QCOMPARE(feeds.size(), 1);
     QCOMPARE(feeds[0].title, QString("The Verge"));
-    QCOMPARE(feeds[0].categoryId, 1L);
+    QCOMPARE(feeds[0].categoryId, qint64(1));
 }
 
 void DatabaseManagerTest::testArticles()
@@ -61,15 +61,15 @@ void DatabaseManagerTest::testArticles()
     a1.id = 1001;
     a1.feedId = 101;
     a1.title = "Article 1";
-    a1.status = "unread";
+    a1.status = ArticleStatus::Unread;
     a1.starred = false;
-    a1.publishedAt = "2026-04-07T12:00:00Z";
+    a1.publishedAt = QDateTime::fromString("2026-04-07T12:00:00Z", Qt::ISODate);
 
     DatabaseManager::instance().saveArticles({a1});
 
     auto articles = DatabaseManager::instance().getAllArticles();
     QCOMPARE(articles.size(), 1);
-    QCOMPARE(articles[0].id, 1001L);
+    QCOMPARE(articles[0].id, qint64(1001));
     QCOMPARE(articles[0].title, QString("Article 1"));
 
     auto feedArticles = DatabaseManager::instance().getArticlesForFeed(101);
@@ -87,7 +87,7 @@ void DatabaseManagerTest::testArticleMutation()
 {
     DatabaseManager::instance().markAsRead(1001, true);
     auto a = DatabaseManager::instance().getArticleById(1001);
-    QCOMPARE(a->status, QString("read"));
+    QCOMPARE(a->status, ArticleStatus::Read);
 
     DatabaseManager::instance().toggleStar(1001, true);
     a = DatabaseManager::instance().getArticleById(1001);
@@ -114,12 +114,14 @@ void DatabaseManagerTest::testClearAllData()
 
 void DatabaseManagerTest::testWelcomeArticle()
 {
-    // Re-init to trigger welcome article seeding
+    // TEST-1: Fix logic to use memory DB for seeding test
     DatabaseManager::instance().clearAllData();
-    DatabaseManager::instance().init(); // Uses AppData, let's stick to memory for this test specifically
+    // Welcome article is seeded in initWithPath if count is 0
+    QVERIFY(DatabaseManager::instance().initWithPath(QStringLiteral(":memory:")));
     
-    // We can't easily re-init the singleton with memory from here without a wipe
-    // but we covered seeds in code review fix.
+    auto articles = DatabaseManager::instance().getAllArticles();
+    QVERIFY(!articles.isEmpty());
+    QCOMPARE(articles.first().title, QStringLiteral("Welcome to Kiriflux!"));
 }
 
 QTEST_GUILESS_MAIN(DatabaseManagerTest)

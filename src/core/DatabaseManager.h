@@ -4,34 +4,46 @@
 #include <QObject>
 #include <QSqlDatabase>
 #include <QVariantList>
+#include <QMutex>
+#include <QRecursiveMutex>
+#include <QDateTime>
 
 struct Feed {
-    long id;
+    qint64 id;
     QString title;
     QString siteUrl;
     QString feedUrl;
-    long categoryId;
+    qint64 categoryId;
     int unreadCount;
 };
 
 struct Category {
-    long id;
+    qint64 id;
     QString title;
     int unreadCount;
 };
 
+enum class ArticleStatus {
+    Unread = 0,
+    Read = 1,
+    Removed = 2,
+    All = 3
+};
+
 struct Article {
-    long id;
-    long feedId;
+    qint64 id;
+    qint64 feedId;
     QString title;
     QString author;
     QString content;
     QString url;
-    QString publishedAt;
-    QString status;
-    bool starred;
+    QDateTime publishedAt;
+    ArticleStatus status = ArticleStatus::Unread;
+    bool starred = false;
+    
+    // UI fields
     QString feedTitle;
-    QString feedSiteUrl;
+    QString siteUrl;
 };
 
 class DatabaseManager : public QObject
@@ -46,28 +58,31 @@ public:
     // Feeds
     void saveFeeds(const QList<Feed>& feeds);
     QList<Feed> getAllFeeds() const;
-    QString getFeedTitle(long feedId) const;
+    QString getFeedTitle(qint64 feedId) const;
 
     // Categories
     void saveCategories(const QList<Category>& categories);
     QList<Category> getAllCategories() const;
-    QString getCategoryTitle(long categoryId) const;
+    QString getCategoryTitle(qint64 categoryId) const;
 
     // Articles
     void saveArticles(const QList<Article>& articles);
-    QList<Article> getArticlesForFeed(long feedId) const;
-    QList<Article> getArticlesForCategory(long categoryId) const;
+    QList<Article> getArticlesForFeed(qint64 feedId, ArticleStatus status = ArticleStatus::Unread, bool filterStarred = false) const;
+    QList<Article> getArticlesForCategory(qint64 categoryId, ArticleStatus status = ArticleStatus::Unread, bool filterStarred = false) const;
     Q_INVOKABLE void clearAllData();
-    QList<Article> getAllArticles() const;
-    std::optional<Article> getArticleById(long id) const;
+    QList<Article> getAllArticles(ArticleStatus status = ArticleStatus::Unread, bool filterStarred = false) const;
+    std::optional<Article> getArticleById(qint64 id) const;
     
-    void markAsRead(long articleId, bool read);
-    void toggleStar(long articleId, bool starred);
-    void updateArticleContent(long articleId, const QString& content);
+    void markAsRead(qint64 articleId, bool read);
+    void markArticlesAsRead(const QList<qint64>& articleIds, bool read);
+    void toggleStar(qint64 articleId, bool starred);
+    void updateArticleStatus(qint64 articleId, ArticleStatus status);
+    void updateArticleContent(qint64 articleId, const QString& content);
 
 private:
     explicit DatabaseManager(QObject *parent = nullptr);
     ~DatabaseManager() = default;
     
     QSqlDatabase m_db;
+    mutable QRecursiveMutex m_mutex;
 };

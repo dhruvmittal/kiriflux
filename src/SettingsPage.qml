@@ -17,7 +17,7 @@ QQC2.Dialog {
     property string currentFontProperty: ""
 
     onAccepted: {
-        syncEngine.saveSettings();
+        settings.save();
         syncEngine.forceSync();
     }
 
@@ -167,9 +167,9 @@ QQC2.Dialog {
                     QQC2.TextField {
                         id: apiUrlField
                         placeholderText: "https://miniflux.example.com"
-                        text: syncEngine.apiUrl
+                        text: settings.apiUrl
                         Layout.fillWidth: true
-                        onTextEdited: syncEngine.apiUrl = text
+                        onTextEdited: settings.apiUrl = text
                     }
                     
                     SettingLabel { text: i18n("API Key") }
@@ -177,9 +177,9 @@ QQC2.Dialog {
                         id: apiKeyField
                         placeholderText: i18n("Your Miniflux API Key")
                         echoMode: QQC2.TextField.Password
-                        text: syncEngine.apiKey
+                        text: settings.apiKey
                         Layout.fillWidth: true
-                        onTextEdited: syncEngine.apiKey = text
+                        onTextEdited: settings.apiKey = text
                     }
                 }
                 Item { Layout.fillHeight: true }
@@ -196,9 +196,9 @@ QQC2.Dialog {
                             id: intervalSpin
                             from: 1
                             to: 1440
-                            value: syncEngine.syncInterval
+                            value: settings.syncInterval
                             Layout.fillWidth: true
-                            onValueModified: syncEngine.syncInterval = value
+                            onValueModified: settings.syncInterval = value
                         }
                         QQC2.Label { text: i18n("minutes") }
                     }
@@ -207,9 +207,9 @@ QQC2.Dialog {
                     QQC2.CheckBox {
                         id: cleanSyncCheck
                         text: i18n("Clean Sync (Reset local state on sync, no server updates)")
-                        checked: syncEngine.cleanSync
+                        checked: settings.cleanSync
                         Layout.fillWidth: true
-                        onToggled: syncEngine.cleanSync = checked
+                        onToggled: settings.cleanSync = checked
                     }
                 }
                 Item { Layout.fillHeight: true }
@@ -223,18 +223,18 @@ QQC2.Dialog {
                     QQC2.CheckBox {
                         id: markOpenCheck
                         text: i18n("Mark article as read when opened")
-                        checked: syncEngine.markAsReadOnOpen
+                        checked: settings.markAsReadOnOpen
                         Layout.fillWidth: true
-                        onToggled: syncEngine.markAsReadOnOpen = checked
+                        onToggled: settings.markAsReadOnOpen = checked
                     }
 
                     SettingLabel { text: i18n("On Scroll") }
                     QQC2.CheckBox {
                         id: markScrollCheck
                         text: i18n("Mark article as read when scrolled past top")
-                        checked: syncEngine.markAsReadOnScroll
+                        checked: settings.markAsReadOnScroll
                         Layout.fillWidth: true
-                        onToggled: syncEngine.markAsReadOnScroll = checked
+                        onToggled: settings.markAsReadOnScroll = checked
                     }
                 }
 
@@ -244,9 +244,9 @@ QQC2.Dialog {
                     QQC2.CheckBox {
                         id: readerModeCheck
                         text: i18n("Use Native Reader Mode (No Chromium)")
-                        checked: syncEngine.useReaderMode
+                        checked: settings.useReaderMode
                         Layout.fillWidth: true
-                        onToggled: syncEngine.useReaderMode = checked
+                        onToggled: settings.useReaderMode = checked
                     }
                 }
                 Item { Layout.fillHeight: true }
@@ -260,9 +260,9 @@ QQC2.Dialog {
                     QQC2.CheckBox {
                         id: showLabelsCheck
                         text: i18n("Show labels in toolbars")
-                        checked: syncEngine.showToolbarLabels
+                        checked: settings.showToolbarLabels
                         Layout.fillWidth: true
-                        onToggled: syncEngine.showToolbarLabels = checked
+                        onToggled: settings.showToolbarLabels = checked
                     }
                 }
 
@@ -273,9 +273,9 @@ QQC2.Dialog {
                         id: leftPaneWidthSpin
                         from: 100
                         to: 600
-                        value: syncEngine.leftPaneWidth
+                        value: settings.leftPaneWidth
                         Layout.fillWidth: true
-                        onValueModified: syncEngine.leftPaneWidth = value
+                        onValueModified: settings.leftPaneWidth = value
                     }
 
                     SettingLabel { text: i18n("Center Pane Width") }
@@ -283,9 +283,9 @@ QQC2.Dialog {
                         id: centerPaneWidthSpin
                         from: 200
                         to: 1000
-                        value: syncEngine.centerPaneWidth
+                        value: settings.centerPaneWidth
                         Layout.fillWidth: true
-                        onValueModified: syncEngine.centerPaneWidth = value
+                        onValueModified: settings.centerPaneWidth = value
                     }
                 }
                 Item { Layout.fillHeight: true }
@@ -297,55 +297,55 @@ QQC2.Dialog {
                 SettingsGrid {
                     FontPicker {
                         labelText: i18n("Left Pane (Categories)")
-                        fontValue: syncEngine.leftPaneFont
+                        fontValue: settings.leftPaneFont
                         onChooseClicked: {
                             currentFontProperty = "leftPaneFont";
-                            fontDialog.selectedFont = syncEngine.leftPaneFont;
+                            fontDialog.selectedFont = settings.leftPaneFont;
                             fontDialog.open();
                         }
                     }
                     FontPicker {
                         labelText: i18n("Article List (Title)")
-                        fontValue: syncEngine.articleListTitleFont
+                        fontValue: settings.articleListTitleFont
                         onChooseClicked: {
                             currentFontProperty = "articleListTitleFont";
-                            fontDialog.selectedFont = syncEngine.articleListTitleFont;
+                            fontDialog.selectedFont = settings.articleListTitleFont;
                             fontDialog.open();
                         }
                     }
                     FontPicker {
                         labelText: i18n("Article List (Info)")
-                        fontValue: syncEngine.articleListInfoFont
+                        fontValue: settings.articleListInfoFont
                         onChooseClicked: {
                             currentFontProperty = "articleListInfoFont";
-                            fontDialog.selectedFont = syncEngine.articleListInfoFont;
+                            fontDialog.selectedFont = settings.articleListInfoFont;
                             fontDialog.open();
                         }
                     }
                     FontPicker {
                         labelText: i18n("Article View (Title)")
-                        fontValue: syncEngine.articleViewTitleFont
+                        fontValue: settings.articleViewTitleFont
                         onChooseClicked: {
                             currentFontProperty = "articleViewTitleFont";
-                            fontDialog.selectedFont = syncEngine.articleViewTitleFont;
+                            fontDialog.selectedFont = settings.articleViewTitleFont;
                             fontDialog.open();
                         }
                     }
                     FontPicker {
                         labelText: i18n("Article View (Info)")
-                        fontValue: syncEngine.articleViewInfoFont
+                        fontValue: settings.articleViewInfoFont
                         onChooseClicked: {
                             currentFontProperty = "articleViewInfoFont";
-                            fontDialog.selectedFont = syncEngine.articleViewInfoFont;
+                            fontDialog.selectedFont = settings.articleViewInfoFont;
                             fontDialog.open();
                         }
                     }
                     FontPicker {
                         labelText: i18n("Article View (Text)")
-                        fontValue: syncEngine.articleViewTextFont
+                        fontValue: settings.articleViewTextFont
                         onChooseClicked: {
                             currentFontProperty = "articleViewTextFont";
-                            fontDialog.selectedFont = syncEngine.articleViewTextFont;
+                            fontDialog.selectedFont = settings.articleViewTextFont;
                             fontDialog.open();
                         }
                     }
@@ -359,12 +359,12 @@ QQC2.Dialog {
         id: fontDialog
         title: i18n("Select Font")
         onAccepted: {
-            if (currentFontProperty === "leftPaneFont") syncEngine.leftPaneFont = selectedFont
-            else if (currentFontProperty === "articleListTitleFont") syncEngine.articleListTitleFont = selectedFont
-            else if (currentFontProperty === "articleListInfoFont") syncEngine.articleListInfoFont = selectedFont
-            else if (currentFontProperty === "articleViewTitleFont") syncEngine.articleViewTitleFont = selectedFont
-            else if (currentFontProperty === "articleViewInfoFont") syncEngine.articleViewInfoFont = selectedFont
-            else if (currentFontProperty === "articleViewTextFont") syncEngine.articleViewTextFont = selectedFont
+            if (currentFontProperty === "leftPaneFont") settings.leftPaneFont = selectedFont
+            else if (currentFontProperty === "articleListTitleFont") settings.articleListTitleFont = selectedFont
+            else if (currentFontProperty === "articleListInfoFont") settings.articleListInfoFont = selectedFont
+            else if (currentFontProperty === "articleViewTitleFont") settings.articleViewTitleFont = selectedFont
+            else if (currentFontProperty === "articleViewInfoFont") settings.articleViewInfoFont = selectedFont
+            else if (currentFontProperty === "articleViewTextFont") settings.articleViewTextFont = selectedFont
         }
     }
 }

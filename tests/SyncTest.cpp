@@ -2,7 +2,12 @@
 #include <QSignalSpy>
 #include "../src/core/SyncEngine.h"
 #include "../src/core/DatabaseManager.h"
+#include "../src/core/SettingsManager.h"
+#include <QProcessEnvironment>
+
+#ifdef EXISTS_SECRETS
 #include "secrets.h"
+#endif
 
 class SyncTest : public QObject
 {
@@ -24,13 +29,25 @@ void SyncTest::initTestCase()
 
 void SyncTest::testRealConnection()
 {
-    // Skip if secrets are empty
-    if (Secrets::API_KEY.isEmpty()) {
-        QSKIP("No secrets provided, skipping real connection test.");
+    QString apiUrl;
+    QString apiKey;
+
+#ifdef EXISTS_SECRETS
+    apiUrl = Secrets::API_URL;
+    apiKey = Secrets::API_KEY;
+#endif
+
+    // SEC-2: Prioritize environment variables for security
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    if (env.contains("KIRIFLUX_TEST_URL")) apiUrl = env.value("KIRIFLUX_TEST_URL");
+    if (env.contains("KIRIFLUX_TEST_KEY")) apiKey = env.value("KIRIFLUX_TEST_KEY");
+
+    if (apiKey.isEmpty()) {
+        QSKIP("No secrets provided (via secrets.h or environment), skipping real connection test.");
     }
 
-    SyncEngine::instance().setApiUrl(Secrets::API_URL);
-    SyncEngine::instance().setApiKey(Secrets::API_KEY);
+    SettingsManager::instance().setApiUrl(apiUrl);
+    SettingsManager::instance().setApiKey(apiKey);
 
     QSignalSpy spyStarted(&SyncEngine::instance(), &SyncEngine::syncStarted);
     QSignalSpy spyFinished(&SyncEngine::instance(), &SyncEngine::syncFinished);
@@ -58,13 +75,13 @@ void SyncTest::testEndToEndSync()
 
 void SyncTest::testFetchFullContent()
 {
-    if (Secrets::API_KEY.isEmpty()) {
+    if (SettingsManager::instance().apiKey().isEmpty()) {
         QSKIP("No secrets provided, skipping full content test.");
     }
 
     auto articles = DatabaseManager::instance().getAllArticles();
     QVERIFY(!articles.isEmpty());
-    long testId = articles.first().id;
+    qint64 testId = articles.first().id;
 
     QSignalSpy spyUpdated(&SyncEngine::instance(), &SyncEngine::articleContentUpdated);
     SyncEngine::instance().fetchFullContent(testId);

@@ -10,8 +10,9 @@ class ArticleListModelTest : public QObject
 private slots:
     void initTestCase();
     void testInitialState();
-    void testFiltering();
-    void testMarkAsRead();
+    void testFilter();
+    void testCurrentFeed();
+    void testMarkRead();
     void testToggleStarred();
     void testGetMap();
     void testFeedSwitching();
@@ -36,11 +37,11 @@ void ArticleListModelTest::seedData()
     DatabaseManager::instance().saveFeeds({f10, f20});
 
     Article a1;
-    a1.id = 1; a1.feedId = 10; a1.title = "A1"; a1.status = "unread"; a1.starred = false;
+    a1.id = 1; a1.feedId = 10; a1.title = "A1"; a1.status = ArticleStatus::Unread; a1.starred = false;
     Article a2;
-    a2.id = 2; a2.feedId = 10; a2.title = "A2"; a2.status = "read"; a2.starred = true;
+    a2.id = 2; a2.feedId = 10; a2.title = "A2"; a2.status = ArticleStatus::Read; a2.starred = true;
     Article a3;
-    a3.id = 3; a3.feedId = 20; a3.title = "A3"; a3.status = "unread"; a3.starred = true;
+    a3.id = 3; a3.feedId = 20; a3.title = "A3"; a3.status = ArticleStatus::Unread; a3.starred = true;
 
     DatabaseManager::instance().saveArticles({a1, a2, a3});
 }
@@ -53,7 +54,7 @@ void ArticleListModelTest::testInitialState()
     QCOMPARE(model.rowCount(), 3);
 }
 
-void ArticleListModelTest::testFiltering()
+void ArticleListModelTest::testFilter()
 {
     ArticleListModel model;
     model.setFilterStatus("unread");
@@ -67,7 +68,7 @@ void ArticleListModelTest::testFiltering()
     QCOMPARE(model.rowCount(), 2); // A2, A3 are starred
 }
 
-void ArticleListModelTest::testMarkAsRead()
+void ArticleListModelTest::testMarkRead()
 {
     ArticleListModel model;
     model.setFilterStatus("all");
@@ -77,7 +78,7 @@ void ArticleListModelTest::testMarkAsRead()
     // Find A1 (id 1)
     int a1Idx = -1;
     for (int i=0; i<model.rowCount(); ++i) {
-        if (model.data(model.index(i, 0), ArticleListModel::IdRole).toLongLong() == 1) {
+        if (model.data(model.index(i, 0), ArticleListModel::IdRole).toLongLong() == qint64(1)) {
             a1Idx = i;
             break;
         }
@@ -89,7 +90,7 @@ void ArticleListModelTest::testMarkAsRead()
     QCOMPARE(model.data(model.index(a1Idx, 0), ArticleListModel::StatusRole).toString(), QString("read"));
     
     auto dbArticle = DatabaseManager::instance().getArticleById(1);
-    QCOMPARE(dbArticle->status, QString("read"));
+    QCOMPARE(dbArticle->status, ArticleStatus::Read);
 }
 
 void ArticleListModelTest::testToggleStarred()
@@ -113,7 +114,7 @@ void ArticleListModelTest::testGetMap()
     QVERIFY(map.contains("title"));
 }
 
-void ArticleListModelTest::testFeedSwitching()
+void ArticleListModelTest::testCurrentFeed()
 {
     ArticleListModel model;
     model.setFilterStatus("all");
@@ -126,6 +127,11 @@ void ArticleListModelTest::testFeedSwitching()
 
     model.setCurrentFeedId(-1);
     QCOMPARE(model.rowCount(), 3);
+}
+
+void ArticleListModelTest::testFeedSwitching()
+{
+    testCurrentFeed();
 }
 
 QTEST_GUILESS_MAIN(ArticleListModelTest)

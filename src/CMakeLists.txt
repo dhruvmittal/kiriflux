@@ -53,9 +53,7 @@ if(NOT NIX_BUILD)
     target_link_libraries(kiriflux PRIVATE KF6::Kirigami)
 endif()
 
-# Handle KConfigXT generated files for the main target
-kconfig_add_kcfg_files(kiriflux_SRCS core/kiriflux.kcfgc)
-target_sources(kiriflux PRIVATE ${kiriflux_SRCS})
+# Handle KConfigXT generated files for the main target - handled by kiriflux_core
 
 # ── Install ──────────────────────────────────────────────────────────
 install(FILES ../org.kde.kiriflux.desktop DESTINATION ${KDE_INSTALL_APPDIR})

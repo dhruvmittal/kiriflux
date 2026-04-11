@@ -127,20 +127,20 @@ Kirigami.ApplicationWindow {
                 Platform.MenuItem {
                     text: i18n("1 Line")
                     checkable: true
-                    checked: syncEngine.titleLines === 1
-                    onTriggered: syncEngine.titleLines = 1
+                    checked: settings.titleLines === 1
+                    onTriggered: settings.titleLines = 1
                 }
                 Platform.MenuItem {
                     text: i18n("2 Lines")
                     checkable: true
-                    checked: syncEngine.titleLines === 2
-                    onTriggered: syncEngine.titleLines = 2
+                    checked: settings.titleLines === 2
+                    onTriggered: settings.titleLines = 2
                 }
                 Platform.MenuItem {
                     text: i18n("3 Lines")
                     checkable: true
-                    checked: syncEngine.titleLines === 3
-                    onTriggered: syncEngine.titleLines = 3
+                    checked: settings.titleLines === 3
+                    onTriggered: settings.titleLines = 3
                 }
             }
 
@@ -149,8 +149,8 @@ Kirigami.ApplicationWindow {
             Platform.MenuItem {
                 text: i18n("Use Native Reader Mode")
                 checkable: true
-                checked: syncEngine.useReaderMode
-                onTriggered: syncEngine.useReaderMode = !syncEngine.useReaderMode
+                checked: settings.useReaderMode
+                onTriggered: settings.useReaderMode = !settings.useReaderMode
             }
 
             Platform.MenuSeparator {}

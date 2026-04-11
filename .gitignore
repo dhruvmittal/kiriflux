@@ -35,6 +35,8 @@
 # Build artifacts
 build/
 build-test/
+build-result/
+build-review/
 result
 .direnv/
 tests/secrets.h

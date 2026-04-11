@@ -14,7 +14,8 @@ Kirigami.Page {
     bottomPadding: 0
 
     // Hints for Kirigami.PageRow (column view)
-    implicitWidth: syncEngine.centerPaneWidth
+    // Hints for Kirigami.PageRow (column view)
+    implicitWidth: settings.centerPaneWidth
     
     title: articleListModel.currentName
 
@@ -24,12 +25,12 @@ Kirigami.Page {
             icon.name: "mail-mark-read"
             onTriggered: articleListModel.markAllAsRead()
             visible: articleListModel.rowCount() > 0
-            displayHint: syncEngine.showToolbarLabels ? 0 : 1
+            displayHint: settings.showToolbarLabels ? 0 : 1
         },
         Kirigami.Action {
             id: filterAction
             text: articleListModel.filterStarred ? i18n("Starred") : (articleListModel.filterStatus === "unread" ? i18n("Unread") : i18n("All"))
-            displayHint: syncEngine.showToolbarLabels ? 0 : 1
+            displayHint: settings.showToolbarLabels ? 0 : 1
             icon.name: articleListModel.filterStarred ? "favorite" : (articleListModel.filterStatus === "unread" ? "mail-unread" : "view-list-details")
             Kirigami.Action {
                 text: i18n("All")
@@ -101,7 +102,7 @@ Kirigami.Page {
         }
 
         // Automatic Read Marking: On Open
-        if (syncEngine.markAsReadOnOpen && model.status === "unread") {
+        if (settings.markAsReadOnOpen && model.status === "unread") {
             articleListModel.markAsRead(index, true);
         }
     }
@@ -136,7 +137,7 @@ Kirigami.Page {
             
             // Close any open ArticleViewPage on the stack
             // Search from top to find and pop the article view
-            for (let i = applicationWindow().pageStack.depth - 1; i >= 0; --i) {
+            for (let i = applicationWindow().pageStack.depth - 1; i >= 0; i--) {
                 let item = applicationWindow().pageStack.get(i);
                 if (item && item.objectName === "articleViewPage") {
                     // Pop everything from this page onwards
@@ -185,7 +186,7 @@ Kirigami.Page {
                 boundsBehavior: Flickable.StopAtBounds
 
                 onContentYChanged: {
-                    if (!syncEngine.markAsReadOnScroll) return;
+                    if (!settings.markAsReadOnScroll) return;
                     if (contentY <= 0) return;
                     scrollMarkTimer.restart();
                 }
@@ -255,10 +256,10 @@ Kirigami.Page {
                             QQC2.Label {
                                 id: titleLabel
                                 text: model.title
-                                font: syncEngine.articleListTitleFont
+                                font: settings.articleListTitleFont
                                 elide: Text.ElideRight
-                                maximumLineCount: syncEngine.titleLines
-                                wrapMode: syncEngine.titleLines > 1 ? Text.WordWrap : Text.NoWrap
+                                maximumLineCount: settings.titleLines
+                                wrapMode: settings.titleLines > 1 ? Text.WordWrap : Text.NoWrap
                                 Layout.fillWidth: true
                                 color: delegate.highlighted ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
                             }
@@ -269,7 +270,7 @@ Kirigami.Page {
                             QQC2.Label {
                                 text: (model.author ? model.author + " • " : "") + 
                                       (model.publishedAt ? new Date(model.publishedAt).toLocaleString(Qt.locale(), "MMM d, hh:mm") : "")
-                                font: syncEngine.articleListInfoFont
+                                font: settings.articleListInfoFont
                                 opacity: delegate.highlighted ? 1.0 : 0.6
                                 elide: Text.ElideRight
                                 Layout.fillWidth: true

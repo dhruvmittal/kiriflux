@@ -9,6 +9,8 @@ set(kiriflux_core_SRCS
     FeedListModel.cpp
     ArticleListModel.cpp
     CategoryListModel.cpp
+    SettingsManager.cpp
+    KirifluxLogging.cpp
 )
 
 # KConfigXT setup 

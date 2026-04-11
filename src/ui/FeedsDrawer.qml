@@ -8,7 +8,7 @@ Kirigami.GlobalDrawer {
     id: root
 
     property bool isMobile: Kirigami.Settings.isMobile
-    width: syncEngine.leftPaneWidth
+    width: settings.leftPaneWidth
 
     // By default, pinning it acts as a permanent left pane on desktop
     modal: isMobile
@@ -22,7 +22,7 @@ Kirigami.GlobalDrawer {
             icon.name: "view-refresh"
             onTriggered: syncEngine.forceSync()
             tooltip: syncEngine.lastSyncTimeText
-            displayHint: syncEngine.showToolbarLabels ? 0 : 1
+            displayHint: settings.showToolbarLabels ? 0 : 1
         }
     ]
 
@@ -38,7 +38,7 @@ Kirigami.GlobalDrawer {
 
             // 1. All Articles
             QQC2.ItemDelegate {
-                font: syncEngine.leftPaneFont
+                font: settings.leftPaneFont
                 Layout.fillWidth: true
                 highlighted: articleListModel.currentFeedId === -1 && articleListModel.currentCategoryId === -1
                 text: i18n("All Articles")
@@ -54,7 +54,7 @@ Kirigami.GlobalDrawer {
             // 2. Categories Section
             QQC2.Label {
                 text: i18n("Categories")
-                font.family: syncEngine.leftPaneFont.family
+                font.family: settings.leftPaneFont.family
                 font.bold: true
                 opacity: 0.6
                 font.pixelSize: Kirigami.Units.gridUnit * 0.7
@@ -71,7 +71,7 @@ Kirigami.GlobalDrawer {
                     property var catId: model.id
 
                     QQC2.ItemDelegate {
-                        font: syncEngine.leftPaneFont
+                        font: settings.leftPaneFont
                         Layout.fillWidth: true
                         highlighted: articleListModel.currentCategoryId === categoryItem.catId
                         onClicked: {
@@ -120,7 +120,7 @@ Kirigami.GlobalDrawer {
                     Repeater {
                         model: feedListModel
                         delegate: QQC2.ItemDelegate {
-                            font: syncEngine.leftPaneFont
+                            font: settings.leftPaneFont
                             Layout.fillWidth: true
                             visible: categoryItem.expanded && model.categoryId === categoryItem.catId
                             height: visible ? implicitHeight : 0
@@ -161,7 +161,7 @@ Kirigami.GlobalDrawer {
             // 3. Feeds Section (Flat list)
             QQC2.Label {
                 text: i18n("Feeds")
-                font.family: syncEngine.leftPaneFont.family
+                font.family: settings.leftPaneFont.family
                 font.bold: true
                 opacity: 0.6
                 font.pixelSize: Kirigami.Units.gridUnit * 0.7
@@ -171,7 +171,7 @@ Kirigami.GlobalDrawer {
             Repeater {
                 model: feedListModel
                 delegate: QQC2.ItemDelegate {
-                    font: syncEngine.leftPaneFont
+                    font: settings.leftPaneFont
                     Layout.fillWidth: true
                     highlighted: articleListModel.currentFeedId === model.id
                     onClicked: articleListModel.currentFeedId = model.id

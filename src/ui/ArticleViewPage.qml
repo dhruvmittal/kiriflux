@@ -49,16 +49,16 @@ Kirigami.Page {
     onPublishedAtChanged: renderDebouncer.restart()
 
     Connections {
-        target: syncEngine
+        target: settings
         function onSettingsChanged() {
             updateActiveView();
         }
     }
 
     function updateActiveView() {
-        if (syncEngine.useReaderMode && readerModeLoader.item) {
+        if (settings.useReaderMode && readerModeLoader.item) {
             readerModeLoader.item.updateContent();
-        } else if (!syncEngine.useReaderMode && webViewLoader.item) {
+        } else if (!settings.useReaderMode && webViewLoader.item) {
             webViewLoader.item.updateContent();
         }
     }
@@ -76,7 +76,7 @@ Kirigami.Page {
                     root.isUnread = !root.isUnread
                 }
             }
-            displayHint: syncEngine.showToolbarLabels ? 0 : 1
+            displayHint: settings.showToolbarLabels ? 0 : 1
         },
         Kirigami.Action {
             text: i18n("Star")
@@ -86,7 +86,7 @@ Kirigami.Page {
                     articleListModel.toggleStarredById(root.articleId)
                 }
             }
-            displayHint: syncEngine.showToolbarLabels ? 0 : 1
+            displayHint: settings.showToolbarLabels ? 0 : 1
         },
         Kirigami.Action {
             text: i18n("Full Content")
@@ -96,7 +96,7 @@ Kirigami.Page {
                     syncEngine.fetchFullContent(root.articleId)
                 }
             }
-            displayHint: syncEngine.showToolbarLabels ? 0 : 1
+            displayHint: settings.showToolbarLabels ? 0 : 1
         },
         Kirigami.Action {
             text: i18n("Open Browser")
@@ -106,7 +106,7 @@ Kirigami.Page {
                     Qt.openUrlExternally(root.articleUrl)
                 }
             }
-            displayHint: syncEngine.showToolbarLabels ? 0 : 1
+            displayHint: settings.showToolbarLabels ? 0 : 1
         }
     ]
 
@@ -114,7 +114,7 @@ Kirigami.Page {
     Loader {
         id: readerModeLoader
         anchors.fill: parent
-        active: syncEngine.useReaderMode
+        active: settings.useReaderMode
         sourceComponent: Component {
             QQC2.ScrollView {
                 id: readerScroll
@@ -178,14 +178,14 @@ Kirigami.Page {
 
                             QQC2.Label {
                                 id: nativeTitle
-                                font: syncEngine.articleViewTitleFont
+                                font: settings.articleViewTitleFont
                                 wrapMode: Text.WordWrap
                                 Layout.fillWidth: true
                             }
                             
                             QQC2.Label {
                                 id: nativeInfo
-                                font: syncEngine.articleViewInfoFont
+                                font: settings.articleViewInfoFont
                                 opacity: 0.7
                                 wrapMode: Text.WordWrap
                                 Layout.fillWidth: true
@@ -196,7 +196,7 @@ Kirigami.Page {
                             Text {
                                 id: nativeText
                                 textFormat: Text.RichText
-                                font: syncEngine.articleViewTextFont
+                                font: settings.articleViewTextFont
                                 color: root.themedTextColor
                                 wrapMode: Text.WordWrap
                                 Layout.fillWidth: true
@@ -220,7 +220,8 @@ Kirigami.Page {
                     sequence: "Space"
                     onActivated: {
                         let flick = readerScroll.contentItem
-                        flick.contentY = Math.min(flick.contentY + flick.height, flick.contentHeight - flick.height)
+                        let maxScroll = Math.max(0, flick.contentHeight - flick.height)
+                        flick.contentY = Math.min(flick.contentY + flick.height, maxScroll)
                     }
                 }
 
@@ -239,7 +240,7 @@ Kirigami.Page {
     Loader {
         id: webViewLoader
         anchors.fill: parent
-        active: !syncEngine.useReaderMode
+        active: !settings.useReaderMode
         sourceComponent: Component {
             WebEngineView {
                 id: articleWebView
@@ -300,27 +301,27 @@ Kirigami.Page {
                                 <style>
                                     :root { color-scheme: ${Kirigami.Theme.colorSet === Kirigami.Theme.Dark ? 'dark' : 'light'}; }
                                     body {
-                                        font-family: "${syncEngine.articleViewTextFont.family}", serif;
-                                        font-size: ${syncEngine.articleViewTextFont.pixelSize > 0 ? syncEngine.articleViewTextFont.pixelSize + "px" : syncEngine.articleViewTextFont.pointSize + "pt"};
-                                        font-weight: ${syncEngine.articleViewTextFont.weight};
-                                        font-style: ${syncEngine.articleViewTextFont.italic ? 'italic' : 'normal'};
+                                        font-family: "${settings.articleViewTextFont.family}", serif;
+                                        font-size: ${settings.articleViewTextFont.pixelSize > 0 ? settings.articleViewTextFont.pixelSize + "px" : settings.articleViewTextFont.pointSize + "pt"};
+                                        font-weight: ${settings.articleViewTextFont.weight};
+                                        font-style: ${settings.articleViewTextFont.italic ? 'italic' : 'normal'};
                                         padding: 40px; line-height: 1.6;
                                         color: ${textColor} !important; background-color: ${bgColor} !important;
                                         margin: 0 auto; max-width: 800px;
                                     }
                                     .header { margin-bottom: 40px; border-bottom: 1px solid ${alternateBgColor}; padding-bottom: 20px; }
                                     .title {
-                                        font-family: "${syncEngine.articleViewTitleFont.family}", sans-serif;
-                                        font-size: ${syncEngine.articleViewTitleFont.pixelSize > 0 ? syncEngine.articleViewTitleFont.pixelSize + "px" : syncEngine.articleViewTitleFont.pointSize + "pt"};
-                                        font-weight: ${syncEngine.articleViewTitleFont.weight};
-                                        font-style: ${syncEngine.articleViewTitleFont.italic ? 'italic' : 'normal'};
+                                        font-family: "${settings.articleViewTitleFont.family}", sans-serif;
+                                        font-size: ${settings.articleViewTitleFont.pixelSize > 0 ? settings.articleViewTitleFont.pixelSize + "px" : settings.articleViewTitleFont.pointSize + "pt"};
+                                        font-weight: ${settings.articleViewTitleFont.weight};
+                                        font-style: ${settings.articleViewTitleFont.italic ? 'italic' : 'normal'};
                                         line-height: 1.2; margin-bottom: 15px; color: ${textColor};
                                     }
                                     .meta {
-                                        font-family: "${syncEngine.articleViewInfoFont.family}", sans-serif;
-                                        font-size: ${syncEngine.articleViewInfoFont.pixelSize > 0 ? syncEngine.articleViewInfoFont.pixelSize + "px" : syncEngine.articleViewInfoFont.pointSize + "pt"};
-                                        font-weight: ${syncEngine.articleViewInfoFont.weight};
-                                        font-style: ${syncEngine.articleViewInfoFont.italic ? 'italic' : 'normal'};
+                                        font-family: "${settings.articleViewInfoFont.family}", sans-serif;
+                                        font-size: ${settings.articleViewInfoFont.pixelSize > 0 ? settings.articleViewInfoFont.pixelSize + "px" : settings.articleViewInfoFont.pointSize + "pt"};
+                                        font-weight: ${settings.articleViewInfoFont.weight};
+                                        font-style: ${settings.articleViewInfoFont.italic ? 'italic' : 'normal'};
                                         opacity: 0.7; color: ${textColor};
                                     }
                                     img { max-width: 100% !important; height: auto !important; border-radius: 8px; margin: 20px 0; }

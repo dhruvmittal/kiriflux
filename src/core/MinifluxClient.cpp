@@ -6,6 +6,22 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QUrlQuery>
+#include <QSet>
+
+static QUrl sanitizeAndVerify(const QString& url, const QString& endpoint)
+{
+    QString base = url.trimmed();
+    if (base.endsWith(QLatin1Char('/'))) {
+        base.chop(1);
+    }
+    QUrl qurl(base + endpoint);
+    // SEC-1: Enforce HTTPS
+    if (qurl.scheme() != QStringLiteral("https")) {
+        qWarning() << "Kiriflux: Refusing to send API key over insecure connection:" << qurl.scheme();
+        return QUrl();
+    }
+    return qurl;
+}
 
 MinifluxClient::MinifluxClient(QObject *parent)
     : QObject(parent), m_nam(new QNetworkAccessManager(this))
@@ -14,12 +30,12 @@ MinifluxClient::MinifluxClient(QObject *parent)
 
 void MinifluxClient::fetchFeeds(const QString& url, const QString& apiKey)
 {
-    QString sanitizedUrl = url.trimmed();
-    if (sanitizedUrl.endsWith(QLatin1Char('/'))) {
-        sanitizedUrl.chop(1);
+    QUrl qurl = sanitizeAndVerify(url, QStringLiteral("/v1/feeds"));
+    if (!qurl.isValid()) {
+        emit errorOccurred(tr("Insecure or invalid API URL. HTTPS is required."));
+        return;
     }
     
-    QUrl qurl(sanitizedUrl + QStringLiteral("/v1/feeds"));
     QNetworkRequest request(qurl);
     request.setRawHeader("X-Auth-Token", apiKey.trimmed().toUtf8());
 
@@ -51,12 +67,12 @@ void MinifluxClient::fetchFeeds(const QString& url, const QString& apiKey)
 
 void MinifluxClient::fetchCategories(const QString& url, const QString& apiKey)
 {
-    QString sanitizedUrl = url.trimmed();
-    if (sanitizedUrl.endsWith(QLatin1Char('/'))) {
-        sanitizedUrl.chop(1);
+    QUrl qurl = sanitizeAndVerify(url, QStringLiteral("/v1/categories"));
+    if (!qurl.isValid()) {
+        emit errorOccurred(tr("Insecure or invalid API URL. HTTPS is required."));
+        return;
     }
     
-    QUrl qurl(sanitizedUrl + QStringLiteral("/v1/categories"));
     QNetworkRequest request(qurl);
     request.setRawHeader("X-Auth-Token", apiKey.trimmed().toUtf8());
 
@@ -85,14 +101,7 @@ void MinifluxClient::fetchCategories(const QString& url, const QString& apiKey)
 
 void MinifluxClient::fetchArticles(const QString& url, const QString& apiKey)
 {
-    QString sanitizedUrl = url.trimmed();
-    if (sanitizedUrl.endsWith(QLatin1Char('/'))) {
-        sanitizedUrl.chop(1);
-    }
-
     // We fetch both UNREAD and STARRED articles to ensure sync is complete
-    // Miniflux doesn't have a simple "all recent" if we want to be efficient,
-    // so we combine two requests or just fetch unread and starred.
     QStringList endpoints = {
         QStringLiteral("/v1/entries?status=unread&order=published_at&direction=desc&limit=500"),
         QStringLiteral("/v1/entries?starred=1&order=published_at&direction=desc&limit=100")
@@ -103,7 +112,16 @@ void MinifluxClient::fetchArticles(const QString& url, const QString& apiKey)
     QSharedPointer<bool> hasError(new bool(false));
 
     for (const auto& endpoint : endpoints) {
-        QUrl qurl(sanitizedUrl + endpoint);
+        QUrl qurl = sanitizeAndVerify(url, endpoint);
+        if (!qurl.isValid()) {
+            (*pendingRequests)--;
+            if (!*hasError) {
+                *hasError = true;
+                emit errorOccurred(tr("Insecure or invalid API URL. HTTPS is required."));
+            }
+            continue;
+        }
+
         QNetworkRequest request(qurl);
         request.setRawHeader("X-Auth-Token", apiKey.trimmed().toUtf8());
 
@@ -115,16 +133,15 @@ void MinifluxClient::fetchArticles(const QString& url, const QString& apiKey)
             if (reply->error() != QNetworkReply::NoError) {
                 if (!*hasError) {
                     *hasError = true;
-                    QString errorMsg = reply->errorString() + " Body: " + reply->readAll();
-                    qWarning() << "Miniflux API Error:" << errorMsg;
-                    emit errorOccurred(errorMsg);
+                    // SEC-1: Do not log the full body as it might contain sensitive data if the error is from a proxy
+                    qWarning() << "Miniflux API Error:" << reply->errorString();
+                    emit errorOccurred(reply->errorString());
                 }
             } else {
                 QByteArray body = reply->readAll();
                 const QJsonDocument doc = QJsonDocument::fromJson(body);
                 const QJsonObject root = doc.object();
                 const QJsonArray array = root["entries"].toArray();
-                qDebug() << "Miniflux API returned" << array.size() << "articles for endpoint:" << endpoint;
                 for (const auto& value : array) {
                     const QJsonObject obj = value.toObject();
                     Article a;
@@ -134,44 +151,54 @@ void MinifluxClient::fetchArticles(const QString& url, const QString& apiKey)
                     a.author = obj["author"].toString();
                     a.content = obj["content"].toString();
                     a.url = obj["url"].toString();
-                    a.publishedAt = obj["published_at"].toString();
-                    a.status = obj["status"].toString();
+                    a.publishedAt = QDateTime::fromString(obj["published_at"].toString(), Qt::ISODate);
+                    a.status = (obj["status"].toString() == "read") ? ArticleStatus::Read : ArticleStatus::Unread;
                     a.starred = obj["starred"].toBool();
                     allArticles->append(a);
                 }
             }
             
-            if (*pendingRequests == 0 && !*hasError) {
-                qDebug() << "All requests finished. Emitting articlesFetched with" << allArticles->size() << "articles total.";
-                emit articlesFetched(*allArticles);
+            if (*pendingRequests == 0) {
+                // SYNC-1: Deduplicate articles if they appear in both unread and starred
+                QList<Article> deduped;
+                QSet<qint64> seen;
+                for (const auto& a : *allArticles) {
+                    if (!seen.contains(a.id)) {
+                        deduped.append(a);
+                        seen.insert(a.id);
+                    }
+                }
+                
+                if (!*hasError || !deduped.isEmpty()) {
+                    emit articlesFetched(deduped);
+                }
             }
         });
     }
 }
 
-void MinifluxClient::fetchArticleContent(const QString& url, const QString& apiKey, long entryId)
+void MinifluxClient::fetchArticleContent(const QString& url, const QString& apiKey, qint64 entryId)
 {
-    QString sanitizedUrl = url.trimmed();
-    if (sanitizedUrl.endsWith(QLatin1Char('/'))) {
-        sanitizedUrl.chop(1);
+    QUrl qurl = sanitizeAndVerify(url, QStringLiteral("/v1/entries/%1/fetch-content").arg(entryId));
+    if (!qurl.isValid()) {
+        emit errorOccurred(tr("Insecure or invalid API URL. HTTPS is required."));
+        return;
     }
 
-    QUrl qurl(sanitizedUrl + QStringLiteral("/v1/entries/%1/fetch-content").arg(entryId));
     QUrlQuery query;
     query.addQueryItem(QStringLiteral("update_content"), QStringLiteral("true"));
     qurl.setQuery(query);
-    qDebug() << "Fetching content via GET from URL:" << qurl.toString();
+    
     QNetworkRequest request(qurl);
     request.setRawHeader("X-Auth-Token", apiKey.trimmed().toUtf8());
 
-    // Miniflux API: GET /v1/entries/{entryID}/fetch-content
     QNetworkReply *reply = m_nam->get(request);
     connect(reply, &QNetworkReply::finished, this, [this, reply, entryId]() {
         reply->deleteLater();
         if (reply->error() != QNetworkReply::NoError) {
             QString errorBody = reply->readAll();
-            qWarning() << "API Error:" << reply->errorString() << "Body:" << errorBody;
-            emit errorOccurred(reply->errorString() + ": " + errorBody);
+            qWarning() << "API Error:" << reply->errorString();
+            emit errorOccurred(reply->errorString());
             return;
         }
 
@@ -184,14 +211,14 @@ void MinifluxClient::fetchArticleContent(const QString& url, const QString& apiK
     });
 }
 
-void MinifluxClient::updateArticleStatus(const QString& url, const QString& apiKey, long entryId, const QString& status)
+void MinifluxClient::updateArticleStatus(const QString& url, const QString& apiKey, qint64 entryId, const QString& status)
 {
-    QString sanitizedUrl = url.trimmed();
-    if (sanitizedUrl.endsWith(QLatin1Char('/'))) {
-        sanitizedUrl.chop(1);
+    QUrl qurl = sanitizeAndVerify(url, QStringLiteral("/v1/entries"));
+    if (!qurl.isValid()) {
+        emit errorOccurred(tr("Insecure or invalid API URL. HTTPS is required."));
+        return;
     }
 
-    QUrl qurl(sanitizedUrl + QStringLiteral("/v1/entries"));
     QNetworkRequest request(qurl);
     request.setRawHeader("X-Auth-Token", apiKey.trimmed().toUtf8());
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
@@ -213,14 +240,45 @@ void MinifluxClient::updateArticleStatus(const QString& url, const QString& apiK
     });
 }
 
-void MinifluxClient::toggleArticleBookmark(const QString& url, const QString& apiKey, long entryId)
+void MinifluxClient::updateArticlesStatus(const QString& url, const QString& apiKey, const QList<qint64>& entryIds, const QString& status)
 {
-    QString sanitizedUrl = url.trimmed();
-    if (sanitizedUrl.endsWith(QLatin1Char('/'))) {
-        sanitizedUrl.chop(1);
+    if (entryIds.isEmpty()) return;
+
+    QUrl qurl = sanitizeAndVerify(url, QStringLiteral("/v1/entries"));
+    if (!qurl.isValid()) {
+        emit errorOccurred(tr("Insecure or invalid API URL. HTTPS is required."));
+        return;
     }
 
-    QUrl qurl(sanitizedUrl + QStringLiteral("/v1/entries/%1/bookmark").arg(entryId));
+    QNetworkRequest request(qurl);
+    request.setRawHeader("X-Auth-Token", apiKey.trimmed().toUtf8());
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+    QJsonObject json;
+    QJsonArray entryIdsArray;
+    for (qint64 id : entryIds) entryIdsArray.append(qlonglong(id));
+    json["entry_ids"] = entryIdsArray;
+    json["status"] = status;
+
+    QNetworkReply *reply = m_nam->put(request, QJsonDocument(json).toJson());
+    connect(reply, &QNetworkReply::finished, this, [this, reply, entryIds, status]() {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit errorOccurred(reply->errorString());
+            return;
+        }
+        for (qint64 id : entryIds) emit articleStatusUpdated(id, status);
+    });
+}
+
+void MinifluxClient::toggleArticleBookmark(const QString& url, const QString& apiKey, qint64 entryId)
+{
+    QUrl qurl = sanitizeAndVerify(url, QStringLiteral("/v1/entries/%1/bookmark").arg(entryId));
+    if (!qurl.isValid()) {
+        emit errorOccurred(tr("Insecure or invalid API URL. HTTPS is required."));
+        return;
+    }
+
     QNetworkRequest request(qurl);
     request.setRawHeader("X-Auth-Token", apiKey.trimmed().toUtf8());
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
@@ -238,12 +296,11 @@ void MinifluxClient::toggleArticleBookmark(const QString& url, const QString& ap
 
 void MinifluxClient::fetchVersion(const QString& url, const QString& apiKey)
 {
-    QString sanitizedUrl = url.trimmed();
-    if (sanitizedUrl.endsWith(QLatin1Char('/'))) {
-        sanitizedUrl.chop(1);
+    QUrl qurl = sanitizeAndVerify(url, QStringLiteral("/v1/version"));
+    if (!qurl.isValid()) {
+        return;
     }
 
-    QUrl qurl(sanitizedUrl + QStringLiteral("/v1/version"));
     QNetworkRequest request(qurl);
     request.setRawHeader("X-Auth-Token", apiKey.trimmed().toUtf8());
     

@@ -20,6 +20,7 @@
 #include "core/FeedListModel.h"
 #include "core/ArticleListModel.h"
 #include "core/CategoryListModel.h"
+#include "core/SettingsManager.h"
 
 int main(int argc, char *argv[])
 {
@@ -77,6 +78,7 @@ int main(int argc, char *argv[])
     
     // Expose objects as global context properties
     engine.rootContext()->setContextProperty(QStringLiteral("syncEngine"), &SyncEngine::instance());
+    engine.rootContext()->setContextProperty(QStringLiteral("settings"), &SettingsManager::instance());
     engine.rootContext()->setContextProperty(QStringLiteral("feedListModel"), feedListModel);
     engine.rootContext()->setContextProperty(QStringLiteral("articleListModel"), articleListModel);
     engine.rootContext()->setContextProperty(QStringLiteral("categoryListModel"), categoryListModel);

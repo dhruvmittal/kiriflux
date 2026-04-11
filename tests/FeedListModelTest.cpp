@@ -21,8 +21,8 @@ void FeedListModelTest::initTestCase()
     Feed f1{1, "F1", "u1", "f1", 10, 0};
     DatabaseManager::instance().saveFeeds({f1});
 
-    Article a1; a1.id = 1; a1.feedId = 1; a1.status = "unread";
-    Article a2; a2.id = 2; a2.feedId = 1; a2.status = "unread";
+    Article a1; a1.id = 1; a1.feedId = 1; a1.status = ArticleStatus::Unread;
+    Article a2; a2.id = 2; a2.feedId = 1; a2.status = ArticleStatus::Unread;
     DatabaseManager::instance().saveArticles({a1, a2});
 }
 

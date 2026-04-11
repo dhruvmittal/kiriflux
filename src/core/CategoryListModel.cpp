@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "CategoryListModel.h"
 
+#include "SyncEngine.h"
+
 CategoryListModel::CategoryListModel(QObject *parent)
     : QAbstractListModel(parent)
 {
+    connect(&SyncEngine::instance(), &SyncEngine::articlesUpdated, this, &CategoryListModel::refresh);
     refresh();
 }
 

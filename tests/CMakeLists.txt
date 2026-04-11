@@ -36,6 +36,7 @@ add_test(NAME CategoryListModelTest COMMAND CategoryListModelTest)
 # 5. SyncTest (Integration, requires secrets)
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/secrets.h")
     add_executable(SyncTest SyncTest.cpp)
+    target_compile_definitions(SyncTest PRIVATE EXISTS_SECRETS)
     target_link_libraries(SyncTest PRIVATE
         kiriflux_core
         Qt6::Test
@@ -43,5 +44,11 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/secrets.h")
     )
     add_test(NAME SyncTest COMMAND SyncTest)
 else()
-    message(STATUS "secrets.h not found, skipping SyncTest")
+    add_executable(SyncTest SyncTest.cpp) # Built anyway, skip at runtime if no env/secrets
+    target_link_libraries(SyncTest PRIVATE
+        kiriflux_core
+        Qt6::Test
+        Qt6::Network
+    )
+    add_test(NAME SyncTest COMMAND SyncTest)
 endif()

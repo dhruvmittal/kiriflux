@@ -8,7 +8,6 @@
 class CategoryListModel : public QAbstractListModel
 {
     Q_OBJECT
-    QML_ELEMENT
 public:
     enum Roles {
         IdRole = Qt::UserRole + 1,
