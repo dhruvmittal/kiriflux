@@ -22,7 +22,16 @@ SyncEngine::SyncEngine(QObject *parent)
     : QObject(parent)
     , m_client(new MinifluxClient(this))
     , m_syncTimer(new QTimer(this))
+    , m_statusBatchTimer(new QTimer(this))
+    , m_errorThrottleTimer(new QTimer(this))
 {
+    m_statusBatchTimer->setInterval(1000); // 1-second batch window
+    m_statusBatchTimer->setSingleShot(true);
+    connect(m_statusBatchTimer, &QTimer::timeout, this, &SyncEngine::processStatusBatch);
+
+    m_errorThrottleTimer->setSingleShot(true);
+    m_errorThrottleTimer->setInterval(5000); // 5-second error throttle
+
     connect(m_syncTimer, &QTimer::timeout, this, &SyncEngine::performSync);
 
     // Sync interval is managed by SettingsManager
@@ -46,7 +55,6 @@ SyncEngine::SyncEngine(QObject *parent)
 
     connect(m_client, &MinifluxClient::articlesFetched, this, [this](const QList<Article>& articles) {
         DatabaseManager::instance().saveArticles(articles);
-        DatabaseManager::instance().purgeOldReadArticles(); // Performance: Keep DB lean
         m_isSyncing = false;
         SettingsManager::instance().setLastSyncTime(QDateTime::currentDateTime());
         SettingsManager::instance().save();
@@ -56,18 +64,20 @@ SyncEngine::SyncEngine(QObject *parent)
     });
 
     connect(m_client, &MinifluxClient::articleUpdated, this, [this](const Article& article) {
-        qDebug() << "Received article update for ID:" << article.id << "Title:" << article.title;
         DatabaseManager::instance().saveArticles({article});
         emit articleContentUpdated(article.id);
     });
 
     connect(m_client, &MinifluxClient::contentFetched, this, [this](qint64 entryId, const QString& content) {
-        qDebug() << "Received fetched content for entry ID:" << entryId;
         DatabaseManager::instance().updateArticleContent(entryId, content);
         emit articleContentUpdated(entryId);
     });
 
     connect(m_client, &MinifluxClient::articleStatusUpdated, this, [this](qint64 entryId, const QString& status) {
+        m_statusRequestInFlight = false;
+        if (!m_pendingReadIds.isEmpty()) {
+            m_statusBatchTimer->start();
+        }
         emit articleStatusUpdated(entryId, status);
     });
 
@@ -75,13 +85,7 @@ SyncEngine::SyncEngine(QObject *parent)
         emit articleBookmarkToggled(entryId);
     });
 
-    connect(m_client, &MinifluxClient::errorOccurred, this, [this](const QString& error) {
-        qWarning() << "Sync error:" << error;
-        m_isSyncing = false;
-        emit syncStatusChanged();
-        emit syncFinished(false);
-        emit syncError(error);
-    });
+    connect(m_client, &MinifluxClient::errorOccurred, this, &SyncEngine::handleError);
 }
 
 void SyncEngine::startIntervalSync()
@@ -116,12 +120,56 @@ void SyncEngine::performSync()
     m_client->fetchCategories(apiUrl, apiKey);
 }
 
+void SyncEngine::handleError(const QString& error)
+{
+    qWarning() << "Sync error:" << error;
+    m_isSyncing = false;
+    m_statusRequestInFlight = false;
+    emit syncStatusChanged();
+    
+    // Resume batching if needed
+    if (!m_pendingReadIds.isEmpty()) {
+        m_statusBatchTimer->start();
+    }
+
+    if (m_errorThrottleTimer->isActive() && error == m_lastErrorMessage) {
+        return;
+    }
+    m_lastErrorMessage = error;
+    m_errorThrottleTimer->start();
+    
+    emit syncFinished(false);
+    emit syncError(error);
+}
+
+void SyncEngine::enqueueMarkAsRead(qint64 articleId)
+{
+    m_pendingReadIds.insert(articleId);
+    if (!m_statusRequestInFlight) {
+        m_statusBatchTimer->start();
+    }
+}
+
+void SyncEngine::processStatusBatch()
+{
+    if (m_statusRequestInFlight || m_pendingReadIds.isEmpty()) return;
+
+    QString apiUrl = SettingsManager::instance().apiUrl();
+    QString apiKey = SettingsManager::instance().apiKey();
+    if (apiUrl.isEmpty() || apiKey.isEmpty()) return;
+
+    QList<qint64> ids = m_pendingReadIds.values();
+    m_pendingReadIds.clear();
+    
+    m_statusRequestInFlight = true;
+    m_client->updateArticlesStatus(apiUrl, apiKey, ids, QStringLiteral("read"));
+}
+
 void SyncEngine::fetchFullContent(qint64 entryId)
 {
     QString apiUrl = SettingsManager::instance().apiUrl();
     QString apiKey = SettingsManager::instance().apiKey();
     if (apiUrl.isEmpty() || apiKey.isEmpty()) return;
-    qCDebug(KIRIFLUX_SYNC) << "Requesting full content for entry ID:" << entryId;
     m_client->fetchArticleContent(apiUrl, apiKey, entryId);
 }
 
@@ -130,10 +178,6 @@ void SyncEngine::updateArticleStatus(qint64 entryId, const QString& status)
     QString apiUrl = SettingsManager::instance().apiUrl();
     QString apiKey = SettingsManager::instance().apiKey();
     if (apiUrl.isEmpty() || apiKey.isEmpty()) return;
-    if (SettingsManager::instance().cleanSync()) {
-        return;
-    }
-    qDebug() << "Updating article status on server:" << entryId << "to" << status;
     m_client->updateArticleStatus(apiUrl, apiKey, entryId, status);
 }
 
@@ -142,9 +186,6 @@ void SyncEngine::updateArticlesStatus(const QList<qint64>& entryIds, const QStri
     QString apiUrl = SettingsManager::instance().apiUrl();
     QString apiKey = SettingsManager::instance().apiKey();
     if (apiUrl.isEmpty() || apiKey.isEmpty() || entryIds.isEmpty()) return;
-    if (SettingsManager::instance().cleanSync()) return;
-
-    qDebug() << "Updating status for" << entryIds.size() << "articles to" << status;
     m_client->updateArticlesStatus(apiUrl, apiKey, entryIds, status);
 }
 
@@ -153,10 +194,6 @@ void SyncEngine::toggleArticleBookmark(qint64 entryId)
     QString apiUrl = SettingsManager::instance().apiUrl();
     QString apiKey = SettingsManager::instance().apiKey();
     if (apiUrl.isEmpty() || apiKey.isEmpty()) return;
-    if (SettingsManager::instance().cleanSync()) {
-        return;
-    }
-    qDebug() << "Toggling article bookmark on server:" << entryId;
     m_client->toggleArticleBookmark(apiUrl, apiKey, entryId);
 }
 

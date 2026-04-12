@@ -8,7 +8,7 @@ Kirigami.GlobalDrawer {
     id: root
 
     property bool isMobile: Kirigami.Settings.isMobile
-    width: settings.leftPaneWidth
+    width: settings ? settings.leftPaneWidth : 250
 
     // By default, pinning it acts as a permanent left pane on desktop
     modal: isMobile
@@ -22,7 +22,7 @@ Kirigami.GlobalDrawer {
             icon.name: "view-refresh"
             onTriggered: syncEngine.forceSync()
             tooltip: syncEngine.lastSyncTimeText
-            displayHint: settings.showToolbarLabels ? 0 : 1
+            displayHint: (settings && settings.showToolbarLabels) ? 0 : 1
         }
     ]
 
@@ -38,7 +38,7 @@ Kirigami.GlobalDrawer {
 
             // 1. All Articles
             QQC2.ItemDelegate {
-                font: settings.leftPaneFont
+                font: settings ? settings.leftPaneFont : undefined
                 Layout.fillWidth: true
                 highlighted: articleListModel.currentFeedId === -1 && articleListModel.currentCategoryId === -1
                 text: i18n("All Articles")

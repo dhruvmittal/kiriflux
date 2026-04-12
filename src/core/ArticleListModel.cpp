@@ -49,8 +49,7 @@ void ArticleListModel::markAsReadById(qint64 id, bool read)
     qDebug() << "ArticleListModel::markAsReadById" << id << read;
     DatabaseManager::instance().markAsRead(id, read);
     
-    QString statusString = read ? QStringLiteral("read") : QStringLiteral("unread");
-    SyncEngine::instance().updateArticleStatus(id, statusString);
+    SyncEngine::instance().enqueueMarkAsRead(id);
     
     // Find and update local list for immediate UI feedback
     for (int i = 0; i < m_articles.count(); ++i) {

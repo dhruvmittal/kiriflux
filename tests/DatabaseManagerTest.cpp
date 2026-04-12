@@ -63,7 +63,7 @@ void DatabaseManagerTest::testArticles()
     a1.title = "Article 1";
     a1.status = ArticleStatus::Unread;
     a1.starred = false;
-    a1.publishedAt = QDateTime::fromString("2026-04-07T12:00:00Z", Qt::ISODate);
+    a1.publishedAt = QStringLiteral("2026-04-07T12:00:00Z");
 
     DatabaseManager::instance().saveArticles({a1});
 

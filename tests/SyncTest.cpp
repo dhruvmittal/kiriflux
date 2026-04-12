@@ -56,8 +56,8 @@ void SyncTest::testRealConnection()
     
     QCOMPARE(spyStarted.count(), 1);
     
-    // Wait up to 10 seconds for real network
-    QVERIFY(spyFinished.wait(10000));
+    // Wait up to 30 seconds for real network
+    QVERIFY(spyFinished.wait(30000));
     
     bool success = spyFinished.at(0).at(0).toBool();
     QVERIFY2(success, "Sync failed despite valid credentials");

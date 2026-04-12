@@ -52,3 +52,12 @@ else()
     )
     add_test(NAME SyncTest COMMAND SyncTest)
 endif()
+
+# 6. BatchSyncTest
+add_executable(BatchSyncTest BatchSyncTest.cpp)
+target_link_libraries(BatchSyncTest PRIVATE
+    kiriflux_core
+    Qt6::Test
+    Qt6::Network
+)
+add_test(NAME BatchSyncTest COMMAND BatchSyncTest)

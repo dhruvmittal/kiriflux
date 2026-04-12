@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QTimer>
 #include <QFont>
+#include <QSet>
 #include "MinifluxClient.h"
 
 class SyncEngine : public QObject
@@ -27,6 +28,9 @@ public slots:
     void updateArticleStatus(qint64 entryId, const QString& status);
     void updateArticlesStatus(const QList<qint64>& entryIds, const QString& status);
     void toggleArticleBookmark(qint64 entryId);
+    
+    // Efficient status batching
+    void enqueueMarkAsRead(qint64 articleId);
 
 signals:
     void syncStarted();
@@ -43,9 +47,17 @@ private:
     ~SyncEngine() = default;
 
     void performSync();
+    void processStatusBatch();
+    void handleError(const QString& error);
 
     MinifluxClient *m_client;
     QTimer *m_syncTimer;
+    QTimer *m_statusBatchTimer;
+    QTimer *m_errorThrottleTimer;
+    
+    QSet<qint64> m_pendingReadIds;
+    QString m_lastErrorMessage;
     bool m_isSyncing = false;
+    bool m_statusRequestInFlight = false;
     QString m_syncStatus;
 };

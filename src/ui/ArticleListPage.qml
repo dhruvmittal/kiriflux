@@ -15,7 +15,7 @@ Kirigami.Page {
 
     // Hints for Kirigami.PageRow (column view)
     // Hints for Kirigami.PageRow (column view)
-    implicitWidth: settings.centerPaneWidth
+    implicitWidth: settings ? settings.centerPaneWidth : 400
     
     title: articleListModel.currentName
 
@@ -25,12 +25,12 @@ Kirigami.Page {
             icon.name: "mail-mark-read"
             onTriggered: articleListModel.markAllAsRead()
             visible: articleListModel.rowCount() > 0
-            displayHint: settings.showToolbarLabels ? 0 : 1
+            displayHint: (settings && settings.showToolbarLabels) ? 0 : 1
         },
         Kirigami.Action {
             id: filterAction
             text: articleListModel.filterStarred ? i18n("Starred") : (articleListModel.filterStatus === "unread" ? i18n("Unread") : i18n("All"))
-            displayHint: settings.showToolbarLabels ? 0 : 1
+            displayHint: (settings && settings.showToolbarLabels) ? 0 : 1
             icon.name: articleListModel.filterStarred ? "favorite" : (articleListModel.filterStatus === "unread" ? "mail-unread" : "view-list-details")
             Kirigami.Action {
                 text: i18n("All")
@@ -256,10 +256,10 @@ Kirigami.Page {
                             QQC2.Label {
                                 id: titleLabel
                                 text: model.title
-                                font: settings.articleListTitleFont
+                                font: settings ? settings.articleListTitleFont : undefined
                                 elide: Text.ElideRight
-                                maximumLineCount: settings.titleLines
-                                wrapMode: settings.titleLines > 1 ? Text.WordWrap : Text.NoWrap
+                                maximumLineCount: settings ? settings.titleLines : 1
+                                wrapMode: (settings && settings.titleLines > 1) ? Text.WordWrap : Text.NoWrap
                                 Layout.fillWidth: true
                                 color: delegate.highlighted ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
                             }

@@ -119,7 +119,7 @@ bool DatabaseManager::initWithPath(const QString &dbPath)
         welcome.content = QStringLiteral("<h1>Welcome!</h1><p>Kiriflux is a desktop-first RSS reader for KDE Plasma 6.</p><p>Go to settings to configure your Miniflux API details and start syncing!</p><p><b>Shortcuts:</b><br/><b>J/K</b>: Navigation<br/><b>M</b>: Mark Read<br/><b>R</b>: Sync</p>");
         welcome.status = ArticleStatus::Unread;
         welcome.starred = false;
-        welcome.publishedAt = QDateTime::currentDateTime();
+        welcome.publishedAt = QDateTime::currentDateTime().toString(Qt::ISODate);
         saveArticles({welcome});
     }
 
@@ -292,7 +292,7 @@ void DatabaseManager::saveArticles(const QList<Article>& articles)
         query.addBindValue(article.author);
         query.addBindValue(article.content);
         query.addBindValue(article.url);
-        query.addBindValue(article.publishedAt.toString(Qt::ISODate));
+        query.addBindValue(article.publishedAt);
         query.addBindValue(static_cast<int>(article.status));
         query.addBindValue(article.starred ? 1 : 0);
         if (!query.exec()) {
@@ -318,7 +318,7 @@ static Article articleFromQuery(const QSqlQuery& query)
     a.author = query.value(3).toString();
     a.content = query.value(4).toString();
     a.url = query.value(5).toString();
-    a.publishedAt = QDateTime::fromString(query.value(6).toString(), Qt::ISODate);
+    a.publishedAt = query.value(6).toString();
     
     QVariant statusVar = query.value(7);
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
