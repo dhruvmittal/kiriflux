@@ -46,6 +46,7 @@ SyncEngine::SyncEngine(QObject *parent)
 
     connect(m_client, &MinifluxClient::articlesFetched, this, [this](const QList<Article>& articles) {
         DatabaseManager::instance().saveArticles(articles);
+        DatabaseManager::instance().purgeOldReadArticles(); // Performance: Keep DB lean
         m_isSyncing = false;
         SettingsManager::instance().setLastSyncTime(QDateTime::currentDateTime());
         SettingsManager::instance().save();

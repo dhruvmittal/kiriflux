@@ -31,9 +31,8 @@ bool DatabaseManager::initWithPath(const QString &dbPath)
 {
     QMutexLocker locker(&m_mutex);
     
-    // DB-1: Use unique connection name to avoid collisions in tests/re-inits
-    static int connectionCounter = 0;
-    const QString connectionName = QStringLiteral("kiriflux_%1").arg(++connectionCounter);
+    // DB-1: Use a stable connection name to ensure test data persistence within a session.
+    const QString connectionName = QStringLiteral("kiriflux_main");
     
     m_db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connectionName);
     m_db.setDatabaseName(dbPath);
@@ -41,6 +40,14 @@ bool DatabaseManager::initWithPath(const QString &dbPath)
     if (!m_db.open()) {
         qCWarning(KIRIFLUX_DB) << "Failed to open database:" << m_db.lastError().text();
         return false;
+    }
+
+    // Enable WAL mode for better concurrency during sync (only for file-based DBs)
+    if (dbPath != QStringLiteral(":memory:")) {
+        QSqlQuery walQuery(m_db);
+        if (!walQuery.exec(QStringLiteral("PRAGMA journal_mode=WAL"))) {
+            qCWarning(KIRIFLUX_DB) << "Failed to enable WAL mode:" << walQuery.lastError().text();
+        }
     }
 
     qCDebug(KIRIFLUX_DB) << "Database opened successfully at:" << dbPath;
@@ -87,6 +94,16 @@ bool DatabaseManager::initWithPath(const QString &dbPath)
     // Add index for faster sorting by time
     if (!query.exec(QStringLiteral("CREATE INDEX IF NOT EXISTS idx_articles_published_at ON articles(published_at DESC)"))) {
         qWarning() << "Failed to create articles index:" << query.lastError().text();
+    }
+
+    // Compound indexes for common filters (Feed/Status)
+    if (!query.exec(QStringLiteral("CREATE INDEX IF NOT EXISTS idx_articles_feed_status ON articles(feed_id, status)"))) {
+        qWarning() << "Failed to create feed_status index:" << query.lastError().text();
+    }
+
+    // Index for starred articles
+    if (!query.exec(QStringLiteral("CREATE INDEX IF NOT EXISTS idx_articles_starred ON articles(starred) WHERE starred = 1"))) {
+        qWarning() << "Failed to create starred index:" << query.lastError().text();
     }
 
     // Seed with welcome article if empty
@@ -148,9 +165,14 @@ QList<Feed> DatabaseManager::getAllFeeds() const
     QMutexLocker locker(&m_mutex);
     QList<Feed> feeds;
     QSqlQuery query(m_db);
+    // Optimized: Use LEFT JOIN and GROUP BY instead of correlated subquery
     query.prepare(QStringLiteral(
-        "SELECT f.*, (SELECT COUNT(*) FROM articles a WHERE a.feed_id = f.id AND a.status = 0) as unread_count "
-        "FROM feeds f ORDER BY f.title"));
+        "SELECT f.id AS id, f.title AS title, f.site_url AS site_url, f.feed_url AS feed_url, f.category_id AS category_id, "
+        "COUNT(CASE WHEN a.status = 0 THEN 1 END) as unread_count "
+        "FROM feeds f "
+        "LEFT JOIN articles a ON f.id = a.feed_id "
+        "GROUP BY f.id "
+        "ORDER BY f.title COLLATE NOCASE"));
     
     if (query.exec()) {
         while (query.next()) {
@@ -215,13 +237,15 @@ QList<Category> DatabaseManager::getAllCategories() const
     QMutexLocker locker(&m_mutex);
     QList<Category> categories;
     QSqlQuery query(m_db);
-    // Aggregate unread count from all feeds in the category
+    // Optimized: Use LEFT JOIN and GROUP BY instead of correlated subquery
     query.prepare(QStringLiteral(
-        "SELECT c.id, c.title, "
-        "(SELECT COUNT(*) FROM articles a "
-        " JOIN feeds f ON a.feed_id = f.id "
-        " WHERE f.category_id = c.id AND a.status = 0) as unread_count "
-        "FROM categories c ORDER BY c.title"));
+        "SELECT c.id AS id, c.title AS title, "
+        "COUNT(CASE WHEN a.status = 0 THEN 1 END) as unread_count "
+        "FROM categories c "
+        "LEFT JOIN feeds f ON c.id = f.category_id "
+        "LEFT JOIN articles a ON f.id = a.feed_id "
+        "GROUP BY c.id "
+        "ORDER BY c.title COLLATE NOCASE"));
     
     if (query.exec()) {
         while (query.next()) {
@@ -502,5 +526,29 @@ void DatabaseManager::updateArticleContent(qint64 articleId, const QString& cont
     query.addBindValue(articleId);
     if (!query.exec()) {
         qCWarning(KIRIFLUX_DB) << "Failed to update content:" << query.lastError().text();
+    }
+}
+
+void DatabaseManager::purgeOldReadArticles(int days)
+{
+    QMutexLocker locker(&m_mutex);
+    QDateTime cutoff = QDateTime::currentDateTime().addDays(-days);
+    
+    QSqlQuery query(m_db);
+    query.prepare(QStringLiteral(
+        "DELETE FROM articles "
+        "WHERE status = ? "
+        "AND starred = 0 "
+        "AND published_at < ?"));
+    query.addBindValue(static_cast<int>(ArticleStatus::Read));
+    query.addBindValue(cutoff.toString(Qt::ISODate));
+    
+    if (!query.exec()) {
+        qCWarning(KIRIFLUX_DB) << "Failed to purge old articles:" << query.lastError().text();
+    } else {
+        int purged = query.numRowsAffected();
+        if (purged > 0) {
+            qCDebug(KIRIFLUX_DB) << "Purged" << purged << "old read articles.";
+        }
     }
 }

@@ -78,6 +78,7 @@ public:
     void toggleStar(qint64 articleId, bool starred);
     void updateArticleStatus(qint64 articleId, ArticleStatus status);
     void updateArticleContent(qint64 articleId, const QString& content);
+    void purgeOldReadArticles(int days = 7);
 
 private:
     explicit DatabaseManager(QObject *parent = nullptr);

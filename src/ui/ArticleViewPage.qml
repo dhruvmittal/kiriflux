@@ -42,11 +42,11 @@ Kirigami.Page {
         onTriggered: updateActiveView()
     }
 
-    onArticleContentChanged: renderDebouncer.restart()
-    onArticleTitleChanged: renderDebouncer.restart()
-    onFeedTitleChanged: renderDebouncer.restart()
-    onAuthorChanged: renderDebouncer.restart()
-    onPublishedAtChanged: renderDebouncer.restart()
+    onArticleContentChanged: if (readerModeLoader.item || webViewLoader.item) renderDebouncer.restart()
+    onArticleTitleChanged: if (readerModeLoader.item || webViewLoader.item) renderDebouncer.restart()
+    onFeedTitleChanged: if (readerModeLoader.item || webViewLoader.item) renderDebouncer.restart()
+    onAuthorChanged: if (readerModeLoader.item || webViewLoader.item) renderDebouncer.restart()
+    onPublishedAtChanged: if (readerModeLoader.item || webViewLoader.item) renderDebouncer.restart()
 
     Connections {
         target: settings
@@ -76,7 +76,7 @@ Kirigami.Page {
                     root.isUnread = !root.isUnread
                 }
             }
-            displayHint: settings.showToolbarLabels ? 0 : 1
+            displayHint: (settings && settings.showToolbarLabels) ? 0 : 1
         },
         Kirigami.Action {
             text: i18n("Star")
@@ -86,7 +86,7 @@ Kirigami.Page {
                     articleListModel.toggleStarredById(root.articleId)
                 }
             }
-            displayHint: settings.showToolbarLabels ? 0 : 1
+            displayHint: (settings && settings.showToolbarLabels) ? 0 : 1
         },
         Kirigami.Action {
             text: i18n("Full Content")
@@ -96,7 +96,7 @@ Kirigami.Page {
                     syncEngine.fetchFullContent(root.articleId)
                 }
             }
-            displayHint: settings.showToolbarLabels ? 0 : 1
+            displayHint: (settings && settings.showToolbarLabels) ? 0 : 1
         },
         Kirigami.Action {
             text: i18n("Open Browser")
@@ -106,7 +106,7 @@ Kirigami.Page {
                     Qt.openUrlExternally(root.articleUrl)
                 }
             }
-            displayHint: settings.showToolbarLabels ? 0 : 1
+            displayHint: (settings && settings.showToolbarLabels) ? 0 : 1
         }
     ]
 
@@ -138,23 +138,11 @@ Kirigami.Page {
                     let processedHtml = root.articleContent;
                     
                     if (processedHtml) {
-                        // Responsively scale width and height to prevent Qt layout overlap bugs
+                        // Simplified Responsive Scaling for QQuickText (RichText)
                         processedHtml = processedHtml.replace(/<img([^>]*)>/gi, function(match, attributes) {
-                            let wMatch = attributes.match(/width=(?:["']?)(\d+)(?:["']?)/i);
-                            let hMatch = attributes.match(/height=(?:["']?)(\d+)(?:["']?)/i);
-                            if (wMatch && hMatch) {
-                                let w = parseInt(wMatch[1]);
-                                let h = parseInt(hMatch[1]);
-                                if (w > 0 && w > maxWidth) {
-                                    let scaledH = Math.round((h / w) * maxWidth);
-                                    let cleanAttrs = attributes.replace(/(width|height)=["'][^"']*["']/gi, "");
-                                    return `<div align="center"><img width="${maxWidth}" height="${scaledH}" ${cleanAttrs}></div>`;
-                                }
-                                return `<div align="center">${match}</div>`;
-                            }
-                            // Unbounded responsive image (e.g. 9to5Google). Table wrapper forces async bounding updates!
                             let cleanAttrs = attributes.replace(/(width|height)=["'][^"']*["']/gi, "");
-                            return `<div align="center"><table width="${maxWidth}" cellpadding="0" cellspacing="0" style="margin:0 auto"><tr><td align="center"><img width="${maxWidth}" ${cleanAttrs}></td></tr></table></div>`;
+                            // We use a simple div wrapper which is better handled by RichText than tables
+                            return `<div align="center"><img width="${maxWidth}" ${cleanAttrs}></div>`;
                         });
                     } else {
                         processedHtml = "<p style='color:#888; text-align:center;'>Select an article to read.</p>";
@@ -196,7 +184,8 @@ Kirigami.Page {
                             Text {
                                 id: nativeText
                                 textFormat: Text.RichText
-                                font: settings.articleViewTextFont
+                                baseUrl: root.articleUrl
+                                font: settings ? settings.articleViewTextFont : undefined
                                 color: root.themedTextColor
                                 wrapMode: Text.WordWrap
                                 Layout.fillWidth: true
