@@ -44,7 +44,7 @@ void MinifluxClient::fetchFeeds(const QString& url, const QString& apiKey)
     QNetworkRequest request(qurl);
     request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Kiriflux/1.0"));
     request.setRawHeader("X-Auth-Token", apiKey.trimmed().toUtf8());
-    // Removal of hard transfer timeout to accommodate slow/VPN links
+    request.setTransferTimeout(120000); // 120s timeout for robust fetching
 
     QNetworkReply *reply = m_nam->get(request);
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
@@ -80,6 +80,7 @@ void MinifluxClient::fetchCategories(const QString& url, const QString& apiKey)
     QNetworkRequest request(qurl);
     request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Kiriflux/1.0"));
     request.setRawHeader("X-Auth-Token", apiKey.trimmed().toUtf8());
+    request.setTransferTimeout(120000);
 
     QNetworkReply *reply = m_nam->get(request);
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
@@ -106,53 +107,40 @@ void MinifluxClient::fetchCategories(const QString& url, const QString& apiKey)
 
 void MinifluxClient::fetchArticles(const QString& url, const QString& apiKey)
 {
-    // SYNC-2: Sequential fetching to avoid bandwidth contention on Tailscale/Relay links
-    struct Context {
-        QString url;
-        QString apiKey;
-        QStringList endpoints;
-        QList<Article> allArticles;
-    };
-
-    auto context = QSharedPointer<Context>::create();
-    context->url = url;
-    context->apiKey = apiKey;
-    context->endpoints = {
-        // limit=100 is the Miniflux default and provides better performance for slow links
-        QStringLiteral("/v1/entries?status=unread&order=published_at&direction=desc&limit=100"),
+    // SYNC-3: Restored parallel fetching now that server availability is confirmed.
+    // This maximizes throughput on stable connections.
+    QStringList endpoints = {
+        QStringLiteral("/v1/entries?status=unread&order=published_at&direction=desc&limit=500"),
         QStringLiteral("/v1/entries?starred=1&order=published_at&direction=desc&limit=100")
     };
 
-    auto fetchNext = [this, context](auto self) -> void {
-        if (context->endpoints.isEmpty()) {
-            QList<Article> deduped;
-            QSet<qint64> seen;
-            for (const auto& a : context->allArticles) {
-                if (!seen.contains(a.id)) {
-                    deduped.append(a);
-                    seen.insert(a.id);
-                }
-            }
-            emit articlesFetched(deduped);
-            return;
+    QSharedPointer<int> pendingRequests(new int(endpoints.size()));
+    QSharedPointer<QList<Article>> allArticles(new QList<Article>());
+    QSharedPointer<bool> hasError(new bool(false));
+
+    for (const auto& endpoint : endpoints) {
+        QUrl qurl = sanitizeAndVerify(url, endpoint);
+        if (!qurl.isValid()) {
+            (*pendingRequests)--;
+            continue;
         }
 
-        QString endpoint = context->endpoints.takeFirst();
-        QUrl qurl = sanitizeAndVerify(context->url, endpoint);
-        
         QNetworkRequest request(qurl);
         request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Kiriflux/1.0"));
-        request.setRawHeader("X-Auth-Token", context->apiKey.trimmed().toUtf8());
+        request.setRawHeader("X-Auth-Token", apiKey.trimmed().toUtf8());
+        request.setTransferTimeout(120000);
 
         QNetworkReply *reply = m_nam->get(request);
-        connect(reply, &QNetworkReply::finished, this, [this, reply, context, self]() {
+        connect(reply, &QNetworkReply::finished, this, [this, reply, pendingRequests, allArticles, hasError]() {
             reply->deleteLater();
+            (*pendingRequests)--;
+            
             if (reply->error() != QNetworkReply::NoError) {
-                qCWarning(KIRIFLUX_SYNC) << "Batch fetch failed:" << reply->errorString();
-                emit errorOccurred(reply->errorString());
-                // Stop the chain but ensure we emit articlesFetched with whatever we have
-                context->endpoints.clear();
-                self(self);
+                if (!*hasError) {
+                    *hasError = true;
+                    qCWarning(KIRIFLUX_SYNC) << "Article fetch error:" << reply->errorString();
+                    emit errorOccurred(reply->errorString());
+                }
             } else {
                 const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
                 const QJsonObject root = doc.object();
@@ -166,17 +154,26 @@ void MinifluxClient::fetchArticles(const QString& url, const QString& apiKey)
                     a.author = obj["author"].toString();
                     a.content = obj["content"].toString();
                     a.url = obj["url"].toString();
-                    a.publishedAt = obj["published_at"].toString();
+                    a.publishedAt = QDateTime::fromString(obj["published_at"].toString(), Qt::ISODate);
                     a.status = (obj["status"].toString() == "read") ? ArticleStatus::Read : ArticleStatus::Unread;
                     a.starred = obj["starred"].toBool();
-                    context->allArticles.append(a);
+                    allArticles->append(a);
                 }
-                self(self);
+            }
+            
+            if (*pendingRequests == 0) {
+                QList<Article> deduped;
+                QSet<qint64> seen;
+                for (const auto& a : *allArticles) {
+                    if (!seen.contains(a.id)) {
+                        deduped.append(a);
+                        seen.insert(a.id);
+                    }
+                }
+                emit articlesFetched(deduped);
             }
         });
-    };
-
-    fetchNext(fetchNext);
+    }
 }
 
 void MinifluxClient::fetchArticleContent(const QString& url, const QString& apiKey, qint64 entryId)
@@ -189,6 +186,7 @@ void MinifluxClient::fetchArticleContent(const QString& url, const QString& apiK
     QNetworkRequest request(qurl);
     request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Kiriflux/1.0"));
     request.setRawHeader("X-Auth-Token", apiKey.trimmed().toUtf8());
+    request.setTransferTimeout(120000);
 
     QNetworkReply *reply = m_nam->get(request);
     connect(reply, &QNetworkReply::finished, this, [this, reply, entryId]() {
@@ -216,6 +214,7 @@ void MinifluxClient::updateArticlesStatus(const QString& url, const QString& api
     request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Kiriflux/1.0"));
     request.setRawHeader("X-Auth-Token", apiKey.trimmed().toUtf8());
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setTransferTimeout(120000);
 
     QJsonObject json;
     QJsonArray entryIdsArray;
@@ -240,6 +239,7 @@ void MinifluxClient::toggleArticleBookmark(const QString& url, const QString& ap
     QNetworkRequest request(qurl);
     request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Kiriflux/1.0"));
     request.setRawHeader("X-Auth-Token", apiKey.trimmed().toUtf8());
+    request.setTransferTimeout(120000);
     
     QNetworkReply *reply = m_nam->put(request, QByteArray("{}"));
     connect(reply, &QNetworkReply::finished, this, [this, reply, entryId]() {
@@ -258,6 +258,7 @@ void MinifluxClient::fetchVersion(const QString& url, const QString& apiKey)
     QNetworkRequest request(qurl);
     request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Kiriflux/1.0"));
     request.setRawHeader("X-Auth-Token", apiKey.trimmed().toUtf8());
+    request.setTransferTimeout(30000); // Version check can be faster
     
     QNetworkReply *reply = m_nam->get(request);
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {

@@ -37,7 +37,7 @@ struct Article {
     QString author;
     QString content;
     QString url;
-    QString publishedAt;
+    QDateTime publishedAt;
     ArticleStatus status = ArticleStatus::Unread;
     bool starred = false;
     
