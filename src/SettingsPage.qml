@@ -212,6 +212,40 @@ QQC2.Dialog {
                         onToggled: settings.cleanSync = checked
                     }
                 }
+
+                SectionHeader { title: i18n("Performance & Cache"); Layout.topMargin: Kirigami.Units.largeSpacing }
+                SettingsGrid {
+                    SettingLabel { text: i18n("Pre-fetching") }
+                    QQC2.CheckBox {
+                        id: prefetchCheck
+                        text: i18n("Background Image Pre-fetching")
+                        checked: settings.preFetchImages
+                        Layout.fillWidth: true
+                        onToggled: settings.preFetchImages = checked
+                    }
+
+                    SettingLabel { text: i18n("Cache Size") }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        QQC2.SpinBox {
+                            id: cacheSizeSpin
+                            from: 32
+                            to: 4096
+                            stepSize: 32
+                            value: settings.cacheSizeMB
+                            Layout.fillWidth: true
+                            onValueModified: settings.cacheSizeMB = value
+                        }
+                        QQC2.Label { text: i18n("MB") }
+                    }
+
+                    SettingLabel { text: i18n("Maintenance") }
+                    QQC2.Button {
+                        text: i18n("Clear Image Cache")
+                        icon.name: "edit-clear-history"
+                        onClicked: clearCacheDialog.open()
+                    }
+                }
                 Item { Layout.fillHeight: true }
             }
 
@@ -366,5 +400,13 @@ QQC2.Dialog {
             else if (currentFontProperty === "articleViewInfoFont") settings.articleViewInfoFont = selectedFont
             else if (currentFontProperty === "articleViewTextFont") settings.articleViewTextFont = selectedFont
         }
+    }
+
+    MessageDialog {
+        id: clearCacheDialog
+        title: i18n("Clear Cache")
+        text: i18n("Are you sure you want to clear the image cache? This will redownload images when articles are viewed.")
+        buttons: MessageDialog.Ok | MessageDialog.Cancel
+        onAccepted: settings.clearCache()
     }
 }

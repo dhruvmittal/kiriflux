@@ -60,6 +60,16 @@
       <min>200</min>
       <max>1000</max>
     </entry>
+    <entry name="PreFetchImages" type="Bool">
+      <label>Pre-fetch images of recent articles in the background</label>
+      <default>true</default>
+    </entry>
+    <entry name="CacheSizeMB" type="Int">
+      <label>Maximum size of the image cache in MB</label>
+      <default>512</default>
+      <min>32</min>
+      <max>4096</max>
+    </entry>
   </group>
   <group name="Reading">
     <entry name="MarkAsReadOnOpen" type="Bool">

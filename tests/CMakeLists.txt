@@ -61,3 +61,36 @@ target_link_libraries(BatchSyncTest PRIVATE
     Qt6::Network
 )
 add_test(NAME BatchSyncTest COMMAND BatchSyncTest)
+# 7. NetworkConcurrencyTest
+add_executable(NetworkConcurrencyTest NetworkConcurrencyTest.cpp)
+target_link_libraries(NetworkConcurrencyTest PRIVATE
+    kiriflux_core
+    Qt6::Test
+    Qt6::Network
+)
+add_test(NAME NetworkConcurrencyTest COMMAND NetworkConcurrencyTest)
+
+# 8. SettingsManagerTest
+add_executable(SettingsManagerTest SettingsManagerTest.cpp)
+target_link_libraries(SettingsManagerTest PRIVATE
+    kiriflux_core
+    Qt6::Test
+)
+add_test(NAME SettingsManagerTest COMMAND SettingsManagerTest)
+
+# 9. NetworkManagerTest
+add_executable(NetworkManagerTest NetworkManagerTest.cpp)
+target_link_libraries(NetworkManagerTest PRIVATE
+    kiriflux_core
+    Qt6::Test
+    Qt6::Network
+)
+add_test(NAME NetworkManagerTest COMMAND NetworkManagerTest)
+
+# 10. ImagePrefetchTest
+add_executable(ImagePrefetchTest ImagePrefetchTest.cpp)
+target_link_libraries(ImagePrefetchTest PRIVATE
+    kiriflux_core
+    Qt6::Test
+)
+add_test(NAME ImagePrefetchTest COMMAND ImagePrefetchTest)

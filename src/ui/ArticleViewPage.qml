@@ -313,7 +313,14 @@ Kirigami.Page {
                                         font-style: ${settings.articleViewInfoFont.italic ? 'italic' : 'normal'};
                                         opacity: 0.7; color: ${textColor};
                                     }
-                                    img { max-width: 100% !important; height: auto !important; border-radius: 8px; margin: 20px 0; }
+                                    img { 
+                                        max-width: 100% !important; 
+                                        height: auto !important; 
+                                        border-radius: 8px; 
+                                        margin: 20px 0; 
+                                        background-color: ${alternateBgColor};
+                                        transition: opacity 0.3s ease-in;
+                                    }
                                     pre {
                                         background-color: ${alternateBgColor} !important; padding: 15px; border-radius: 8px;
                                         overflow-x: auto; color: ${textColor} !important;

@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QNetworkAccessManager>
 #include "DatabaseManager.h"
+#include "NetworkManager.h"
 
 class MinifluxClient : public QObject
 {
@@ -19,6 +20,7 @@ public:
     void updateArticlesStatus(const QString& url, const QString& apiKey, const QList<qint64>& entryIds, const QString& status);
     void toggleArticleBookmark(const QString& url, const QString& apiKey, qint64 entryId);
     void fetchVersion(const QString& url, const QString& apiKey);
+    void prefetchUrl(const QUrl& url);
 
 signals:
     void feedsFetched(const QList<Feed>& feeds);
@@ -32,5 +34,8 @@ signals:
     void errorOccurred(const QString& message);
 
 private:
-    QNetworkAccessManager *m_nam;
+    QList<QUrl> m_prefetchQueue;
+    int m_activePrefetches = 0;
+    
+    void processPrefetchQueue();
 };

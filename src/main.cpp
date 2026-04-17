@@ -21,6 +21,8 @@
 #include "core/ArticleListModel.h"
 #include "core/CategoryListModel.h"
 #include "core/SettingsManager.h"
+#include "core/NetworkManager.h"
+#include "core/KirifluxNAMFactory.h"
 
 int main(int argc, char *argv[])
 {
@@ -74,6 +76,7 @@ int main(int argc, char *argv[])
 
     // 7. QML Engine Setup
     QQmlApplicationEngine engine;
+    engine.setNetworkAccessManagerFactory(new KirifluxNAMFactory());
     engine.rootContext()->setContextObject(new KLocalizedContext(&engine));
     
     // Expose objects as global context properties

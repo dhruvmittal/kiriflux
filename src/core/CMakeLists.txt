@@ -11,6 +11,7 @@ set(kiriflux_core_SRCS
     CategoryListModel.cpp
     SettingsManager.cpp
     KirifluxLogging.cpp
+    NetworkManager.cpp
 )
 
 # KConfigXT setup 

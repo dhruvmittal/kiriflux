@@ -47,6 +47,7 @@ private:
     ~SyncEngine() = default;
 
     void performSync();
+    void prefetchImages(const QList<Article>& articles);
     void processStatusBatch();
     void handleError(const QString& error);
 

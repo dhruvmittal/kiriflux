@@ -8,12 +8,14 @@
 
 #include "KirifluxLogging.h"
 #include "SettingsManager.h"
+#include <QRegularExpression>
+#include <QNetworkRequest>
 
 SyncEngine& SyncEngine::instance()
 {
     static SyncEngine* inst = nullptr;
     if (!inst) {
-        inst = new SyncEngine(qApp);
+        inst = new SyncEngine(nullptr);
     }
     return *inst;
 }
@@ -57,6 +59,11 @@ SyncEngine::SyncEngine(QObject *parent)
         DatabaseManager::instance().saveArticles(articles);
         DatabaseManager::instance().purgeOldReadArticles(); // Performance: Keep DB lean
         m_isSyncing = false;
+        
+        if (SettingsManager::instance().preFetchImages()) {
+            prefetchImages(articles);
+        }
+
         SettingsManager::instance().setLastSyncTime(QDateTime::currentDateTime());
         SettingsManager::instance().save();
         emit syncStatusChanged();
@@ -164,6 +171,36 @@ void SyncEngine::processStatusBatch()
     
     m_statusRequestInFlight = true;
     m_client->updateArticlesStatus(apiUrl, apiKey, ids, QStringLiteral("read"));
+}
+
+void SyncEngine::prefetchImages(const QList<Article>& articles)
+{
+    if (articles.isEmpty()) return;
+
+    qCDebug(KIRIFLUX_SYNC) << "Starting image prefetch for" << qMin(articles.size(), 20) << "recent articles";
+
+    // Regex to find image sources
+    static const QRegularExpression imgRegex(QStringLiteral("<img[^>]+src=\"([^\"]+)\""), QRegularExpression::CaseInsensitiveOption);
+
+    int count = 0;
+    // Only prefetch top 20 most recent to save bandwidth
+    int limit = qMin(articles.size(), 20);
+    for (int i = 0; i < limit; ++i) {
+        const auto& article = articles.at(i);
+        auto it = imgRegex.globalMatch(article.content);
+        while (it.hasNext()) {
+            auto match = it.next();
+            QString imageUrl = match.captured(1);
+            if (!imageUrl.isEmpty()) {
+                QUrl qurl(imageUrl);
+                if (qurl.isValid()) {
+                    m_client->prefetchUrl(qurl);
+                    count++;
+                }
+            }
+        }
+    }
+    qCDebug(KIRIFLUX_SYNC) << "Queued" << count << "images for prefetch";
 }
 
 void SyncEngine::fetchFullContent(qint64 entryId)

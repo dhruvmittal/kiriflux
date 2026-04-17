@@ -24,6 +24,8 @@ class SettingsManager : public QObject
     Q_PROPERTY(bool markAsReadOnOpen READ markAsReadOnOpen WRITE setMarkAsReadOnOpen NOTIFY markAsReadOnOpenChanged)
     Q_PROPERTY(bool markAsReadOnScroll READ markAsReadOnScroll WRITE setMarkAsReadOnScroll NOTIFY markAsReadOnScrollChanged)
     Q_PROPERTY(bool useReaderMode READ useReaderMode WRITE setUseReaderMode NOTIFY useReaderModeChanged)
+    Q_PROPERTY(bool preFetchImages READ preFetchImages WRITE setPreFetchImages NOTIFY preFetchImagesChanged)
+    Q_PROPERTY(int cacheSizeMB READ cacheSizeMB WRITE setCacheSizeMB NOTIFY cacheSizeMBChanged)
     
     Q_PROPERTY(QFont leftPaneFont READ leftPaneFont WRITE setLeftPaneFont NOTIFY leftPaneFontChanged)
     Q_PROPERTY(QFont articleListTitleFont READ articleListTitleFont WRITE setArticleListTitleFont NOTIFY articleListTitleFontChanged)
@@ -72,6 +74,12 @@ public:
     bool useReaderMode() const;
     void setUseReaderMode(bool use);
 
+    bool preFetchImages() const;
+    void setPreFetchImages(bool prefetch);
+
+    int cacheSizeMB() const;
+    void setCacheSizeMB(int size);
+
     QFont leftPaneFont() const;
     void setLeftPaneFont(const QFont& font);
 
@@ -91,6 +99,7 @@ public:
     void setArticleViewTextFont(const QFont& font);
 
     Q_INVOKABLE void save();
+    Q_INVOKABLE void clearCache();
     void load();
 
 signals:
@@ -106,6 +115,9 @@ signals:
     void markAsReadOnOpenChanged();
     void markAsReadOnScrollChanged();
     void useReaderModeChanged();
+    void preFetchImagesChanged();
+    void cacheSizeMBChanged();
+    void clearCacheRequested();
     void leftPaneFontChanged();
     void articleListTitleFontChanged();
     void articleListInfoFontChanged();

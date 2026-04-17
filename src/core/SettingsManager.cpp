@@ -6,7 +6,7 @@ SettingsManager& SettingsManager::instance()
 {
     static SettingsManager* inst = nullptr;
     if (!inst) {
-        inst = new SettingsManager(qApp);
+        inst = new SettingsManager(nullptr);
     }
     return *inst;
 }
@@ -113,6 +113,22 @@ void SettingsManager::setUseReaderMode(bool use) {
     emit settingsChanged();
 }
 
+bool SettingsManager::preFetchImages() const { return Settings::preFetchImages(); }
+void SettingsManager::setPreFetchImages(bool prefetch) {
+    if (prefetch == preFetchImages()) return;
+    Settings::setPreFetchImages(prefetch);
+    emit preFetchImagesChanged();
+    emit settingsChanged();
+}
+
+int SettingsManager::cacheSizeMB() const { return Settings::cacheSizeMB(); }
+void SettingsManager::setCacheSizeMB(int size) {
+    if (size == cacheSizeMB()) return;
+    Settings::setCacheSizeMB(size);
+    emit cacheSizeMBChanged();
+    emit settingsChanged();
+}
+
 QFont SettingsManager::leftPaneFont() const { return Settings::leftPaneFont(); }
 void SettingsManager::setLeftPaneFont(const QFont& font) {
     if (font == leftPaneFont()) return;
@@ -164,6 +180,11 @@ void SettingsManager::setArticleViewTextFont(const QFont& font) {
 void SettingsManager::save()
 {
     Settings::self()->save();
+}
+
+void SettingsManager::clearCache()
+{
+    emit clearCacheRequested();
 }
 
 void SettingsManager::load()
