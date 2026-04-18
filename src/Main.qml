@@ -48,6 +48,16 @@ Kirigami.ApplicationWindow {
         articleListModel.refresh();
         feedListModel.refresh();
         categoryListModel.refresh();
+        // Deferred second refresh ensures the article list is populated after the
+        // QML engine finishes component instantiation (avoids blank center pane on cold launch).
+        startupRefreshTimer.start();
+    }
+
+    Timer {
+        id: startupRefreshTimer
+        interval: 150
+        repeat: false
+        onTriggered: articleListModel.refresh()
     }
 
     // ── Layout Control Properties ──────────────────────────────────
@@ -61,19 +71,24 @@ Kirigami.ApplicationWindow {
             globalDrawer.modal = false;
             globalDrawer.drawerOpen = true;
             // Allow multiple columns side-by-side
-            pageStack.columnView.columnResizeMode = Kirigami.ColumnView.FixedColumns;
+            if (pageStack.columnView) {
+                pageStack.columnView.columnResizeMode = Kirigami.ColumnView.FixedColumns;
+            }
         } else if (layoutMode === 2) {
             globalDrawer.modal = true;
             globalDrawer.drawerOpen = false;
             // Allow multiple columns side-by-side (drawer is just hidden)
-            pageStack.columnView.columnResizeMode = Kirigami.ColumnView.FixedColumns;
+            if (pageStack.columnView) {
+                pageStack.columnView.columnResizeMode = Kirigami.ColumnView.FixedColumns;
+            }
         } else {
-            // 1-pane: force the PageRow to show exactly one page at a time.
             // wideScreen alone is not enough — the PageRow fits columns based on
             // available pixel width and ignores wideScreen for column count.
             globalDrawer.modal = true;
             globalDrawer.drawerOpen = false;
-            pageStack.columnView.columnResizeMode = Kirigami.ColumnView.SingleColumn;
+            if (pageStack.columnView) {
+                pageStack.columnView.columnResizeMode = Kirigami.ColumnView.SingleColumn;
+            }
         }
     }
 

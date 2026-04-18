@@ -11,7 +11,7 @@ QQC2.Dialog {
     modal: true
     standardButtons: QQC2.Dialog.Save | QQC2.Dialog.Cancel
     width: 750
-    height: applicationWindow().height * 0.8
+    height: applicationWindow() ? applicationWindow().height * 0.8 : 600
     anchors.centerIn: parent
 
     property string currentFontProperty: ""

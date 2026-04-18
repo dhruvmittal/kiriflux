@@ -71,13 +71,12 @@ Kirigami.GlobalDrawer {
                     property var catId: model.id
 
                     QQC2.ItemDelegate {
+                        id: categoryDelegate
                         font: settings.leftPaneFont
                         Layout.fillWidth: true
                         highlighted: articleListModel.currentCategoryId === categoryItem.catId
                         onClicked: {
                             articleListModel.currentCategoryId = categoryItem.catId;
-                            // Optionally expand when clicked:
-                            // categoryItem.expanded = true
                         }
 
                         contentItem: RowLayout {
@@ -85,6 +84,7 @@ Kirigami.GlobalDrawer {
                                 source: categoryItem.expanded ? "arrow-down" : "arrow-right"
                                 implicitWidth: Kirigami.Units.iconSizes.small
                                 implicitHeight: Kirigami.Units.iconSizes.small
+                                selected: categoryDelegate.highlighted
                                 MouseArea {
                                     anchors.fill: parent
                                     onClicked: (mouse) => {
@@ -97,6 +97,9 @@ Kirigami.GlobalDrawer {
                                 text: model.title
                                 Layout.fillWidth: true
                                 elide: Text.ElideRight
+                                color: categoryDelegate.highlighted
+                                    ? Kirigami.Theme.highlightedTextColor
+                                    : Kirigami.Theme.textColor
                             }
                             Rectangle {
                                 visible: model.unreadCount > 0
@@ -120,6 +123,7 @@ Kirigami.GlobalDrawer {
                     Repeater {
                         model: feedListModel
                         delegate: QQC2.ItemDelegate {
+                            id: nestedFeedDelegate
                             font: settings.leftPaneFont
                             Layout.fillWidth: true
                             visible: categoryItem.expanded && model.categoryId === categoryItem.catId
@@ -134,6 +138,9 @@ Kirigami.GlobalDrawer {
                                     Layout.fillWidth: true
                                     elide: Text.ElideRight
                                     font.bold: model.unreadCount > 0
+                                    color: nestedFeedDelegate.highlighted
+                                        ? Kirigami.Theme.highlightedTextColor
+                                        : Kirigami.Theme.textColor
                                 }
                                 Rectangle {
                                     visible: model.unreadCount > 0
@@ -171,6 +178,7 @@ Kirigami.GlobalDrawer {
             Repeater {
                 model: feedListModel
                 delegate: QQC2.ItemDelegate {
+                    id: flatFeedDelegate
                     font: settings.leftPaneFont
                     Layout.fillWidth: true
                     highlighted: articleListModel.currentFeedId === model.id
@@ -181,12 +189,16 @@ Kirigami.GlobalDrawer {
                             source: model.siteUrl ? "https://www.google.com/s2/favicons?domain=" + model.siteUrl : "rss"
                             implicitWidth: Kirigami.Units.iconSizes.small
                             implicitHeight: Kirigami.Units.iconSizes.small
+                            selected: flatFeedDelegate.highlighted
                         }
                         QQC2.Label {
                             text: model.title
                             Layout.fillWidth: true
                             elide: Text.ElideRight
                             font.bold: model.unreadCount > 0
+                            color: flatFeedDelegate.highlighted
+                                ? Kirigami.Theme.highlightedTextColor
+                                : Kirigami.Theme.textColor
                         }
                         Rectangle {
                             visible: model.unreadCount > 0

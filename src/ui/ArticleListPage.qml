@@ -15,7 +15,7 @@ Kirigami.Page {
 
     // In multi-column mode, give the PageRow a preferred column width.
     // In 1-pane (SingleColumn) mode, let the ColumnView fill all available space.
-    implicitWidth: (applicationWindow().layoutMode === 1) ? 0 : (settings ? settings.centerPaneWidth : 400)
+    implicitWidth: (applicationWindow() && applicationWindow().layoutMode === 1) ? 0 : (settings ? settings.centerPaneWidth : 400)
     
     title: articleListModel.currentName
 
@@ -24,7 +24,7 @@ Kirigami.Page {
             text: i18n("Mark All Read")
             icon.name: "mail-mark-read"
             onTriggered: articleListModel.markAllAsRead()
-            visible: articleListModel.rowCount() > 0
+            visible: articleListModel.count > 0
             displayHint: (settings && settings.showToolbarLabels) ? 0 : 1
         },
         Kirigami.Action {
@@ -64,7 +64,7 @@ Kirigami.Page {
 
     // Function to select and open an article (reused by click and shortcuts)
     function openArticle(index) {
-        if (index < 0 || index >= articleListModel.rowCount()) return;
+        if (index < 0 || index >= articleListModel.count) return;
         
         articleListView.currentIndex = index
         let model = articleListModel.get(index);
@@ -122,7 +122,7 @@ Kirigami.Page {
         sequence: "J"
         onActivated: {
             let nextIndex = articleListView.currentIndex + 1;
-            if (nextIndex < articleListModel.rowCount()) {
+            if (nextIndex < articleListModel.count) {
                 root.openArticle(nextIndex);
             }
         }
@@ -281,7 +281,7 @@ Kirigami.Page {
                             QQC2.Label {
                                 text: (model.author ? model.author + " • " : "") + 
                                       (model.publishedAt ? new Date(model.publishedAt).toLocaleString(Qt.locale(), "MMM d, hh:mm") : "")
-                                font: settings.articleListInfoFont
+                                font: settings ? settings.articleListInfoFont : undefined
                                 opacity: delegate.highlighted ? 1.0 : 0.6
                                 elide: Text.ElideRight
                                 Layout.fillWidth: true

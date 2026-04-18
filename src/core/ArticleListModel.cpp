@@ -192,6 +192,7 @@ void ArticleListModel::refresh()
         m_articles = DatabaseManager::instance().getAllArticles(status, m_filterStarred);
     }
     endResetModel();
+    emit countChanged();
 }
 
 int ArticleListModel::rowCount(const QModelIndex &parent) const

@@ -90,6 +90,11 @@ bool DatabaseManager::initWithPath(const QString &dbPath)
             ")"))) {
         qWarning() << "Failed to create articles table:" << query.lastError().text();
     }
+    
+    // Migration: Convert legacy string statuses ('unread', 'read') to integer-based statuses ('0', '1')
+    query.exec(QStringLiteral("UPDATE articles SET status = '0' WHERE status = 'unread'"));
+    query.exec(QStringLiteral("UPDATE articles SET status = '1' WHERE status = 'read'"));
+    query.exec(QStringLiteral("UPDATE articles SET status = '2' WHERE status = 'removed'"));
 
     // Add index for faster sorting by time
     if (!query.exec(QStringLiteral("CREATE INDEX IF NOT EXISTS idx_articles_published_at ON articles(published_at DESC)"))) {

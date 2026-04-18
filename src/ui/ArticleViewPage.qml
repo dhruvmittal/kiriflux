@@ -56,9 +56,9 @@ Kirigami.Page {
     }
 
     function updateActiveView() {
-        if (settings.useReaderMode && readerModeLoader.item) {
+        if (settings && settings.useReaderMode && readerModeLoader.item) {
             readerModeLoader.item.updateContent();
-        } else if (!settings.useReaderMode && webViewLoader.item) {
+        } else if (settings && !settings.useReaderMode && webViewLoader.item) {
             webViewLoader.item.updateContent();
         }
     }
@@ -92,7 +92,7 @@ Kirigami.Page {
             text: i18n("Full Content")
             icon.name: "document-import"
             onTriggered: {
-                if (root.articleId !== null) {
+                if (root.articleId !== null && syncEngine) {
                     syncEngine.fetchFullContent(root.articleId)
                 }
             }
@@ -114,7 +114,7 @@ Kirigami.Page {
     Loader {
         id: readerModeLoader
         anchors.fill: parent
-        active: settings.useReaderMode
+        active: settings ? settings.useReaderMode : false
         sourceComponent: Component {
             QQC2.ScrollView {
                 id: readerScroll
@@ -166,14 +166,14 @@ Kirigami.Page {
 
                             QQC2.Label {
                                 id: nativeTitle
-                                font: settings.articleViewTitleFont
+                                font: settings ? settings.articleViewTitleFont : undefined
                                 wrapMode: Text.WordWrap
                                 Layout.fillWidth: true
                             }
                             
                             QQC2.Label {
                                 id: nativeInfo
-                                font: settings.articleViewInfoFont
+                                font: settings ? settings.articleViewInfoFont : undefined
                                 opacity: 0.7
                                 wrapMode: Text.WordWrap
                                 Layout.fillWidth: true
@@ -229,7 +229,7 @@ Kirigami.Page {
     Loader {
         id: webViewLoader
         anchors.fill: parent
-        active: !settings.useReaderMode
+        active: settings ? !settings.useReaderMode : false
         sourceComponent: Component {
             WebEngineView {
                 id: articleWebView
@@ -290,27 +290,27 @@ Kirigami.Page {
                                 <style>
                                     :root { color-scheme: ${Kirigami.Theme.colorSet === Kirigami.Theme.Dark ? 'dark' : 'light'}; }
                                     body {
-                                        font-family: "${settings.articleViewTextFont.family}", serif;
-                                        font-size: ${settings.articleViewTextFont.pixelSize > 0 ? settings.articleViewTextFont.pixelSize + "px" : settings.articleViewTextFont.pointSize + "pt"};
-                                        font-weight: ${settings.articleViewTextFont.weight};
-                                        font-style: ${settings.articleViewTextFont.italic ? 'italic' : 'normal'};
+                                        font-family: "${settings ? settings.articleViewTextFont.family : 'serif'}", serif;
+                                        font-size: ${settings ? (settings.articleViewTextFont.pixelSize > 0 ? settings.articleViewTextFont.pixelSize + "px" : settings.articleViewTextFont.pointSize + "pt") : '12pt'};
+                                        font-weight: ${settings ? settings.articleViewTextFont.weight : 'normal'};
+                                        font-style: ${settings ? (settings.articleViewTextFont.italic ? 'italic' : 'normal') : 'normal'};
                                         padding: 40px; line-height: 1.6;
                                         color: ${textColor} !important; background-color: ${bgColor} !important;
                                         margin: 0 auto; max-width: 800px;
                                     }
                                     .header { margin-bottom: 40px; border-bottom: 1px solid ${alternateBgColor}; padding-bottom: 20px; }
                                     .title {
-                                        font-family: "${settings.articleViewTitleFont.family}", sans-serif;
-                                        font-size: ${settings.articleViewTitleFont.pixelSize > 0 ? settings.articleViewTitleFont.pixelSize + "px" : settings.articleViewTitleFont.pointSize + "pt"};
-                                        font-weight: ${settings.articleViewTitleFont.weight};
-                                        font-style: ${settings.articleViewTitleFont.italic ? 'italic' : 'normal'};
+                                        font-family: "${settings ? settings.articleViewTitleFont.family : 'sans-serif'}", sans-serif;
+                                        font-size: ${settings ? (settings.articleViewTitleFont.pixelSize > 0 ? settings.articleViewTitleFont.pixelSize + "px" : settings.articleViewTitleFont.pointSize + "pt") : '18pt'};
+                                        font-weight: ${settings ? settings.articleViewTitleFont.weight : 'bold'};
+                                        font-style: ${settings ? (settings.articleViewTitleFont.italic ? 'italic' : 'normal') : 'normal'};
                                         line-height: 1.2; margin-bottom: 15px; color: ${textColor};
                                     }
                                     .meta {
-                                        font-family: "${settings.articleViewInfoFont.family}", sans-serif;
-                                        font-size: ${settings.articleViewInfoFont.pixelSize > 0 ? settings.articleViewInfoFont.pixelSize + "px" : settings.articleViewInfoFont.pointSize + "pt"};
-                                        font-weight: ${settings.articleViewInfoFont.weight};
-                                        font-style: ${settings.articleViewInfoFont.italic ? 'italic' : 'normal'};
+                                        font-family: "${settings ? settings.articleViewInfoFont.family : 'sans-serif'}", sans-serif;
+                                        font-size: ${settings ? (settings.articleViewInfoFont.pixelSize > 0 ? settings.articleViewInfoFont.pixelSize + "px" : settings.articleViewInfoFont.pointSize + "pt") : '10pt'};
+                                        font-weight: ${settings ? settings.articleViewInfoFont.weight : 'normal'};
+                                        font-style: ${settings ? (settings.articleViewInfoFont.italic ? 'italic' : 'normal') : 'normal'};
                                         opacity: 0.7; color: ${textColor};
                                     }
                                     img { 
@@ -395,7 +395,7 @@ Kirigami.Page {
     Shortcut {
         sequence: "d"
         onActivated: {
-            if (root.articleId !== null) {
+            if (root.articleId !== null && syncEngine) {
                 syncEngine.fetchFullContent(root.articleId)
             }
         }

@@ -13,6 +13,7 @@ class ArticleListModel : public QAbstractListModel
     Q_PROPERTY(QString filterStatus READ filterStatus WRITE setFilterStatus NOTIFY filterChanged)
     Q_PROPERTY(bool filterStarred READ filterStarred WRITE setFilterStarred NOTIFY filterChanged)
     Q_PROPERTY(QString currentName READ currentName NOTIFY currentNameChanged)
+    Q_PROPERTY(int count READ rowCount NOTIFY countChanged)
 
 public:
     enum Roles {
@@ -32,7 +33,7 @@ public:
 
     explicit ArticleListModel(QObject *parent = nullptr);
 
-    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    Q_INVOKABLE int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     QHash<int, QByteArray> roleNames() const override;
 
@@ -66,6 +67,7 @@ signals:
     void currentCategoryIdChanged();
     void filterChanged();
     void currentNameChanged();
+    void countChanged();
 
 private:
     QList<Article> m_articles;
