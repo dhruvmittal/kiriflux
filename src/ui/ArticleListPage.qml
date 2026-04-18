@@ -13,9 +13,9 @@ Kirigami.Page {
     topPadding: 0
     bottomPadding: 0
 
-    // Hints for Kirigami.PageRow (column view)
-    // Hints for Kirigami.PageRow (column view)
-    implicitWidth: settings ? settings.centerPaneWidth : 400
+    // In multi-column mode, give the PageRow a preferred column width.
+    // In 1-pane (SingleColumn) mode, let the ColumnView fill all available space.
+    implicitWidth: (applicationWindow().layoutMode === 1) ? 0 : (settings ? settings.centerPaneWidth : 400)
     
     title: articleListModel.currentName
 
@@ -95,6 +95,17 @@ Kirigami.Page {
             // Update existing page properties
             for (let p in props) {
                 page[p] = props[p];
+            }
+            // In 1-pane mode, wideScreen is false, so only one page is visible at a time.
+            // We must explicitly navigate to the article view page after updating it.
+            if (!applicationWindow().wideScreen) {
+                // Find the index of the existing article view page and jump to it
+                for (let j = 0; j < applicationWindow().pageStack.depth; ++j) {
+                    if (applicationWindow().pageStack.get(j) === page) {
+                        applicationWindow().pageStack.currentIndex = j;
+                        break;
+                    }
+                }
             }
         } else {
             // Push new page
