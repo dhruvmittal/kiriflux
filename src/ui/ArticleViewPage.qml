@@ -35,6 +35,46 @@ Kirigami.Page {
         return "rgba(" + Math.floor(c.r*255) + "," + Math.floor(c.g*255) + "," + Math.floor(c.b*255) + "," + c.a + ")";
     }
 
+    // Hidden TextEdit for clipboard operations
+    TextEdit {
+        id: clipboardHelper
+        visible: false
+    }
+
+    function copyToClipboard(text) {
+        clipboardHelper.text = text;
+        clipboardHelper.selectAll();
+        clipboardHelper.copy();
+    }
+
+    QQC2.Menu {
+        id: contextMenu
+        property string linkUrl: ""
+
+        QQC2.MenuItem {
+            text: i18n("Copy")
+            icon.name: "edit-copy"
+            enabled: readerModeLoader.item && readerModeLoader.item.nativeTextItem && readerModeLoader.item.nativeTextItem.selectedText.length > 0
+            onTriggered: readerModeLoader.item.nativeTextItem.copy()
+        }
+
+        QQC2.MenuItem {
+            text: i18n("Copy Link Address")
+            icon.name: "edit-copy-url"
+            visible: contextMenu.linkUrl !== ""
+            onTriggered: root.copyToClipboard(contextMenu.linkUrl)
+        }
+        
+        QQC2.MenuSeparator { visible: contextMenu.linkUrl !== "" }
+        
+        QQC2.MenuItem {
+            text: i18n("Open Link in Browser")
+            icon.name: "internet-services"
+            visible: contextMenu.linkUrl !== ""
+            onTriggered: Qt.openUrlExternally(contextMenu.linkUrl)
+        }
+    }
+
     Timer {
         id: renderDebouncer
         interval: 10
@@ -120,6 +160,8 @@ Kirigami.Page {
                 id: readerScroll
                 QQC2.ScrollBar.horizontal.policy: QQC2.ScrollBar.AlwaysOff
                 contentWidth: availableWidth
+                
+                readonly property alias nativeTextItem: nativeText
 
                 property var updateContent: function() {
                     let dateStr = root.publishedAt ? new Date(root.publishedAt).toLocaleString(Qt.locale()) : "";
@@ -164,35 +206,83 @@ Kirigami.Page {
                             Layout.fillWidth: true
                             spacing: Kirigami.Units.largeSpacing
 
-                            QQC2.Label {
+                            TextEdit {
                                 id: nativeTitle
+                                readOnly: true
+                                selectByMouse: true
+                                activeFocusOnTab: false
+                                cursorVisible: false
+                                selectionColor: Kirigami.Theme.highlightColor
+                                selectedTextColor: Kirigami.Theme.highlightedTextColor
                                 font: settings ? settings.articleViewTitleFont : undefined
-                                wrapMode: Text.WordWrap
+                                color: root.themedTextColor
+                                wrapMode: TextEdit.WordWrap
                                 Layout.fillWidth: true
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    acceptedButtons: Qt.RightButton
+                                    onClicked: {
+                                        contextMenu.linkUrl = "";
+                                        contextMenu.popup();
+                                    }
+                                }
                             }
                             
-                            QQC2.Label {
+                            TextEdit {
                                 id: nativeInfo
+                                readOnly: true
+                                selectByMouse: true
+                                activeFocusOnTab: false
+                                cursorVisible: false
+                                selectionColor: Kirigami.Theme.highlightColor
+                                selectedTextColor: Kirigami.Theme.highlightedTextColor
                                 font: settings ? settings.articleViewInfoFont : undefined
+                                color: root.themedTextColor
                                 opacity: 0.7
-                                wrapMode: Text.WordWrap
+                                wrapMode: TextEdit.WordWrap
                                 Layout.fillWidth: true
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    acceptedButtons: Qt.RightButton
+                                    onClicked: {
+                                        contextMenu.linkUrl = "";
+                                        contextMenu.popup();
+                                    }
+                                }
                             }
                             
                             Kirigami.Separator { Layout.fillWidth: true }
                             
-                            Text {
+                            TextEdit {
                                 id: nativeText
-                                textFormat: Text.RichText
+                                textFormat: TextEdit.RichText
+                                readOnly: true
+                                selectByMouse: true
+                                activeFocusOnTab: false
+                                cursorVisible: false
+                                selectionColor: Kirigami.Theme.highlightColor
+                                selectedTextColor: Kirigami.Theme.highlightedTextColor
                                 baseUrl: root.articleUrl
                                 font: settings ? settings.articleViewTextFont : undefined
                                 color: root.themedTextColor
-                                wrapMode: Text.WordWrap
+                                wrapMode: TextEdit.WordWrap
                                 Layout.fillWidth: true
                                 onLinkActivated: (link) => Qt.openUrlExternally(link)
-                                // We use hoverEnabled to allow basic cursor interaction
+                                
+                                MouseArea {
+                                    anchors.fill: parent
+                                    acceptedButtons: Qt.RightButton
+                                    onClicked: (mouse) => {
+                                        let link = nativeText.linkAt(mouse.x, mouse.y);
+                                        contextMenu.linkUrl = link;
+                                        contextMenu.popup();
+                                    }
+                                }
+                                
                                 HoverHandler {
-                                    cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                    cursorShape: (nativeText.linkAt(point.position.x, point.position.y) !== "") ? Qt.PointingHandCursor : Qt.IBeamCursor
                                 }
                             }
                             
