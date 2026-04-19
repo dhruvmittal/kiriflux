@@ -267,11 +267,8 @@ Kirigami.Page {
                             QQC2.Label {
                                 id: titleLabel
                                 text: model.title
-                                font.family: (settings && settings.articleListTitleFont) ? settings.articleListTitleFont.family : ""
-                                font.pointSize: (settings && settings.articleListTitleFont && settings.articleListTitleFont.pointSize > 0) ? settings.articleListTitleFont.pointSize : -1
-                                font.pixelSize: (settings && settings.articleListTitleFont && settings.articleListTitleFont.pixelSize > 0) ? settings.articleListTitleFont.pixelSize : -1
+                                font: (settings && settings.articleListTitleFont) ? settings.articleListTitleFont : undefined
                                 font.weight: (settings && settings.articleListTitleFont) ? (model.status === "unread" ? Font.Bold : settings.articleListTitleFont.weight) : (model.status === "unread" ? Font.Bold : Font.Normal)
-                                font.italic: (settings && settings.articleListTitleFont) ? settings.articleListTitleFont.italic : false
                                 elide: Text.ElideRight
                                 maximumLineCount: settings ? settings.titleLines : 1
                                 wrapMode: (settings && settings.titleLines > 1) ? Text.WordWrap : Text.NoWrap
@@ -282,11 +279,7 @@ Kirigami.Page {
                             QQC2.Label {
                                 text: (model.author ? model.author + " • " : "") + 
                                       (model.publishedAt ? new Date(model.publishedAt).toLocaleString(Qt.locale(), "MMM d, hh:mm") : "")
-                                font.family: (settings && settings.articleListInfoFont) ? settings.articleListInfoFont.family : ""
-                                font.pointSize: (settings && settings.articleListInfoFont && settings.articleListInfoFont.pointSize > 0) ? settings.articleListInfoFont.pointSize : -1
-                                font.pixelSize: (settings && settings.articleListInfoFont && settings.articleListInfoFont.pixelSize > 0) ? settings.articleListInfoFont.pixelSize : -1
-                                font.weight: (settings && settings.articleListInfoFont) ? settings.articleListInfoFont.weight : Font.Normal
-                                font.italic: (settings && settings.articleListInfoFont) ? settings.articleListInfoFont.italic : false
+                                font: (settings && settings.articleListInfoFont) ? settings.articleListInfoFont : undefined
                                 opacity: delegate.highlighted ? 1.0 : 0.6
                                 elide: Text.ElideRight
                                 Layout.fillWidth: true
