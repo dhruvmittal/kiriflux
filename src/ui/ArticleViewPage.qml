@@ -220,7 +220,11 @@ Kirigami.Page {
                                 cursorVisible: false
                                 selectionColor: Kirigami.Theme.highlightColor
                                 selectedTextColor: Kirigami.Theme.highlightedTextColor
-                                font: settings ? settings.articleViewTitleFont : undefined
+                                font.family: (settings && settings.articleViewTitleFont) ? settings.articleViewTitleFont.family : ""
+                                font.pointSize: (settings && settings.articleViewTitleFont && settings.articleViewTitleFont.pointSize > 0) ? settings.articleViewTitleFont.pointSize : -1
+                                font.pixelSize: (settings && settings.articleViewTitleFont && settings.articleViewTitleFont.pixelSize > 0) ? settings.articleViewTitleFont.pixelSize : -1
+                                font.weight: (settings && settings.articleViewTitleFont) ? settings.articleViewTitleFont.weight : Font.Normal
+                                font.italic: (settings && settings.articleViewTitleFont) ? settings.articleViewTitleFont.italic : false
                                 color: root.themedTextColor
                                 wrapMode: TextEdit.WordWrap
                                 Layout.fillWidth: true
@@ -243,7 +247,11 @@ Kirigami.Page {
                                 cursorVisible: false
                                 selectionColor: Kirigami.Theme.highlightColor
                                 selectedTextColor: Kirigami.Theme.highlightedTextColor
-                                font: settings ? settings.articleViewInfoFont : undefined
+                                font.family: (settings && settings.articleViewInfoFont) ? settings.articleViewInfoFont.family : ""
+                                font.pointSize: (settings && settings.articleViewInfoFont && settings.articleViewInfoFont.pointSize > 0) ? settings.articleViewInfoFont.pointSize : -1
+                                font.pixelSize: (settings && settings.articleViewInfoFont && settings.articleViewInfoFont.pixelSize > 0) ? settings.articleViewInfoFont.pixelSize : -1
+                                font.weight: (settings && settings.articleViewInfoFont) ? settings.articleViewInfoFont.weight : Font.Normal
+                                font.italic: (settings && settings.articleViewInfoFont) ? settings.articleViewInfoFont.italic : false
                                 color: root.themedTextColor
                                 opacity: 0.7
                                 wrapMode: TextEdit.WordWrap
@@ -271,7 +279,11 @@ Kirigami.Page {
                                 selectionColor: Kirigami.Theme.highlightColor
                                 selectedTextColor: Kirigami.Theme.highlightedTextColor
                                 baseUrl: root.articleUrl
-                                font: settings ? settings.articleViewTextFont : undefined
+                                font.family: (settings && settings.articleViewTextFont) ? settings.articleViewTextFont.family : ""
+                                font.pointSize: (settings && settings.articleViewTextFont && settings.articleViewTextFont.pointSize > 0) ? settings.articleViewTextFont.pointSize : -1
+                                font.pixelSize: (settings && settings.articleViewTextFont && settings.articleViewTextFont.pixelSize > 0) ? settings.articleViewTextFont.pixelSize : -1
+                                font.weight: (settings && settings.articleViewTextFont) ? settings.articleViewTextFont.weight : Font.Normal
+                                font.italic: (settings && settings.articleViewTextFont) ? settings.articleViewTextFont.italic : false
                                 color: root.themedTextColor
                                 wrapMode: TextEdit.WordWrap
                                 Layout.fillWidth: true

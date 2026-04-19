@@ -38,7 +38,11 @@ Kirigami.GlobalDrawer {
 
             // 1. All Articles
             QQC2.ItemDelegate {
-                font: settings ? settings.leftPaneFont : undefined
+                font.family: (settings && settings.leftPaneFont) ? settings.leftPaneFont.family : ""
+                font.pointSize: (settings && settings.leftPaneFont && settings.leftPaneFont.pointSize > 0) ? settings.leftPaneFont.pointSize : -1
+                font.pixelSize: (settings && settings.leftPaneFont && settings.leftPaneFont.pixelSize > 0) ? settings.leftPaneFont.pixelSize : -1
+                font.weight: (settings && settings.leftPaneFont) ? settings.leftPaneFont.weight : Font.Normal
+                font.italic: (settings && settings.leftPaneFont) ? settings.leftPaneFont.italic : false
                 Layout.fillWidth: true
                 highlighted: articleListModel.currentFeedId === -1 && articleListModel.currentCategoryId === -1
                 text: i18n("All Articles")
@@ -54,10 +58,10 @@ Kirigami.GlobalDrawer {
             // 2. Categories Section
             QQC2.Label {
                 text: i18n("Categories")
-                font.family: settings.leftPaneFont.family
+                font.family: (settings && settings.leftPaneFont) ? settings.leftPaneFont.family : ""
                 font.bold: true
                 opacity: 0.6
-                font.pixelSize: Kirigami.Units.gridUnit * 0.7
+                font.pixelSize: (settings && settings.leftPaneFont && settings.leftPaneFont.pixelSize > 0) ? Math.floor(settings.leftPaneFont.pixelSize * 0.7) : 11
                 Layout.margins: Kirigami.Units.smallSpacing
             }
 
@@ -72,7 +76,11 @@ Kirigami.GlobalDrawer {
 
                     QQC2.ItemDelegate {
                         id: categoryDelegate
-                        font: settings.leftPaneFont
+                        font.family: (settings && settings.leftPaneFont) ? settings.leftPaneFont.family : ""
+                        font.pointSize: (settings && settings.leftPaneFont && settings.leftPaneFont.pointSize > 0) ? settings.leftPaneFont.pointSize : -1
+                        font.pixelSize: (settings && settings.leftPaneFont && settings.leftPaneFont.pixelSize > 0) ? settings.leftPaneFont.pixelSize : -1
+                        font.weight: (settings && settings.leftPaneFont) ? settings.leftPaneFont.weight : Font.Normal
+                        font.italic: (settings && settings.leftPaneFont) ? settings.leftPaneFont.italic : false
                         Layout.fillWidth: true
                         highlighted: articleListModel.currentCategoryId === categoryItem.catId
                         onClicked: {
@@ -124,7 +132,11 @@ Kirigami.GlobalDrawer {
                         model: feedListModel
                         delegate: QQC2.ItemDelegate {
                             id: nestedFeedDelegate
-                            font: settings.leftPaneFont
+                            font.family: (settings && settings.leftPaneFont) ? settings.leftPaneFont.family : ""
+                            font.pointSize: (settings && settings.leftPaneFont && settings.leftPaneFont.pointSize > 0) ? settings.leftPaneFont.pointSize : -1
+                            font.pixelSize: (settings && settings.leftPaneFont && settings.leftPaneFont.pixelSize > 0) ? settings.leftPaneFont.pixelSize : -1
+                            font.weight: (settings && settings.leftPaneFont) ? settings.leftPaneFont.weight : Font.Normal
+                            font.italic: (settings && settings.leftPaneFont) ? settings.leftPaneFont.italic : false
                             Layout.fillWidth: true
                             visible: categoryItem.expanded && model.categoryId === categoryItem.catId
                             height: visible ? implicitHeight : 0
@@ -168,10 +180,10 @@ Kirigami.GlobalDrawer {
             // 3. Feeds Section (Flat list)
             QQC2.Label {
                 text: i18n("Feeds")
-                font.family: settings.leftPaneFont.family
+                font.family: (settings && settings.leftPaneFont) ? settings.leftPaneFont.family : ""
                 font.bold: true
                 opacity: 0.6
-                font.pixelSize: Kirigami.Units.gridUnit * 0.7
+                font.pixelSize: (settings && settings.leftPaneFont && settings.leftPaneFont.pixelSize > 0) ? Math.floor(settings.leftPaneFont.pixelSize * 0.7) : 11
                 Layout.margins: Kirigami.Units.smallSpacing
             }
 
@@ -179,7 +191,11 @@ Kirigami.GlobalDrawer {
                 model: feedListModel
                 delegate: QQC2.ItemDelegate {
                     id: flatFeedDelegate
-                    font: settings.leftPaneFont
+                    font.family: (settings && settings.leftPaneFont) ? settings.leftPaneFont.family : ""
+                    font.pointSize: (settings && settings.leftPaneFont && settings.leftPaneFont.pointSize > 0) ? settings.leftPaneFont.pointSize : -1
+                    font.pixelSize: (settings && settings.leftPaneFont && settings.leftPaneFont.pixelSize > 0) ? settings.leftPaneFont.pixelSize : -1
+                    font.weight: (settings && settings.leftPaneFont) ? settings.leftPaneFont.weight : Font.Normal
+                    font.italic: (settings && settings.leftPaneFont) ? settings.leftPaneFont.italic : false
                     Layout.fillWidth: true
                     highlighted: articleListModel.currentFeedId === model.id
                     onClicked: articleListModel.currentFeedId = model.id
