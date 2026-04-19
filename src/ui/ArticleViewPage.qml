@@ -386,27 +386,27 @@ Kirigami.Page {
                                 <style>
                                     :root { color-scheme: ${Kirigami.Theme.colorSet === Kirigami.Theme.Dark ? 'dark' : 'light'}; }
                                     body {
-                                        font-family: "${settings ? settings.articleViewTextFont.family : 'serif'}", serif;
-                                        font-size: ${settings ? (settings.articleViewTextFont.pixelSize > 0 ? settings.articleViewTextFont.pixelSize + "px" : settings.articleViewTextFont.pointSize + "pt") : '12pt'};
-                                        font-weight: ${settings ? settings.articleViewTextFont.weight : 'normal'};
-                                        font-style: ${settings ? (settings.articleViewTextFont.italic ? 'italic' : 'normal') : 'normal'};
+                                        font-family: "${(settings && settings.articleViewTextFont) ? settings.articleViewTextFont.family : 'serif'}", serif;
+                                        font-size: ${(settings && settings.articleViewTextFont) ? (settings.articleViewTextFont.pixelSize > 0 ? settings.articleViewTextFont.pixelSize + "px" : settings.articleViewTextFont.pointSize + "pt") : '12pt'};
+                                        font-weight: ${(settings && settings.articleViewTextFont) ? settings.articleViewTextFont.weight : 'normal'};
+                                        font-style: ${(settings && settings.articleViewTextFont) ? (settings.articleViewTextFont.italic ? 'italic' : 'normal') : 'normal'};
                                         padding: 40px; line-height: 1.6;
                                         color: ${textColor} !important; background-color: ${bgColor} !important;
                                         margin: 0 auto; max-width: 800px;
                                     }
                                     .header { margin-bottom: 40px; border-bottom: 1px solid ${alternateBgColor}; padding-bottom: 20px; }
                                     .title {
-                                        font-family: "${settings ? settings.articleViewTitleFont.family : 'sans-serif'}", sans-serif;
-                                        font-size: ${settings ? (settings.articleViewTitleFont.pixelSize > 0 ? settings.articleViewTitleFont.pixelSize + "px" : settings.articleViewTitleFont.pointSize + "pt") : '18pt'};
-                                        font-weight: ${settings ? settings.articleViewTitleFont.weight : 'bold'};
-                                        font-style: ${settings ? (settings.articleViewTitleFont.italic ? 'italic' : 'normal') : 'normal'};
+                                        font-family: "${(settings && settings.articleViewTitleFont) ? settings.articleViewTitleFont.family : 'sans-serif'}", sans-serif;
+                                        font-size: ${(settings && settings.articleViewTitleFont) ? (settings.articleViewTitleFont.pixelSize > 0 ? settings.articleViewTitleFont.pixelSize + "px" : settings.articleViewTitleFont.pointSize + "pt") : '18pt'};
+                                        font-weight: ${(settings && settings.articleViewTitleFont) ? settings.articleViewTitleFont.weight : 'bold'};
+                                        font-style: ${(settings && settings.articleViewTitleFont) ? (settings.articleViewTitleFont.italic ? 'italic' : 'normal') : 'normal'};
                                         line-height: 1.2; margin-bottom: 15px; color: ${textColor};
                                     }
                                     .meta {
-                                        font-family: "${settings ? settings.articleViewInfoFont.family : 'sans-serif'}", sans-serif;
-                                        font-size: ${settings ? (settings.articleViewInfoFont.pixelSize > 0 ? settings.articleViewInfoFont.pixelSize + "px" : settings.articleViewInfoFont.pointSize + "pt") : '10pt'};
-                                        font-weight: ${settings ? settings.articleViewInfoFont.weight : 'normal'};
-                                        font-style: ${settings ? (settings.articleViewInfoFont.italic ? 'italic' : 'normal') : 'normal'};
+                                        font-family: "${(settings && settings.articleViewInfoFont) ? settings.articleViewInfoFont.family : 'sans-serif'}", sans-serif;
+                                        font-size: ${(settings && settings.articleViewInfoFont) ? (settings.articleViewInfoFont.pixelSize > 0 ? settings.articleViewInfoFont.pixelSize + "px" : settings.articleViewInfoFont.pointSize + "pt") : '10pt'};
+                                        font-weight: ${(settings && settings.articleViewInfoFont) ? settings.articleViewInfoFont.weight : 'normal'};
+                                        font-style: ${(settings && settings.articleViewInfoFont) ? (settings.articleViewInfoFont.italic ? 'italic' : 'normal') : 'normal'};
                                         opacity: 0.7; color: ${textColor};
                                     }
                                     img { 
