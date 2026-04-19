@@ -9,6 +9,12 @@ Kirigami.Page {
     id: root
     objectName: "articleViewPage"
 
+    padding: 0
+    leftPadding: 0
+    rightPadding: 0
+    topPadding: 0
+    bottomPadding: 0
+
     // Hint for Kirigami.PageRow (column view)
     Layout.fillWidth: true
     

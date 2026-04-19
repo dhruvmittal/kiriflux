@@ -73,6 +73,10 @@ Kirigami.ApplicationWindow {
             // Allow multiple columns side-by-side
             if (pageStack.columnView) {
                 pageStack.columnView.columnResizeMode = Kirigami.ColumnView.FixedColumns;
+                pageStack.columnView.columnSpacing = 0;
+                pageStack.columnView.padding = 0;
+                pageStack.columnView.leftPadding = 0;
+                pageStack.columnView.rightPadding = 0;
             }
         } else if (layoutMode === 2) {
             globalDrawer.modal = true;
@@ -80,6 +84,10 @@ Kirigami.ApplicationWindow {
             // Allow multiple columns side-by-side (drawer is just hidden)
             if (pageStack.columnView) {
                 pageStack.columnView.columnResizeMode = Kirigami.ColumnView.FixedColumns;
+                pageStack.columnView.columnSpacing = 0;
+                pageStack.columnView.padding = 0;
+                pageStack.columnView.leftPadding = 0;
+                pageStack.columnView.rightPadding = 0;
             }
         } else {
             // wideScreen alone is not enough — the PageRow fits columns based on
@@ -88,6 +96,10 @@ Kirigami.ApplicationWindow {
             globalDrawer.drawerOpen = false;
             if (pageStack.columnView) {
                 pageStack.columnView.columnResizeMode = Kirigami.ColumnView.SingleColumn;
+                pageStack.columnView.columnSpacing = 0;
+                pageStack.columnView.padding = 0;
+                pageStack.columnView.leftPadding = 0;
+                pageStack.columnView.rightPadding = 0;
             }
         }
     }
