@@ -14,8 +14,8 @@ Kirigami.ApplicationWindow {
     title: "Kiriflux"
     width: 1200
     height: 800
-    minimumWidth: 900
-    minimumHeight: 600
+    minimumWidth: layoutMode === 1 ? 320 : 900
+    minimumHeight: layoutMode === 1 ? 400 : 600
 
     // ── Preferences Dialog ─────────────────────────────────────────
     SettingsPage {
@@ -39,30 +39,77 @@ Kirigami.ApplicationWindow {
         function onArticleBookmarkToggled(entryId) {
              root.showPassiveNotification(i18n("Article star status updated."));
         }
+        function onSyncError(msg) {
+            root.showPassiveNotification(i18n("Sync error: %1", msg));
+        }
     }
 
     Component.onCompleted: {
         articleListModel.refresh();
         feedListModel.refresh();
         categoryListModel.refresh();
+        // Deferred second refresh ensures the article list is populated after the
+        // QML engine finishes component instantiation (avoids blank center pane on cold launch).
+        startupRefreshTimer.start();
+    }
+
+    Timer {
+        id: startupRefreshTimer
+        interval: 150
+        repeat: false
+        onTriggered: articleListModel.refresh()
     }
 
     // ── Layout Control Properties ──────────────────────────────────
     // 3 columns: Drawer pinned (modal=false) + pageStack wide
-    // 2 columns: Drawer collapsed (modal=true) + pageStack wide
-    // 1 column: Drawer collapsed (modal=true) + pageStack narrow
+    // 2 columns: Drawer modal (closeable) + pageStack wide
+    // 1 column:  Drawer modal + pageStack narrow (one page at a time)
     property int layoutMode: 3 // Default to 3-column
+
+    onLayoutModeChanged: {
+        if (layoutMode === 3) {
+            globalDrawer.modal = false;
+            globalDrawer.drawerOpen = true;
+            // Allow multiple columns side-by-side
+            if (pageStack.columnView) {
+                pageStack.columnView.columnResizeMode = Kirigami.ColumnView.FixedColumns;
+                pageStack.columnView.columnSpacing = 0;
+                pageStack.columnView.padding = 0;
+                pageStack.columnView.leftPadding = 0;
+                pageStack.columnView.rightPadding = 0;
+            }
+        } else if (layoutMode === 2) {
+            globalDrawer.modal = true;
+            globalDrawer.drawerOpen = false;
+            // Allow multiple columns side-by-side (drawer is just hidden)
+            if (pageStack.columnView) {
+                pageStack.columnView.columnResizeMode = Kirigami.ColumnView.FixedColumns;
+                pageStack.columnView.columnSpacing = 0;
+                pageStack.columnView.padding = 0;
+                pageStack.columnView.leftPadding = 0;
+                pageStack.columnView.rightPadding = 0;
+            }
+        } else {
+            // wideScreen alone is not enough — the PageRow fits columns based on
+            // available pixel width and ignores wideScreen for column count.
+            globalDrawer.modal = true;
+            globalDrawer.drawerOpen = false;
+            if (pageStack.columnView) {
+                pageStack.columnView.columnResizeMode = Kirigami.ColumnView.SingleColumn;
+                pageStack.columnView.columnSpacing = 0;
+                pageStack.columnView.padding = 0;
+                pageStack.columnView.leftPadding = 0;
+                pageStack.columnView.rightPadding = 0;
+            }
+        }
+    }
 
     pageStack.globalToolBar.style: Kirigami.ApplicationHeaderStyle.ToolBar
     pageStack.globalToolBar.showNavigationButtons: Kirigami.ApplicationHeaderStyle.ShowBackButton
 
-    // Force pageStack column mode based on layout selection
-    // In Kirigami, wideScreen true allows side-by-side pages.
+    // wideScreen controls back-button visibility and drawer modal default.
+    // The actual page stack column count is driven imperatively above.
     wideScreen: layoutMode !== 1
-
-    // Configuration for Kirigami PageRow (columnView)
-    // We let Kirigami handle column widths automatically for smoother transitions
-    property var columnViewSettings: pageStack.columnView
 
     // ── Layout Menu ────────────────────────────────────────────────
     Platform.MenuBar {
@@ -124,20 +171,20 @@ Kirigami.ApplicationWindow {
                 Platform.MenuItem {
                     text: i18n("1 Line")
                     checkable: true
-                    checked: syncEngine.titleLines === 1
-                    onTriggered: syncEngine.titleLines = 1
+                    checked: settings.titleLines === 1
+                    onTriggered: settings.titleLines = 1
                 }
                 Platform.MenuItem {
                     text: i18n("2 Lines")
                     checkable: true
-                    checked: syncEngine.titleLines === 2
-                    onTriggered: syncEngine.titleLines = 2
+                    checked: settings.titleLines === 2
+                    onTriggered: settings.titleLines = 2
                 }
                 Platform.MenuItem {
                     text: i18n("3 Lines")
                     checkable: true
-                    checked: syncEngine.titleLines === 3
-                    onTriggered: syncEngine.titleLines = 3
+                    checked: settings.titleLines === 3
+                    onTriggered: settings.titleLines = 3
                 }
             }
 
@@ -146,8 +193,8 @@ Kirigami.ApplicationWindow {
             Platform.MenuItem {
                 text: i18n("Use Native Reader Mode")
                 checkable: true
-                checked: syncEngine.useReaderMode
-                onTriggered: syncEngine.useReaderMode = !syncEngine.useReaderMode
+                checked: settings.useReaderMode
+                onTriggered: settings.useReaderMode = !settings.useReaderMode
             }
 
             Platform.MenuSeparator {}
@@ -165,8 +212,10 @@ Kirigami.ApplicationWindow {
 
     // ── Global Drawer (Left Pane: Feeds) ───────────────────────────
     globalDrawer: FeedsDrawer {
-        // Inherit dynamic layout mode
+        // Initial state: pinned open for 3-pane, closed for 2/1-pane.
+        // The onLayoutModeChanged handler in root drives subsequent changes.
         modal: root.layoutMode !== 3 || Kirigami.Settings.isMobile
+        drawerOpen: root.layoutMode === 3 && !Kirigami.Settings.isMobile
     }
 
     // ── Global Keyboard Shortcuts ──────────────────────────────────

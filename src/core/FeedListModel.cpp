@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "FeedListModel.h"
 
+#include "SyncEngine.h"
+
 FeedListModel::FeedListModel(QObject *parent)
     : QAbstractListModel(parent)
 {
+    connect(&SyncEngine::instance(), &SyncEngine::articlesUpdated, this, &FeedListModel::refresh);
     refresh();
 }
 
@@ -26,11 +29,11 @@ QVariant FeedListModel::data(const QModelIndex &index, int role) const
 
     const auto &feed = m_feeds.at(index.row());
     switch (role) {
-    case IdRole: return qlonglong(feed.id);
+    case IdRole: return qint64(feed.id);
     case TitleRole: return feed.title;
     case SiteUrlRole: return feed.siteUrl;
     case FeedUrlRole: return feed.feedUrl;
-    case CategoryIdRole: return qlonglong(feed.categoryId);
+    case CategoryIdRole: return qint64(feed.categoryId);
     case UnreadCountRole: return feed.unreadCount;
     case Qt::DisplayRole: return feed.title;
     }

@@ -1,29 +1,55 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "MinifluxClient.h"
+#include "KirifluxLogging.h"
 #include <QNetworkRequest>
 #include <QNetworkReply>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QUrlQuery>
+#include <QSet>
+#include <QStandardPaths>
+#include <QDir>
+#include "SettingsManager.h"
+
+static QUrl sanitizeAndVerify(const QString& url, const QString& endpoint)
+{
+    QString base = url.trimmed();
+    if (base.endsWith(QLatin1Char('/'))) {
+        base.chop(1);
+    }
+    QUrl qurl(base + endpoint);
+    
+    // SEC-1: Warn about insecure connections but allow them for local/tailscale setups
+    if (qurl.scheme() != QStringLiteral("https")) {
+        static bool warned = false;
+        if (!warned) {
+            qCWarning(KIRIFLUX_SYNC) << "Sending API key over insecure connection:" << qurl.scheme();
+            warned = true;
+        }
+    }
+    return qurl;
+}
 
 MinifluxClient::MinifluxClient(QObject *parent)
-    : QObject(parent), m_nam(new QNetworkAccessManager(this))
+    : QObject(parent)
 {
 }
 
 void MinifluxClient::fetchFeeds(const QString& url, const QString& apiKey)
 {
-    QString sanitizedUrl = url.trimmed();
-    if (sanitizedUrl.endsWith(QLatin1Char('/'))) {
-        sanitizedUrl.chop(1);
+    QUrl qurl = sanitizeAndVerify(url, QStringLiteral("/v1/feeds"));
+    if (!qurl.isValid()) {
+        emit errorOccurred(tr("Invalid API URL."));
+        return;
     }
     
-    QUrl qurl(sanitizedUrl + QStringLiteral("/v1/feeds"));
     QNetworkRequest request(qurl);
+    request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Kiriflux/1.0"));
     request.setRawHeader("X-Auth-Token", apiKey.trimmed().toUtf8());
+    request.setTransferTimeout(120000); // 120s timeout for robust fetching
 
-    QNetworkReply *reply = m_nam->get(request);
+    QNetworkReply *reply = NetworkManager::instance().nam()->get(request);
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         reply->deleteLater();
         if (reply->error() != QNetworkReply::NoError) {
@@ -42,7 +68,7 @@ void MinifluxClient::fetchFeeds(const QString& url, const QString& apiKey)
                 obj["site_url"].toString(),
                 obj["feed_url"].toString(),
                 obj["category"].toObject()["id"].toVariant().toLongLong(),
-                0 // unreadCount initialized to 0
+                0
             });
         }
         emit feedsFetched(feeds);
@@ -51,16 +77,15 @@ void MinifluxClient::fetchFeeds(const QString& url, const QString& apiKey)
 
 void MinifluxClient::fetchCategories(const QString& url, const QString& apiKey)
 {
-    QString sanitizedUrl = url.trimmed();
-    if (sanitizedUrl.endsWith(QLatin1Char('/'))) {
-        sanitizedUrl.chop(1);
-    }
+    QUrl qurl = sanitizeAndVerify(url, QStringLiteral("/v1/categories"));
+    if (!qurl.isValid()) return;
     
-    QUrl qurl(sanitizedUrl + QStringLiteral("/v1/categories"));
     QNetworkRequest request(qurl);
+    request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Kiriflux/1.0"));
     request.setRawHeader("X-Auth-Token", apiKey.trimmed().toUtf8());
+    request.setTransferTimeout(120000);
 
-    QNetworkReply *reply = m_nam->get(request);
+    QNetworkReply *reply = NetworkManager::instance().nam()->get(request);
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         reply->deleteLater();
         if (reply->error() != QNetworkReply::NoError) {
@@ -76,7 +101,7 @@ void MinifluxClient::fetchCategories(const QString& url, const QString& apiKey)
             categories.append({
                 obj["id"].toVariant().toLongLong(),
                 obj["title"].toString(),
-                0 // unreadCount
+                0
             });
         }
         emit categoriesFetched(categories);
@@ -85,14 +110,8 @@ void MinifluxClient::fetchCategories(const QString& url, const QString& apiKey)
 
 void MinifluxClient::fetchArticles(const QString& url, const QString& apiKey)
 {
-    QString sanitizedUrl = url.trimmed();
-    if (sanitizedUrl.endsWith(QLatin1Char('/'))) {
-        sanitizedUrl.chop(1);
-    }
-
-    // We fetch both UNREAD and STARRED articles to ensure sync is complete
-    // Miniflux doesn't have a simple "all recent" if we want to be efficient,
-    // so we combine two requests or just fetch unread and starred.
+    // SYNC-3: Restored parallel fetching now that server availability is confirmed.
+    // This maximizes throughput on stable connections.
     QStringList endpoints = {
         QStringLiteral("/v1/entries?status=unread&order=published_at&direction=desc&limit=500"),
         QStringLiteral("/v1/entries?starred=1&order=published_at&direction=desc&limit=100")
@@ -103,28 +122,32 @@ void MinifluxClient::fetchArticles(const QString& url, const QString& apiKey)
     QSharedPointer<bool> hasError(new bool(false));
 
     for (const auto& endpoint : endpoints) {
-        QUrl qurl(sanitizedUrl + endpoint);
-        QNetworkRequest request(qurl);
-        request.setRawHeader("X-Auth-Token", apiKey.trimmed().toUtf8());
+        QUrl qurl = sanitizeAndVerify(url, endpoint);
+        if (!qurl.isValid()) {
+            (*pendingRequests)--;
+            continue;
+        }
 
-        QNetworkReply *reply = m_nam->get(request);
-        connect(reply, &QNetworkReply::finished, this, [this, reply, pendingRequests, allArticles, hasError, endpoint]() {
+        QNetworkRequest request(qurl);
+        request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Kiriflux/1.0"));
+        request.setRawHeader("X-Auth-Token", apiKey.trimmed().toUtf8());
+        request.setTransferTimeout(120000);
+
+        QNetworkReply *reply = NetworkManager::instance().nam()->get(request);
+        connect(reply, &QNetworkReply::finished, this, [this, reply, pendingRequests, allArticles, hasError]() {
             reply->deleteLater();
             (*pendingRequests)--;
             
             if (reply->error() != QNetworkReply::NoError) {
                 if (!*hasError) {
                     *hasError = true;
-                    QString errorMsg = reply->errorString() + " Body: " + reply->readAll();
-                    qWarning() << "Miniflux API Error:" << errorMsg;
-                    emit errorOccurred(errorMsg);
+                    qCWarning(KIRIFLUX_SYNC) << "Article fetch error:" << reply->errorString();
+                    emit errorOccurred(reply->errorString());
                 }
             } else {
-                QByteArray body = reply->readAll();
-                const QJsonDocument doc = QJsonDocument::fromJson(body);
+                const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
                 const QJsonObject root = doc.object();
                 const QJsonArray array = root["entries"].toArray();
-                qDebug() << "Miniflux API returned" << array.size() << "articles for endpoint:" << endpoint;
                 for (const auto& value : array) {
                     const QJsonObject obj = value.toObject();
                     Article a;
@@ -134,126 +157,150 @@ void MinifluxClient::fetchArticles(const QString& url, const QString& apiKey)
                     a.author = obj["author"].toString();
                     a.content = obj["content"].toString();
                     a.url = obj["url"].toString();
-                    a.publishedAt = obj["published_at"].toString();
-                    a.status = obj["status"].toString();
+                    a.publishedAt = QDateTime::fromString(obj["published_at"].toString(), Qt::ISODate);
+                    a.status = (obj["status"].toString() == "read") ? ArticleStatus::Read : ArticleStatus::Unread;
                     a.starred = obj["starred"].toBool();
                     allArticles->append(a);
                 }
             }
             
-            if (*pendingRequests == 0 && !*hasError) {
-                qDebug() << "All requests finished. Emitting articlesFetched with" << allArticles->size() << "articles total.";
-                emit articlesFetched(*allArticles);
+            if (*pendingRequests == 0) {
+                QList<Article> deduped;
+                QSet<qint64> seen;
+                for (const auto& a : *allArticles) {
+                    if (!seen.contains(a.id)) {
+                        deduped.append(a);
+                        seen.insert(a.id);
+                    }
+                }
+                emit articlesFetched(deduped);
             }
         });
     }
 }
 
-void MinifluxClient::fetchArticleContent(const QString& url, const QString& apiKey, long entryId)
+void MinifluxClient::fetchArticleContent(const QString& url, const QString& apiKey, qint64 entryId)
 {
-    QString sanitizedUrl = url.trimmed();
-    if (sanitizedUrl.endsWith(QLatin1Char('/'))) {
-        sanitizedUrl.chop(1);
-    }
-
-    QUrl qurl(sanitizedUrl + QStringLiteral("/v1/entries/%1/fetch-content").arg(entryId));
+    QUrl qurl = sanitizeAndVerify(url, QStringLiteral("/v1/entries/%1/fetch-content").arg(entryId));
     QUrlQuery query;
     query.addQueryItem(QStringLiteral("update_content"), QStringLiteral("true"));
     qurl.setQuery(query);
-    qDebug() << "Fetching content via GET from URL:" << qurl.toString();
+    
     QNetworkRequest request(qurl);
+    request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Kiriflux/1.0"));
     request.setRawHeader("X-Auth-Token", apiKey.trimmed().toUtf8());
+    request.setTransferTimeout(120000);
 
-    // Miniflux API: GET /v1/entries/{entryID}/fetch-content
-    QNetworkReply *reply = m_nam->get(request);
+    QNetworkReply *reply = NetworkManager::instance().nam()->get(request);
     connect(reply, &QNetworkReply::finished, this, [this, reply, entryId]() {
         reply->deleteLater();
-        if (reply->error() != QNetworkReply::NoError) {
-            QString errorBody = reply->readAll();
-            qWarning() << "API Error:" << reply->errorString() << "Body:" << errorBody;
-            emit errorOccurred(reply->errorString() + ": " + errorBody);
-            return;
-        }
-
-        const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
-        const QJsonObject obj = doc.object();
-        QString content = obj[QStringLiteral("content")].toString();
-        if (!content.isEmpty()) {
-            emit contentFetched(entryId, content);
+        if (reply->error() == QNetworkReply::NoError) {
+            const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+            emit contentFetched(entryId, doc.object()["content"].toString());
+        } else {
+            emit errorOccurred(reply->errorString());
         }
     });
 }
 
-void MinifluxClient::updateArticleStatus(const QString& url, const QString& apiKey, long entryId, const QString& status)
+void MinifluxClient::updateArticleStatus(const QString& url, const QString& apiKey, qint64 entryId, const QString& status)
 {
-    QString sanitizedUrl = url.trimmed();
-    if (sanitizedUrl.endsWith(QLatin1Char('/'))) {
-        sanitizedUrl.chop(1);
-    }
+    updateArticlesStatus(url, apiKey, {entryId}, status);
+}
 
-    QUrl qurl(sanitizedUrl + QStringLiteral("/v1/entries"));
+void MinifluxClient::updateArticlesStatus(const QString& url, const QString& apiKey, const QList<qint64>& entryIds, const QString& status)
+{
+    if (entryIds.isEmpty()) return;
+    QUrl qurl = sanitizeAndVerify(url, QStringLiteral("/v1/entries"));
+    
     QNetworkRequest request(qurl);
+    request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Kiriflux/1.0"));
     request.setRawHeader("X-Auth-Token", apiKey.trimmed().toUtf8());
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setTransferTimeout(120000);
 
     QJsonObject json;
-    QJsonArray entryIds;
-    entryIds.append(qlonglong(entryId));
-    json["entry_ids"] = entryIds;
+    QJsonArray entryIdsArray;
+    for (qint64 id : entryIds) entryIdsArray.append(qlonglong(id));
+    json["entry_ids"] = entryIdsArray;
     json["status"] = status;
 
-    QNetworkReply *reply = m_nam->put(request, QJsonDocument(json).toJson());
-    connect(reply, &QNetworkReply::finished, this, [this, reply, entryId, status]() {
+    QNetworkReply *reply = NetworkManager::instance().nam()->put(request, QJsonDocument(json).toJson());
+    connect(reply, &QNetworkReply::finished, this, [this, reply, entryIds, status]() {
         reply->deleteLater();
-        if (reply->error() != QNetworkReply::NoError) {
+        if (reply->error() == QNetworkReply::NoError) {
+            for (qint64 id : entryIds) emit articleStatusUpdated(id, status);
+        } else {
             emit errorOccurred(reply->errorString());
-            return;
         }
-        emit articleStatusUpdated(entryId, status);
     });
 }
 
-void MinifluxClient::toggleArticleBookmark(const QString& url, const QString& apiKey, long entryId)
+void MinifluxClient::toggleArticleBookmark(const QString& url, const QString& apiKey, qint64 entryId)
 {
-    QString sanitizedUrl = url.trimmed();
-    if (sanitizedUrl.endsWith(QLatin1Char('/'))) {
-        sanitizedUrl.chop(1);
-    }
-
-    QUrl qurl(sanitizedUrl + QStringLiteral("/v1/entries/%1/bookmark").arg(entryId));
+    QUrl qurl = sanitizeAndVerify(url, QStringLiteral("/v1/entries/%1/bookmark").arg(entryId));
     QNetworkRequest request(qurl);
+    request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Kiriflux/1.0"));
     request.setRawHeader("X-Auth-Token", apiKey.trimmed().toUtf8());
-    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setTransferTimeout(120000);
     
-    QNetworkReply *reply = m_nam->put(request, QByteArray("{}"));
+    QNetworkReply *reply = NetworkManager::instance().nam()->put(request, QByteArray("{}"));
     connect(reply, &QNetworkReply::finished, this, [this, reply, entryId]() {
         reply->deleteLater();
-        if (reply->error() != QNetworkReply::NoError) {
+        if (reply->error() == QNetworkReply::NoError) {
+            emit articleBookmarkToggled(entryId);
+        } else {
             emit errorOccurred(reply->errorString());
-            return;
         }
-        emit articleBookmarkToggled(entryId);
     });
 }
 
 void MinifluxClient::fetchVersion(const QString& url, const QString& apiKey)
 {
-    QString sanitizedUrl = url.trimmed();
-    if (sanitizedUrl.endsWith(QLatin1Char('/'))) {
-        sanitizedUrl.chop(1);
-    }
-
-    QUrl qurl(sanitizedUrl + QStringLiteral("/v1/version"));
+    QUrl qurl = sanitizeAndVerify(url, QStringLiteral("/v1/version"));
     QNetworkRequest request(qurl);
+    request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Kiriflux/1.0"));
     request.setRawHeader("X-Auth-Token", apiKey.trimmed().toUtf8());
+    request.setTransferTimeout(30000); // Version check can be faster
     
-    QNetworkReply *reply = m_nam->get(request);
+    QNetworkReply *reply = NetworkManager::instance().nam()->get(request);
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         reply->deleteLater();
-        if (reply->error() != QNetworkReply::NoError) {
-            return;
+        if (reply->error() == QNetworkReply::NoError) {
+            const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+            emit versionFetched(doc.object()["version"].toString());
         }
-        const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
-        emit versionFetched(doc.object()["version"].toString());
     });
+}
+
+void MinifluxClient::prefetchUrl(const QUrl& url)
+{
+    if (!url.isValid() || m_prefetchQueue.contains(url)) return;
+    
+    m_prefetchQueue.append(url);
+    processPrefetchQueue();
+}
+
+void MinifluxClient::processPrefetchQueue()
+{
+    const int CONCURRENCY_LIMIT = 6;
+    
+    while (m_activePrefetches < CONCURRENCY_LIMIT && !m_prefetchQueue.isEmpty()) {
+        QUrl url = m_prefetchQueue.takeFirst();
+        
+        QNetworkRequest request(url);
+        request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Kiriflux/1.0"));
+        request.setAttribute(QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::PreferCache);
+        request.setPriority(QNetworkRequest::LowPriority);
+        request.setTransferTimeout(60000); // 1 minute for background prefetch
+        
+        m_activePrefetches++;
+        QNetworkReply *reply = NetworkManager::instance().nam()->get(request);
+        
+        connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+            m_activePrefetches--;
+            reply->deleteLater();
+            processPrefetchQueue();
+        });
+    }
 }

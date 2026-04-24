@@ -6,12 +6,6 @@ add_subdirectory(core)
  
 qt_add_executable(kiriflux
     main.cpp
-    core/DatabaseManager.cpp
-    core/MinifluxClient.cpp
-    core/SyncEngine.cpp
-    core/FeedListModel.cpp
-    core/ArticleListModel.cpp
-    core/CategoryListModel.cpp
 )
 
 # Manual resource embedding for guaranteed QRC paths
@@ -34,6 +28,7 @@ qt_add_resources(kiriflux "icons"
 target_include_directories(kiriflux PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/core)
 
 target_link_libraries(kiriflux PRIVATE
+    kiriflux_core
     Qt6::Core
     Qt6::Gui
     Qt6::Quick
@@ -58,9 +53,7 @@ if(NOT NIX_BUILD)
     target_link_libraries(kiriflux PRIVATE KF6::Kirigami)
 endif()
 
-# Handle KConfigXT generated files for the main target
-kconfig_add_kcfg_files(kiriflux_SRCS core/kiriflux.kcfgc)
-target_sources(kiriflux PRIVATE ${kiriflux_SRCS})
+# Handle KConfigXT generated files for the main target - handled by kiriflux_core
 
 # ── Install ──────────────────────────────────────────────────────────
 install(FILES ../org.kde.kiriflux.desktop DESTINATION ${KDE_INSTALL_APPDIR})

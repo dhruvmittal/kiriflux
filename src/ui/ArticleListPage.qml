@@ -13,8 +13,9 @@ Kirigami.Page {
     topPadding: 0
     bottomPadding: 0
 
-    // Hints for Kirigami.PageRow (column view)
-    implicitWidth: syncEngine.centerPaneWidth
+    // In multi-column mode, give the PageRow a preferred column width.
+    // In 1-pane (SingleColumn) mode, let the ColumnView fill all available space.
+    implicitWidth: (applicationWindow() && applicationWindow().layoutMode === 1) ? 0 : (settings ? settings.centerPaneWidth : 400)
     
     title: articleListModel.currentName
 
@@ -23,13 +24,13 @@ Kirigami.Page {
             text: i18n("Mark All Read")
             icon.name: "mail-mark-read"
             onTriggered: articleListModel.markAllAsRead()
-            visible: articleListModel.rowCount() > 0
-            displayHint: syncEngine.showToolbarLabels ? 0 : 1
+            visible: articleListModel.count > 0
+            displayHint: (settings && settings.showToolbarLabels) ? 0 : 1
         },
         Kirigami.Action {
             id: filterAction
             text: articleListModel.filterStarred ? i18n("Starred") : (articleListModel.filterStatus === "unread" ? i18n("Unread") : i18n("All"))
-            displayHint: syncEngine.showToolbarLabels ? 0 : 1
+            displayHint: (settings && settings.showToolbarLabels) ? 0 : 1
             icon.name: articleListModel.filterStarred ? "favorite" : (articleListModel.filterStatus === "unread" ? "mail-unread" : "view-list-details")
             Kirigami.Action {
                 text: i18n("All")
@@ -63,7 +64,7 @@ Kirigami.Page {
 
     // Function to select and open an article (reused by click and shortcuts)
     function openArticle(index) {
-        if (index < 0 || index >= articleListModel.rowCount()) return;
+        if (index < 0 || index >= articleListModel.count) return;
         
         articleListView.currentIndex = index
         let model = articleListModel.get(index);
@@ -95,13 +96,24 @@ Kirigami.Page {
             for (let p in props) {
                 page[p] = props[p];
             }
+            // In 1-pane mode, wideScreen is false, so only one page is visible at a time.
+            // We must explicitly navigate to the article view page after updating it.
+            if (!applicationWindow().wideScreen) {
+                // Find the index of the existing article view page and jump to it
+                for (let j = 0; j < applicationWindow().pageStack.depth; ++j) {
+                    if (applicationWindow().pageStack.get(j) === page) {
+                        applicationWindow().pageStack.currentIndex = j;
+                        break;
+                    }
+                }
+            }
         } else {
             // Push new page
             applicationWindow().pageStack.push(Qt.resolvedUrl("ArticleViewPage.qml"), props);
         }
 
         // Automatic Read Marking: On Open
-        if (syncEngine.markAsReadOnOpen && model.status === "unread") {
+        if (settings.markAsReadOnOpen && model.status === "unread") {
             articleListModel.markAsRead(index, true);
         }
     }
@@ -110,7 +122,7 @@ Kirigami.Page {
         sequence: "J"
         onActivated: {
             let nextIndex = articleListView.currentIndex + 1;
-            if (nextIndex < articleListModel.rowCount()) {
+            if (nextIndex < articleListModel.count) {
                 root.openArticle(nextIndex);
             }
         }
@@ -136,7 +148,7 @@ Kirigami.Page {
             
             // Close any open ArticleViewPage on the stack
             // Search from top to find and pop the article view
-            for (let i = applicationWindow().pageStack.depth - 1; i >= 0; --i) {
+            for (let i = applicationWindow().pageStack.depth - 1; i >= 0; i--) {
                 let item = applicationWindow().pageStack.get(i);
                 if (item && item.objectName === "articleViewPage") {
                     // Pop everything from this page onwards
@@ -185,7 +197,7 @@ Kirigami.Page {
                 boundsBehavior: Flickable.StopAtBounds
 
                 onContentYChanged: {
-                    if (!syncEngine.markAsReadOnScroll) return;
+                    if (!settings.markAsReadOnScroll) return;
                     if (contentY <= 0) return;
                     scrollMarkTimer.restart();
                 }
@@ -255,21 +267,26 @@ Kirigami.Page {
                             QQC2.Label {
                                 id: titleLabel
                                 text: model.title
-                                font: syncEngine.articleListTitleFont
+                                font.family: (settings && settings.articleListTitleFont) ? settings.articleListTitleFont.family : ""
+                                font.pointSize: (settings && settings.articleListTitleFont && settings.articleListTitleFont.pointSize > 0) ? settings.articleListTitleFont.pointSize : -1
+                                font.pixelSize: (settings && settings.articleListTitleFont && settings.articleListTitleFont.pixelSize > 0) ? settings.articleListTitleFont.pixelSize : -1
+                                font.weight: (settings && settings.articleListTitleFont) ? (model.status === "unread" ? Font.Bold : settings.articleListTitleFont.weight) : (model.status === "unread" ? Font.Bold : Font.Normal)
+                                font.italic: (settings && settings.articleListTitleFont) ? settings.articleListTitleFont.italic : false
                                 elide: Text.ElideRight
-                                maximumLineCount: syncEngine.titleLines
-                                wrapMode: syncEngine.titleLines > 1 ? Text.WordWrap : Text.NoWrap
+                                maximumLineCount: settings ? settings.titleLines : 1
+                                wrapMode: (settings && settings.titleLines > 1) ? Text.WordWrap : Text.NoWrap
                                 Layout.fillWidth: true
                                 color: delegate.highlighted ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
-                            }
-                            Binding {
-                                target: titleLabel; property: "font.bold"; value: model.status === "unread"
                             }
 
                             QQC2.Label {
                                 text: (model.author ? model.author + " • " : "") + 
                                       (model.publishedAt ? new Date(model.publishedAt).toLocaleString(Qt.locale(), "MMM d, hh:mm") : "")
-                                font: syncEngine.articleListInfoFont
+                                font.family: (settings && settings.articleListInfoFont) ? settings.articleListInfoFont.family : ""
+                                font.pointSize: (settings && settings.articleListInfoFont && settings.articleListInfoFont.pointSize > 0) ? settings.articleListInfoFont.pointSize : -1
+                                font.pixelSize: (settings && settings.articleListInfoFont && settings.articleListInfoFont.pixelSize > 0) ? settings.articleListInfoFont.pixelSize : -1
+                                font.weight: (settings && settings.articleListInfoFont) ? settings.articleListInfoFont.weight : Font.Normal
+                                font.italic: (settings && settings.articleListInfoFont) ? settings.articleListInfoFont.italic : false
                                 opacity: delegate.highlighted ? 1.0 : 0.6
                                 elide: Text.ElideRight
                                 Layout.fillWidth: true

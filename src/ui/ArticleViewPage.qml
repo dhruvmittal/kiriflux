@@ -9,6 +9,12 @@ Kirigami.Page {
     id: root
     objectName: "articleViewPage"
 
+    padding: 0
+    leftPadding: 0
+    rightPadding: 0
+    topPadding: 0
+    bottomPadding: 0
+
     // Hint for Kirigami.PageRow (column view)
     Layout.fillWidth: true
     
@@ -35,6 +41,46 @@ Kirigami.Page {
         return "rgba(" + Math.floor(c.r*255) + "," + Math.floor(c.g*255) + "," + Math.floor(c.b*255) + "," + c.a + ")";
     }
 
+    // Hidden TextEdit for clipboard operations
+    TextEdit {
+        id: clipboardHelper
+        visible: false
+    }
+
+    function copyToClipboard(text) {
+        clipboardHelper.text = text;
+        clipboardHelper.selectAll();
+        clipboardHelper.copy();
+    }
+
+    QQC2.Menu {
+        id: contextMenu
+        property string linkUrl: ""
+
+        QQC2.MenuItem {
+            text: i18n("Copy")
+            icon.name: "edit-copy"
+            enabled: readerModeLoader.item && readerModeLoader.item.nativeTextItem && readerModeLoader.item.nativeTextItem.selectedText.length > 0
+            onTriggered: readerModeLoader.item.nativeTextItem.copy()
+        }
+
+        QQC2.MenuItem {
+            text: i18n("Copy Link Address")
+            icon.name: "edit-copy-url"
+            visible: contextMenu.linkUrl !== ""
+            onTriggered: root.copyToClipboard(contextMenu.linkUrl)
+        }
+        
+        QQC2.MenuSeparator { visible: contextMenu.linkUrl !== "" }
+        
+        QQC2.MenuItem {
+            text: i18n("Open Link in Browser")
+            icon.name: "internet-services"
+            visible: contextMenu.linkUrl !== ""
+            onTriggered: Qt.openUrlExternally(contextMenu.linkUrl)
+        }
+    }
+
     Timer {
         id: renderDebouncer
         interval: 10
@@ -42,23 +88,23 @@ Kirigami.Page {
         onTriggered: updateActiveView()
     }
 
-    onArticleContentChanged: renderDebouncer.restart()
-    onArticleTitleChanged: renderDebouncer.restart()
-    onFeedTitleChanged: renderDebouncer.restart()
-    onAuthorChanged: renderDebouncer.restart()
-    onPublishedAtChanged: renderDebouncer.restart()
+    onArticleContentChanged: if (readerModeLoader.item || webViewLoader.item) renderDebouncer.restart()
+    onArticleTitleChanged: if (readerModeLoader.item || webViewLoader.item) renderDebouncer.restart()
+    onFeedTitleChanged: if (readerModeLoader.item || webViewLoader.item) renderDebouncer.restart()
+    onAuthorChanged: if (readerModeLoader.item || webViewLoader.item) renderDebouncer.restart()
+    onPublishedAtChanged: if (readerModeLoader.item || webViewLoader.item) renderDebouncer.restart()
 
     Connections {
-        target: syncEngine
+        target: settings
         function onSettingsChanged() {
             updateActiveView();
         }
     }
 
     function updateActiveView() {
-        if (syncEngine.useReaderMode && readerModeLoader.item) {
+        if (settings && settings.useReaderMode && readerModeLoader.item) {
             readerModeLoader.item.updateContent();
-        } else if (!syncEngine.useReaderMode && webViewLoader.item) {
+        } else if (settings && !settings.useReaderMode && webViewLoader.item) {
             webViewLoader.item.updateContent();
         }
     }
@@ -76,7 +122,7 @@ Kirigami.Page {
                     root.isUnread = !root.isUnread
                 }
             }
-            displayHint: syncEngine.showToolbarLabels ? 0 : 1
+            displayHint: (settings && settings.showToolbarLabels) ? 0 : 1
         },
         Kirigami.Action {
             text: i18n("Star")
@@ -86,17 +132,17 @@ Kirigami.Page {
                     articleListModel.toggleStarredById(root.articleId)
                 }
             }
-            displayHint: syncEngine.showToolbarLabels ? 0 : 1
+            displayHint: (settings && settings.showToolbarLabels) ? 0 : 1
         },
         Kirigami.Action {
             text: i18n("Full Content")
             icon.name: "document-import"
             onTriggered: {
-                if (root.articleId !== null) {
+                if (root.articleId !== null && syncEngine) {
                     syncEngine.fetchFullContent(root.articleId)
                 }
             }
-            displayHint: syncEngine.showToolbarLabels ? 0 : 1
+            displayHint: (settings && settings.showToolbarLabels) ? 0 : 1
         },
         Kirigami.Action {
             text: i18n("Open Browser")
@@ -106,7 +152,7 @@ Kirigami.Page {
                     Qt.openUrlExternally(root.articleUrl)
                 }
             }
-            displayHint: syncEngine.showToolbarLabels ? 0 : 1
+            displayHint: (settings && settings.showToolbarLabels) ? 0 : 1
         }
     ]
 
@@ -114,11 +160,14 @@ Kirigami.Page {
     Loader {
         id: readerModeLoader
         anchors.fill: parent
-        active: syncEngine.useReaderMode
+        active: settings ? settings.useReaderMode : false
         sourceComponent: Component {
             QQC2.ScrollView {
                 id: readerScroll
                 QQC2.ScrollBar.horizontal.policy: QQC2.ScrollBar.AlwaysOff
+                contentWidth: availableWidth
+                
+                readonly property alias nativeTextItem: nativeText
 
                 property var updateContent: function() {
                     let dateStr = root.publishedAt ? new Date(root.publishedAt).toLocaleString(Qt.locale()) : "";
@@ -131,29 +180,17 @@ Kirigami.Page {
                     nativeTitle.text = root.articleTitle;
                     nativeInfo.text = metadata;
                     
-                    // Regex manipulation to constrain images to available width (with padding)
-                    // and ensure general text respects the color schema.
-                    let maxWidth = Math.max(100, readerScroll.width - Kirigami.Units.largeSpacing * 4);
+                    // We use availableWidth to account for the ScrollView's vertical scrollbar footprint.
+                    // An extra Kirigami.Units.largeSpacing * 12 ensures that inherent blockquote/paragraph indents completely safely center.
+                    let maxWidth = Math.max(100, readerScroll.availableWidth - Kirigami.Units.largeSpacing * 12);
                     let processedHtml = root.articleContent;
                     
                     if (processedHtml) {
-                        // Responsively scale width and height to prevent Qt layout overlap bugs
+                        // Simplified Responsive Scaling for QQuickText (RichText)
                         processedHtml = processedHtml.replace(/<img([^>]*)>/gi, function(match, attributes) {
-                            let wMatch = attributes.match(/width=(?:["']?)(\d+)(?:["']?)/i);
-                            let hMatch = attributes.match(/height=(?:["']?)(\d+)(?:["']?)/i);
-                            if (wMatch && hMatch) {
-                                let w = parseInt(wMatch[1]);
-                                let h = parseInt(hMatch[1]);
-                                if (w > 0 && w > maxWidth) {
-                                    let scaledH = Math.round((h / w) * maxWidth);
-                                    let cleanAttrs = attributes.replace(/(width|height)=["'][^"']*["']/gi, "");
-                                    return `<img width="${maxWidth}" height="${scaledH}" ${cleanAttrs}>`;
-                                }
-                                return match;
-                            }
-                            // Unbounded responsive image (e.g. 9to5Google). Table wrapper forces async bounding updates!
                             let cleanAttrs = attributes.replace(/(width|height)=["'][^"']*["']/gi, "");
-                            return `<table width="${maxWidth}" cellpadding="0" cellspacing="0" style="margin:0 auto"><tr><td><img width="${maxWidth}" ${cleanAttrs}></td></tr></table>`;
+                            // We use a simple div wrapper which is better handled by RichText than tables
+                            return `<div align="center"><img width="${maxWidth}" ${cleanAttrs}></div>`;
                         });
                     } else {
                         processedHtml = "<p style='color:#888; text-align:center;'>Select an article to read.</p>";
@@ -175,34 +212,95 @@ Kirigami.Page {
                             Layout.fillWidth: true
                             spacing: Kirigami.Units.largeSpacing
 
-                            QQC2.Label {
+                            TextEdit {
                                 id: nativeTitle
-                                font: syncEngine.articleViewTitleFont
-                                wrapMode: Text.WordWrap
+                                readOnly: true
+                                selectByMouse: true
+                                activeFocusOnTab: false
+                                cursorVisible: false
+                                selectionColor: Kirigami.Theme.highlightColor
+                                selectedTextColor: Kirigami.Theme.highlightedTextColor
+                                font.family: (settings && settings.articleViewTitleFont) ? settings.articleViewTitleFont.family : ""
+                                font.pointSize: (settings && settings.articleViewTitleFont && settings.articleViewTitleFont.pointSize > 0) ? settings.articleViewTitleFont.pointSize : -1
+                                font.pixelSize: (settings && settings.articleViewTitleFont && settings.articleViewTitleFont.pixelSize > 0) ? settings.articleViewTitleFont.pixelSize : -1
+                                font.weight: (settings && settings.articleViewTitleFont) ? settings.articleViewTitleFont.weight : Font.Normal
+                                font.italic: (settings && settings.articleViewTitleFont) ? settings.articleViewTitleFont.italic : false
+                                color: root.themedTextColor
+                                wrapMode: TextEdit.WordWrap
                                 Layout.fillWidth: true
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    acceptedButtons: Qt.RightButton
+                                    onClicked: {
+                                        contextMenu.linkUrl = "";
+                                        contextMenu.popup();
+                                    }
+                                }
                             }
                             
-                            QQC2.Label {
+                            TextEdit {
                                 id: nativeInfo
-                                font: syncEngine.articleViewInfoFont
+                                readOnly: true
+                                selectByMouse: true
+                                activeFocusOnTab: false
+                                cursorVisible: false
+                                selectionColor: Kirigami.Theme.highlightColor
+                                selectedTextColor: Kirigami.Theme.highlightedTextColor
+                                font.family: (settings && settings.articleViewInfoFont) ? settings.articleViewInfoFont.family : ""
+                                font.pointSize: (settings && settings.articleViewInfoFont && settings.articleViewInfoFont.pointSize > 0) ? settings.articleViewInfoFont.pointSize : -1
+                                font.pixelSize: (settings && settings.articleViewInfoFont && settings.articleViewInfoFont.pixelSize > 0) ? settings.articleViewInfoFont.pixelSize : -1
+                                font.weight: (settings && settings.articleViewInfoFont) ? settings.articleViewInfoFont.weight : Font.Normal
+                                font.italic: (settings && settings.articleViewInfoFont) ? settings.articleViewInfoFont.italic : false
+                                color: root.themedTextColor
                                 opacity: 0.7
-                                wrapMode: Text.WordWrap
+                                wrapMode: TextEdit.WordWrap
                                 Layout.fillWidth: true
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    acceptedButtons: Qt.RightButton
+                                    onClicked: {
+                                        contextMenu.linkUrl = "";
+                                        contextMenu.popup();
+                                    }
+                                }
                             }
                             
                             Kirigami.Separator { Layout.fillWidth: true }
                             
-                            Text {
+                            TextEdit {
                                 id: nativeText
-                                textFormat: Text.RichText
-                                font: syncEngine.articleViewTextFont
+                                textFormat: TextEdit.RichText
+                                readOnly: true
+                                selectByMouse: true
+                                activeFocusOnTab: false
+                                cursorVisible: false
+                                selectionColor: Kirigami.Theme.highlightColor
+                                selectedTextColor: Kirigami.Theme.highlightedTextColor
+                                baseUrl: root.articleUrl
+                                font.family: (settings && settings.articleViewTextFont) ? settings.articleViewTextFont.family : ""
+                                font.pointSize: (settings && settings.articleViewTextFont && settings.articleViewTextFont.pointSize > 0) ? settings.articleViewTextFont.pointSize : -1
+                                font.pixelSize: (settings && settings.articleViewTextFont && settings.articleViewTextFont.pixelSize > 0) ? settings.articleViewTextFont.pixelSize : -1
+                                font.weight: (settings && settings.articleViewTextFont) ? settings.articleViewTextFont.weight : Font.Normal
+                                font.italic: (settings && settings.articleViewTextFont) ? settings.articleViewTextFont.italic : false
                                 color: root.themedTextColor
-                                wrapMode: Text.WordWrap
+                                wrapMode: TextEdit.WordWrap
                                 Layout.fillWidth: true
                                 onLinkActivated: (link) => Qt.openUrlExternally(link)
-                                // We use hoverEnabled to allow basic cursor interaction
+                                
+                                MouseArea {
+                                    anchors.fill: parent
+                                    acceptedButtons: Qt.RightButton
+                                    onClicked: (mouse) => {
+                                        let link = nativeText.linkAt(mouse.x, mouse.y);
+                                        contextMenu.linkUrl = link;
+                                        contextMenu.popup();
+                                    }
+                                }
+                                
                                 HoverHandler {
-                                    cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                    cursorShape: (nativeText.linkAt(point.position.x, point.position.y) !== "") ? Qt.PointingHandCursor : Qt.IBeamCursor
                                 }
                             }
                             
@@ -219,7 +317,8 @@ Kirigami.Page {
                     sequence: "Space"
                     onActivated: {
                         let flick = readerScroll.contentItem
-                        flick.contentY = Math.min(flick.contentY + flick.height, flick.contentHeight - flick.height)
+                        let maxScroll = Math.max(0, flick.contentHeight - flick.height)
+                        flick.contentY = Math.min(flick.contentY + flick.height, maxScroll)
                     }
                 }
 
@@ -238,7 +337,7 @@ Kirigami.Page {
     Loader {
         id: webViewLoader
         anchors.fill: parent
-        active: !syncEngine.useReaderMode
+        active: settings ? !settings.useReaderMode : false
         sourceComponent: Component {
             WebEngineView {
                 id: articleWebView
@@ -299,30 +398,37 @@ Kirigami.Page {
                                 <style>
                                     :root { color-scheme: ${Kirigami.Theme.colorSet === Kirigami.Theme.Dark ? 'dark' : 'light'}; }
                                     body {
-                                        font-family: "${syncEngine.articleViewTextFont.family}", serif;
-                                        font-size: ${syncEngine.articleViewTextFont.pixelSize > 0 ? syncEngine.articleViewTextFont.pixelSize + "px" : syncEngine.articleViewTextFont.pointSize + "pt"};
-                                        font-weight: ${syncEngine.articleViewTextFont.weight};
-                                        font-style: ${syncEngine.articleViewTextFont.italic ? 'italic' : 'normal'};
+                                        font-family: "${(settings && settings.articleViewTextFont) ? settings.articleViewTextFont.family : 'serif'}", serif;
+                                        font-size: ${(settings && settings.articleViewTextFont) ? (settings.articleViewTextFont.pixelSize > 0 ? settings.articleViewTextFont.pixelSize + "px" : settings.articleViewTextFont.pointSize + "pt") : '12pt'};
+                                        font-weight: ${(settings && settings.articleViewTextFont) ? settings.articleViewTextFont.weight : 'normal'};
+                                        font-style: ${(settings && settings.articleViewTextFont) ? (settings.articleViewTextFont.italic ? 'italic' : 'normal') : 'normal'};
                                         padding: 40px; line-height: 1.6;
                                         color: ${textColor} !important; background-color: ${bgColor} !important;
                                         margin: 0 auto; max-width: 800px;
                                     }
                                     .header { margin-bottom: 40px; border-bottom: 1px solid ${alternateBgColor}; padding-bottom: 20px; }
                                     .title {
-                                        font-family: "${syncEngine.articleViewTitleFont.family}", sans-serif;
-                                        font-size: ${syncEngine.articleViewTitleFont.pixelSize > 0 ? syncEngine.articleViewTitleFont.pixelSize + "px" : syncEngine.articleViewTitleFont.pointSize + "pt"};
-                                        font-weight: ${syncEngine.articleViewTitleFont.weight};
-                                        font-style: ${syncEngine.articleViewTitleFont.italic ? 'italic' : 'normal'};
+                                        font-family: "${(settings && settings.articleViewTitleFont) ? settings.articleViewTitleFont.family : 'sans-serif'}", sans-serif;
+                                        font-size: ${(settings && settings.articleViewTitleFont) ? (settings.articleViewTitleFont.pixelSize > 0 ? settings.articleViewTitleFont.pixelSize + "px" : settings.articleViewTitleFont.pointSize + "pt") : '18pt'};
+                                        font-weight: ${(settings && settings.articleViewTitleFont) ? settings.articleViewTitleFont.weight : 'bold'};
+                                        font-style: ${(settings && settings.articleViewTitleFont) ? (settings.articleViewTitleFont.italic ? 'italic' : 'normal') : 'normal'};
                                         line-height: 1.2; margin-bottom: 15px; color: ${textColor};
                                     }
                                     .meta {
-                                        font-family: "${syncEngine.articleViewInfoFont.family}", sans-serif;
-                                        font-size: ${syncEngine.articleViewInfoFont.pixelSize > 0 ? syncEngine.articleViewInfoFont.pixelSize + "px" : syncEngine.articleViewInfoFont.pointSize + "pt"};
-                                        font-weight: ${syncEngine.articleViewInfoFont.weight};
-                                        font-style: ${syncEngine.articleViewInfoFont.italic ? 'italic' : 'normal'};
+                                        font-family: "${(settings && settings.articleViewInfoFont) ? settings.articleViewInfoFont.family : 'sans-serif'}", sans-serif;
+                                        font-size: ${(settings && settings.articleViewInfoFont) ? (settings.articleViewInfoFont.pixelSize > 0 ? settings.articleViewInfoFont.pixelSize + "px" : settings.articleViewInfoFont.pointSize + "pt") : '10pt'};
+                                        font-weight: ${(settings && settings.articleViewInfoFont) ? settings.articleViewInfoFont.weight : 'normal'};
+                                        font-style: ${(settings && settings.articleViewInfoFont) ? (settings.articleViewInfoFont.italic ? 'italic' : 'normal') : 'normal'};
                                         opacity: 0.7; color: ${textColor};
                                     }
-                                    img { max-width: 100% !important; height: auto !important; border-radius: 8px; margin: 20px 0; }
+                                    img { 
+                                        max-width: 100% !important; 
+                                        height: auto !important; 
+                                        border-radius: 8px; 
+                                        margin: 20px 0; 
+                                        background-color: ${alternateBgColor};
+                                        transition: opacity 0.3s ease-in;
+                                    }
                                     pre {
                                         background-color: ${alternateBgColor} !important; padding: 15px; border-radius: 8px;
                                         overflow-x: auto; color: ${textColor} !important;
@@ -397,7 +503,7 @@ Kirigami.Page {
     Shortcut {
         sequence: "d"
         onActivated: {
-            if (root.articleId !== null) {
+            if (root.articleId !== null && syncEngine) {
                 syncEngine.fetchFullContent(root.articleId)
             }
         }

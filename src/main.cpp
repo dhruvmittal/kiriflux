@@ -20,10 +20,15 @@
 #include "core/FeedListModel.h"
 #include "core/ArticleListModel.h"
 #include "core/CategoryListModel.h"
+#include "core/SettingsManager.h"
+#include "core/NetworkManager.h"
+#include "core/KirifluxNAMFactory.h"
 
 int main(int argc, char *argv[])
 {
-    qputenv("QTWEBENGINE_CHROMIUM_FLAGS", "--disable-gpu-compositing");
+    // Testing: Skia is often the cause of blank windows on NVIDIA
+    qputenv("QTWEBENGINE_CHROMIUM_FLAGS", "--disable-features=UseSkiaRenderer");
+    qputenv("QTWEBENGINE_FORCE_USE_GBM", "1");
     QtWebEngineQuick::initialize();
     qDebug() << "Kiriflux starting...";
     qDebug() << "QML2_IMPORT_PATH:" << qgetenv("QML2_IMPORT_PATH");
@@ -73,10 +78,12 @@ int main(int argc, char *argv[])
 
     // 7. QML Engine Setup
     QQmlApplicationEngine engine;
+    engine.setNetworkAccessManagerFactory(new KirifluxNAMFactory());
     engine.rootContext()->setContextObject(new KLocalizedContext(&engine));
     
     // Expose objects as global context properties
     engine.rootContext()->setContextProperty(QStringLiteral("syncEngine"), &SyncEngine::instance());
+    engine.rootContext()->setContextProperty(QStringLiteral("settings"), &SettingsManager::instance());
     engine.rootContext()->setContextProperty(QStringLiteral("feedListModel"), feedListModel);
     engine.rootContext()->setContextProperty(QStringLiteral("articleListModel"), articleListModel);
     engine.rootContext()->setContextProperty(QStringLiteral("categoryListModel"), categoryListModel);
