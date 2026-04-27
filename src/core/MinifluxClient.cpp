@@ -113,8 +113,8 @@ void MinifluxClient::fetchArticles(const QString& url, const QString& apiKey)
     // SYNC-3: Restored parallel fetching now that server availability is confirmed.
     // This maximizes throughput on stable connections.
     QStringList endpoints = {
-        QStringLiteral("/v1/entries?status=unread&order=published_at&direction=desc&limit=500"),
-        QStringLiteral("/v1/entries?starred=1&order=published_at&direction=desc&limit=100")
+        QStringLiteral("/v1/entries?status=unread&order=published_at&direction=desc&limit=10000"),
+        QStringLiteral("/v1/entries?starred=1&order=published_at&direction=desc&limit=1000")
     };
 
     QSharedPointer<int> pendingRequests(new int(endpoints.size()));

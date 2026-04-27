@@ -40,7 +40,6 @@ Kirigami.GlobalDrawer {
             QQC2.ItemDelegate {
                 font.family: (settings && settings.leftPaneFont) ? settings.leftPaneFont.family : ""
                 font.pointSize: (settings && settings.leftPaneFont && settings.leftPaneFont.pointSize > 0) ? settings.leftPaneFont.pointSize : -1
-                font.pixelSize: (settings && settings.leftPaneFont && settings.leftPaneFont.pixelSize > 0) ? settings.leftPaneFont.pixelSize : -1
                 font.weight: (settings && settings.leftPaneFont) ? settings.leftPaneFont.weight : Font.Normal
                 font.italic: (settings && settings.leftPaneFont) ? settings.leftPaneFont.italic : false
                 Layout.fillWidth: true
@@ -61,7 +60,7 @@ Kirigami.GlobalDrawer {
                 font.family: (settings && settings.leftPaneFont) ? settings.leftPaneFont.family : ""
                 font.bold: true
                 opacity: 0.6
-                font.pixelSize: (settings && settings.leftPaneFont && settings.leftPaneFont.pixelSize > 0) ? Math.floor(settings.leftPaneFont.pixelSize * 0.7) : 11
+                font.pointSize: (settings && settings.leftPaneFont && settings.leftPaneFont.pointSize > 0) ? Math.max(1, Math.floor(settings.leftPaneFont.pointSize * 0.7)) : 9
                 Layout.margins: Kirigami.Units.smallSpacing
             }
 
@@ -78,7 +77,6 @@ Kirigami.GlobalDrawer {
                         id: categoryDelegate
                         font.family: (settings && settings.leftPaneFont) ? settings.leftPaneFont.family : ""
                         font.pointSize: (settings && settings.leftPaneFont && settings.leftPaneFont.pointSize > 0) ? settings.leftPaneFont.pointSize : -1
-                        font.pixelSize: (settings && settings.leftPaneFont && settings.leftPaneFont.pixelSize > 0) ? settings.leftPaneFont.pixelSize : -1
                         font.weight: (settings && settings.leftPaneFont) ? settings.leftPaneFont.weight : Font.Normal
                         font.italic: (settings && settings.leftPaneFont) ? settings.leftPaneFont.italic : false
                         Layout.fillWidth: true
@@ -119,7 +117,7 @@ Kirigami.GlobalDrawer {
                                     id: catLabel
                                     anchors.centerIn: parent
                                     text: model.unreadCount
-                                    font.pixelSize: 10
+                                    font.pointSize: 9
                                     font.bold: true
                                     color: "white"
                                 }
@@ -134,7 +132,6 @@ Kirigami.GlobalDrawer {
                             id: nestedFeedDelegate
                             font.family: (settings && settings.leftPaneFont) ? settings.leftPaneFont.family : ""
                             font.pointSize: (settings && settings.leftPaneFont && settings.leftPaneFont.pointSize > 0) ? settings.leftPaneFont.pointSize : -1
-                            font.pixelSize: (settings && settings.leftPaneFont && settings.leftPaneFont.pixelSize > 0) ? settings.leftPaneFont.pixelSize : -1
                             font.weight: (settings && settings.leftPaneFont) ? settings.leftPaneFont.weight : Font.Normal
                             font.italic: (settings && settings.leftPaneFont) ? settings.leftPaneFont.italic : false
                             Layout.fillWidth: true
@@ -164,7 +161,7 @@ Kirigami.GlobalDrawer {
                                         id: nestedLabel
                                         anchors.centerIn: parent
                                         text: model.unreadCount
-                                        font.pixelSize: 10
+                                        font.pointSize: 9
                                         font.bold: true
                                         color: "white"
                                     }
@@ -183,7 +180,7 @@ Kirigami.GlobalDrawer {
                 font.family: (settings && settings.leftPaneFont) ? settings.leftPaneFont.family : ""
                 font.bold: true
                 opacity: 0.6
-                font.pixelSize: (settings && settings.leftPaneFont && settings.leftPaneFont.pixelSize > 0) ? Math.floor(settings.leftPaneFont.pixelSize * 0.7) : 11
+                font.pointSize: (settings && settings.leftPaneFont && settings.leftPaneFont.pointSize > 0) ? Math.max(1, Math.floor(settings.leftPaneFont.pointSize * 0.7)) : 9
                 Layout.margins: Kirigami.Units.smallSpacing
             }
 
@@ -193,7 +190,6 @@ Kirigami.GlobalDrawer {
                     id: flatFeedDelegate
                     font.family: (settings && settings.leftPaneFont) ? settings.leftPaneFont.family : ""
                     font.pointSize: (settings && settings.leftPaneFont && settings.leftPaneFont.pointSize > 0) ? settings.leftPaneFont.pointSize : -1
-                    font.pixelSize: (settings && settings.leftPaneFont && settings.leftPaneFont.pixelSize > 0) ? settings.leftPaneFont.pixelSize : -1
                     font.weight: (settings && settings.leftPaneFont) ? settings.leftPaneFont.weight : Font.Normal
                     font.italic: (settings && settings.leftPaneFont) ? settings.leftPaneFont.italic : false
                     Layout.fillWidth: true
@@ -226,7 +222,7 @@ Kirigami.GlobalDrawer {
                                 id: cLabel
                                 anchors.centerIn: parent
                                 text: model.unreadCount
-                                font.pixelSize: 10
+                                font.pointSize: 9
                                 font.bold: true
                                 color: "white"
                             }

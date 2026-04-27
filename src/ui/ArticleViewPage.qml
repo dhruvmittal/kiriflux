@@ -196,6 +196,7 @@ Kirigami.Page {
                         processedHtml = "<p style='color:#888; text-align:center;'>Select an article to read.</p>";
                     }
                     nativeText.text = processedHtml;
+                    readerScroll.contentItem.contentY = 0;
                 }
 
                 ColumnLayout {
@@ -222,7 +223,6 @@ Kirigami.Page {
                                 selectedTextColor: Kirigami.Theme.highlightedTextColor
                                 font.family: (settings && settings.articleViewTitleFont) ? settings.articleViewTitleFont.family : ""
                                 font.pointSize: (settings && settings.articleViewTitleFont && settings.articleViewTitleFont.pointSize > 0) ? settings.articleViewTitleFont.pointSize : -1
-                                font.pixelSize: (settings && settings.articleViewTitleFont && settings.articleViewTitleFont.pixelSize > 0) ? settings.articleViewTitleFont.pixelSize : -1
                                 font.weight: (settings && settings.articleViewTitleFont) ? settings.articleViewTitleFont.weight : Font.Normal
                                 font.italic: (settings && settings.articleViewTitleFont) ? settings.articleViewTitleFont.italic : false
                                 color: root.themedTextColor
@@ -249,7 +249,6 @@ Kirigami.Page {
                                 selectedTextColor: Kirigami.Theme.highlightedTextColor
                                 font.family: (settings && settings.articleViewInfoFont) ? settings.articleViewInfoFont.family : ""
                                 font.pointSize: (settings && settings.articleViewInfoFont && settings.articleViewInfoFont.pointSize > 0) ? settings.articleViewInfoFont.pointSize : -1
-                                font.pixelSize: (settings && settings.articleViewInfoFont && settings.articleViewInfoFont.pixelSize > 0) ? settings.articleViewInfoFont.pixelSize : -1
                                 font.weight: (settings && settings.articleViewInfoFont) ? settings.articleViewInfoFont.weight : Font.Normal
                                 font.italic: (settings && settings.articleViewInfoFont) ? settings.articleViewInfoFont.italic : false
                                 color: root.themedTextColor
@@ -281,7 +280,6 @@ Kirigami.Page {
                                 baseUrl: root.articleUrl
                                 font.family: (settings && settings.articleViewTextFont) ? settings.articleViewTextFont.family : ""
                                 font.pointSize: (settings && settings.articleViewTextFont && settings.articleViewTextFont.pointSize > 0) ? settings.articleViewTextFont.pointSize : -1
-                                font.pixelSize: (settings && settings.articleViewTextFont && settings.articleViewTextFont.pixelSize > 0) ? settings.articleViewTextFont.pixelSize : -1
                                 font.weight: (settings && settings.articleViewTextFont) ? settings.articleViewTextFont.weight : Font.Normal
                                 font.italic: (settings && settings.articleViewTextFont) ? settings.articleViewTextFont.italic : false
                                 color: root.themedTextColor
@@ -399,7 +397,7 @@ Kirigami.Page {
                                     :root { color-scheme: ${Kirigami.Theme.colorSet === Kirigami.Theme.Dark ? 'dark' : 'light'}; }
                                     body {
                                         font-family: "${(settings && settings.articleViewTextFont) ? settings.articleViewTextFont.family : 'serif'}", serif;
-                                        font-size: ${(settings && settings.articleViewTextFont) ? (settings.articleViewTextFont.pixelSize > 0 ? settings.articleViewTextFont.pixelSize + "px" : settings.articleViewTextFont.pointSize + "pt") : '12pt'};
+                                        font-size: ${(settings && settings.articleViewTextFont && settings.articleViewTextFont.pointSize > 0) ? settings.articleViewTextFont.pointSize + "pt" : '12pt'};
                                         font-weight: ${(settings && settings.articleViewTextFont) ? settings.articleViewTextFont.weight : 'normal'};
                                         font-style: ${(settings && settings.articleViewTextFont) ? (settings.articleViewTextFont.italic ? 'italic' : 'normal') : 'normal'};
                                         padding: 40px; line-height: 1.6;
@@ -409,14 +407,14 @@ Kirigami.Page {
                                     .header { margin-bottom: 40px; border-bottom: 1px solid ${alternateBgColor}; padding-bottom: 20px; }
                                     .title {
                                         font-family: "${(settings && settings.articleViewTitleFont) ? settings.articleViewTitleFont.family : 'sans-serif'}", sans-serif;
-                                        font-size: ${(settings && settings.articleViewTitleFont) ? (settings.articleViewTitleFont.pixelSize > 0 ? settings.articleViewTitleFont.pixelSize + "px" : settings.articleViewTitleFont.pointSize + "pt") : '18pt'};
+                                        font-size: ${(settings && settings.articleViewTitleFont && settings.articleViewTitleFont.pointSize > 0) ? settings.articleViewTitleFont.pointSize + "pt" : '18pt'};
                                         font-weight: ${(settings && settings.articleViewTitleFont) ? settings.articleViewTitleFont.weight : 'bold'};
                                         font-style: ${(settings && settings.articleViewTitleFont) ? (settings.articleViewTitleFont.italic ? 'italic' : 'normal') : 'normal'};
                                         line-height: 1.2; margin-bottom: 15px; color: ${textColor};
                                     }
                                     .meta {
                                         font-family: "${(settings && settings.articleViewInfoFont) ? settings.articleViewInfoFont.family : 'sans-serif'}", sans-serif;
-                                        font-size: ${(settings && settings.articleViewInfoFont) ? (settings.articleViewInfoFont.pixelSize > 0 ? settings.articleViewInfoFont.pixelSize + "px" : settings.articleViewInfoFont.pointSize + "pt") : '10pt'};
+                                        font-size: ${(settings && settings.articleViewInfoFont && settings.articleViewInfoFont.pointSize > 0) ? settings.articleViewInfoFont.pointSize + "pt" : '10pt'};
                                         font-weight: ${(settings && settings.articleViewInfoFont) ? settings.articleViewInfoFont.weight : 'normal'};
                                         font-style: ${(settings && settings.articleViewInfoFont) ? (settings.articleViewInfoFont.italic ? 'italic' : 'normal') : 'normal'};
                                         opacity: 0.7; color: ${textColor};

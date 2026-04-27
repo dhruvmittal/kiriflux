@@ -269,7 +269,6 @@ Kirigami.Page {
                                 text: model.title
                                 font.family: (settings && settings.articleListTitleFont) ? settings.articleListTitleFont.family : ""
                                 font.pointSize: (settings && settings.articleListTitleFont && settings.articleListTitleFont.pointSize > 0) ? settings.articleListTitleFont.pointSize : -1
-                                font.pixelSize: (settings && settings.articleListTitleFont && settings.articleListTitleFont.pixelSize > 0) ? settings.articleListTitleFont.pixelSize : -1
                                 font.weight: (settings && settings.articleListTitleFont) ? (model.status === "unread" ? Font.Bold : settings.articleListTitleFont.weight) : (model.status === "unread" ? Font.Bold : Font.Normal)
                                 font.italic: (settings && settings.articleListTitleFont) ? settings.articleListTitleFont.italic : false
                                 elide: Text.ElideRight
@@ -284,7 +283,6 @@ Kirigami.Page {
                                       (model.publishedAt ? new Date(model.publishedAt).toLocaleString(Qt.locale(), "MMM d, hh:mm") : "")
                                 font.family: (settings && settings.articleListInfoFont) ? settings.articleListInfoFont.family : ""
                                 font.pointSize: (settings && settings.articleListInfoFont && settings.articleListInfoFont.pointSize > 0) ? settings.articleListInfoFont.pointSize : -1
-                                font.pixelSize: (settings && settings.articleListInfoFont && settings.articleListInfoFont.pixelSize > 0) ? settings.articleListInfoFont.pixelSize : -1
                                 font.weight: (settings && settings.articleListInfoFont) ? settings.articleListInfoFont.weight : Font.Normal
                                 font.italic: (settings && settings.articleListInfoFont) ? settings.articleListInfoFont.italic : false
                                 opacity: delegate.highlighted ? 1.0 : 0.6

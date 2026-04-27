@@ -56,6 +56,31 @@ SyncEngine::SyncEngine(QObject *parent)
     });
 
     connect(m_client, &MinifluxClient::articlesFetched, this, [this](const QList<Article>& articles) {
+        // Find all IDs of fetched unread articles
+        QSet<qint64> fetchedUnreadIds;
+        int fetchedUnreadCount = 0;
+        for (const auto& a : articles) {
+            if (a.status == ArticleStatus::Unread) {
+                fetchedUnreadIds.insert(a.id);
+                fetchedUnreadCount++;
+            }
+        }
+        
+        // Clean up local unread articles that are no longer unread on the server.
+        // We only do this if we didn't hit the 10000 limit, meaning we received ALL unread articles.
+        if (fetchedUnreadCount < 10000) {
+            QList<Article> localUnread = DatabaseManager::instance().getAllArticles(ArticleStatus::Unread, false);
+            QList<qint64> toMarkRead;
+            for (const auto& local : localUnread) {
+                if (!fetchedUnreadIds.contains(local.id)) {
+                    toMarkRead.append(local.id);
+                }
+            }
+            if (!toMarkRead.isEmpty()) {
+                DatabaseManager::instance().markArticlesAsRead(toMarkRead, true);
+            }
+        }
+
         DatabaseManager::instance().saveArticles(articles);
         DatabaseManager::instance().purgeOldReadArticles(); // Performance: Keep DB lean
         m_isSyncing = false;

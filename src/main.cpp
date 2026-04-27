@@ -26,9 +26,7 @@
 
 int main(int argc, char *argv[])
 {
-    // Testing: Skia is often the cause of blank windows on NVIDIA
-    qputenv("QTWEBENGINE_CHROMIUM_FLAGS", "--disable-features=UseSkiaRenderer");
-    qputenv("QTWEBENGINE_FORCE_USE_GBM", "1");
+    qputenv("QTWEBENGINE_CHROMIUM_FLAGS", "--disable-gpu-compositing");
     QtWebEngineQuick::initialize();
     qDebug() << "Kiriflux starting...";
     qDebug() << "QML2_IMPORT_PATH:" << qgetenv("QML2_IMPORT_PATH");
