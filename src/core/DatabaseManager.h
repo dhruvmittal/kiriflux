@@ -80,6 +80,9 @@ public:
     void updateArticleContent(qint64 articleId, const QString& content);
     void purgeOldReadArticles(int days = 7);
 
+signals:
+    void unreadCountsChanged();
+
 private:
     explicit DatabaseManager(QObject *parent = nullptr);
     ~DatabaseManager() = default;

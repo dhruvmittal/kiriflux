@@ -3,6 +3,7 @@
 
 #include <QAbstractListModel>
 #include <QtQml/qqmlregistration.h>
+#include <QTimer>
 #include "DatabaseManager.h"
 
 class CategoryListModel : public QAbstractListModel
@@ -23,7 +24,9 @@ public:
 
 public slots:
     void refresh();
+    void updateUnreadCounts();
 
 private:
     QList<Category> m_categories;
+    QTimer m_unreadUpdateTimer;
 };
