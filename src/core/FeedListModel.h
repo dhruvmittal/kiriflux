@@ -3,6 +3,7 @@
 
 #include <QAbstractListModel>
 #include <QtQml/qqmlregistration.h>
+#include <QTimer>
 #include "DatabaseManager.h"
 
 class FeedListModel : public QAbstractListModel
@@ -26,7 +27,9 @@ public:
 
 public slots:
     void refresh();
+    void updateUnreadCounts();
 
 private:
     QList<Feed> m_feeds;
+    QTimer m_unreadUpdateTimer;
 };

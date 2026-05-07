@@ -7,7 +7,30 @@ CategoryListModel::CategoryListModel(QObject *parent)
     : QAbstractListModel(parent)
 {
     connect(&SyncEngine::instance(), &SyncEngine::articlesUpdated, this, &CategoryListModel::refresh);
+    
+    m_unreadUpdateTimer.setInterval(50);
+    m_unreadUpdateTimer.setSingleShot(true);
+    connect(&DatabaseManager::instance(), &DatabaseManager::unreadCountsChanged, &m_unreadUpdateTimer, static_cast<void(QTimer::*)()>(&QTimer::start));
+    connect(&m_unreadUpdateTimer, &QTimer::timeout, this, &CategoryListModel::updateUnreadCounts);
+    
     refresh();
+}
+
+void CategoryListModel::updateUnreadCounts()
+{
+    auto newCategories = DatabaseManager::instance().getAllCategories();
+    for (int i = 0; i < m_categories.size(); ++i) {
+        for (const auto& newCategory : newCategories) {
+            if (m_categories[i].id == newCategory.id) {
+                if (m_categories[i].unreadCount != newCategory.unreadCount) {
+                    m_categories[i].unreadCount = newCategory.unreadCount;
+                    QModelIndex qidx = index(i, 0);
+                    emit dataChanged(qidx, qidx, {UnreadCountRole});
+                }
+                break;
+            }
+        }
+    }
 }
 
 int CategoryListModel::rowCount(const QModelIndex &parent) const

@@ -495,7 +495,12 @@ void DatabaseManager::markArticlesAsRead(const QList<qint64>& articleIds, bool r
         }
     }
 
-    if (allOk) m_db.commit(); else m_db.rollback();
+    if (allOk) {
+        m_db.commit();
+        emit unreadCountsChanged();
+    } else {
+        m_db.rollback();
+    }
 }
 
 void DatabaseManager::toggleStar(qint64 articleId, bool starred)
@@ -519,6 +524,8 @@ void DatabaseManager::updateArticleStatus(qint64 articleId, ArticleStatus status
     query.addBindValue(articleId);
     if (!query.exec()) {
         qCWarning(KIRIFLUX_DB) << "Failed to update article status:" << query.lastError().text();
+    } else {
+        emit unreadCountsChanged();
     }
 }
 

@@ -7,6 +7,12 @@ FeedListModel::FeedListModel(QObject *parent)
     : QAbstractListModel(parent)
 {
     connect(&SyncEngine::instance(), &SyncEngine::articlesUpdated, this, &FeedListModel::refresh);
+    
+    m_unreadUpdateTimer.setInterval(50);
+    m_unreadUpdateTimer.setSingleShot(true);
+    connect(&DatabaseManager::instance(), &DatabaseManager::unreadCountsChanged, &m_unreadUpdateTimer, static_cast<void(QTimer::*)()>(&QTimer::start));
+    connect(&m_unreadUpdateTimer, &QTimer::timeout, this, &FeedListModel::updateUnreadCounts);
+    
     refresh();
 }
 
@@ -15,6 +21,23 @@ void FeedListModel::refresh()
     beginResetModel();
     m_feeds = DatabaseManager::instance().getAllFeeds();
     endResetModel();
+}
+
+void FeedListModel::updateUnreadCounts()
+{
+    auto newFeeds = DatabaseManager::instance().getAllFeeds();
+    for (int i = 0; i < m_feeds.size(); ++i) {
+        for (const auto& newFeed : newFeeds) {
+            if (m_feeds[i].id == newFeed.id) {
+                if (m_feeds[i].unreadCount != newFeed.unreadCount) {
+                    m_feeds[i].unreadCount = newFeed.unreadCount;
+                    QModelIndex qidx = index(i, 0);
+                    emit dataChanged(qidx, qidx, {UnreadCountRole});
+                }
+                break;
+            }
+        }
+    }
 }
 
 int FeedListModel::rowCount(const QModelIndex &parent) const
