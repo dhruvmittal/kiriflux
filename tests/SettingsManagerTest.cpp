@@ -56,6 +56,28 @@ private slots:
         settings.setUseReaderMode(!origReader);
         QCOMPARE(settings.useReaderMode(), !origReader);
         QCOMPARE(useReaderSpy.count(), 1);
+
+        // Missing integer properties
+        settings.setTitleLines(3);
+        QCOMPARE(settings.titleLines(), 3);
+        
+        settings.setCenterPaneWidth(500);
+        QCOMPARE(settings.centerPaneWidth(), 500);
+        
+        // Missing boolean properties
+        settings.setCleanSync(true);
+        QCOMPARE(settings.cleanSync(), true);
+
+        settings.setShowToolbarLabels(true);
+        QCOMPARE(settings.showToolbarLabels(), true);
+        
+        settings.setPreFetchImages(true);
+        QCOMPARE(settings.preFetchImages(), true);
+        
+        // DateTime
+        QDateTime now = QDateTime::currentDateTime();
+        settings.setLastSyncTime(now);
+        QCOMPARE(settings.lastSyncTime(), now);
     }
 
     void testFontProperties() {
@@ -66,6 +88,22 @@ private slots:
         settings.setArticleListTitleFont(newFont);
         QCOMPARE(settings.articleListTitleFont(), newFont);
         QCOMPARE(fontSpy.count(), 1);
+        
+        // Test other fonts to hit coverage
+        settings.setArticleListInfoFont(newFont);
+        QCOMPARE(settings.articleListInfoFont(), newFont);
+        
+        settings.setArticleViewTitleFont(newFont);
+        QCOMPARE(settings.articleViewTitleFont(), newFont);
+        
+        settings.setArticleViewInfoFont(newFont);
+        QCOMPARE(settings.articleViewInfoFont(), newFont);
+        
+        settings.setArticleViewTextFont(newFont);
+        QCOMPARE(settings.articleViewTextFont(), newFont);
+        
+        settings.setLeftPaneFont(newFont);
+        QCOMPARE(settings.leftPaneFont(), newFont);
     }
 
     void testPersistence() {

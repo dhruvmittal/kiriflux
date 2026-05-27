@@ -19,6 +19,9 @@ private slots:
     void testFeedSwitching();
     void testMarkAllAsRead();
     void testGetByIdEdgeCases();
+    void testCategoryFilter();
+    void testArticleContentUpdated();
+    void testDataRoles();
 
 private:
     void seedData();
@@ -171,6 +174,77 @@ void ArticleListModelTest::testGetByIdEdgeCases()
     // Non-existent ID
     QVariantMap map2 = model.getById(999);
     QVERIFY(map2.isEmpty());
+    
+    // Fallback getById (simulate article not in model but in DB)
+    model.setCurrentFeedId(20); // Model now only has A3 (ID=3)
+    QVariantMap fallbackMap = model.getById(1); // A1 is in DB, not in model
+    QCOMPARE(fallbackMap["title"].toString(), QStringLiteral("A1"));
+    QCOMPARE(fallbackMap["isRead"].toBool(), false);
+}
+
+void ArticleListModelTest::testCategoryFilter()
+{
+    // Need to insert a category and associate it
+    Category c100{100, "Tech", 1};
+    DatabaseManager::instance().saveCategories({c100});
+    // Associate F10 with Category 100
+    Feed f10{10, "F10", "u10", "f10", 100, 1};
+    DatabaseManager::instance().saveFeeds({f10});
+    
+    ArticleListModel model;
+    
+    QSignalSpy categorySpy(&model, &ArticleListModel::currentCategoryIdChanged);
+    QSignalSpy nameSpy(&model, &ArticleListModel::currentNameChanged);
+    
+    model.setCurrentCategoryId(100);
+    QCOMPARE(model.currentCategoryId(), 100);
+    QCOMPARE(model.currentFeedId(), -1);
+    QCOMPARE(categorySpy.count(), 1);
+    QCOMPARE(nameSpy.count(), 1);
+    
+    // Check currentName fallback
+    QCOMPARE(model.currentName(), QStringLiteral("Tech"));
+    
+    // Should show A1 and A2 which belong to F10 -> C100
+    QCOMPARE(model.rowCount(), 2);
+}
+
+void ArticleListModelTest::testArticleContentUpdated()
+{
+    ArticleListModel model;
+    QSignalSpy dataSpy(&model, &ArticleListModel::dataChanged);
+    
+    // Modify DB behind the model's back
+    DatabaseManager::instance().markAsRead(1, true); // Change status or content
+    
+    model.onArticleContentUpdated(1); // Simulate SyncEngine emitting this for A1
+    
+    QCOMPARE(dataSpy.count(), 1);
+}
+
+void ArticleListModelTest::testDataRoles()
+{
+    ArticleListModel model;
+    model.setFilterStatus("all");
+    model.setFilterStarred(false);
+    
+    QModelIndex idx;
+    for (int i = 0; i < model.rowCount(); ++i) {
+        if (model.data(model.index(i, 0), ArticleListModel::IdRole).toLongLong() == 1) {
+            idx = model.index(i, 0);
+            break;
+        }
+    }
+    QVERIFY(idx.isValid());
+    
+    // Test Qt::DisplayRole
+    QCOMPARE(model.data(idx, Qt::DisplayRole).toString(), QStringLiteral("A1"));
+    
+    // Test invalid role
+    QVERIFY(!model.data(idx, 9999).isValid());
+    
+    // Test invalid index
+    QVERIFY(!model.data(model.index(999, 0), Qt::DisplayRole).isValid());
 }
 
 QTEST_GUILESS_MAIN(ArticleListModelTest)

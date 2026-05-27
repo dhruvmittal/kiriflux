@@ -31,8 +31,27 @@ void FeedListModelTest::testModel()
     FeedListModel model;
     QCOMPARE(model.rowCount(), 1);
     
-    QCOMPARE(model.data(model.index(0, 0), FeedListModel::TitleRole).toString(), QString("F1"));
-    QCOMPARE(model.data(model.index(0, 0), FeedListModel::UnreadCountRole).toInt(), 2);
+    QModelIndex validIdx = model.index(0, 0);
+    QVERIFY(validIdx.isValid());
+    
+    // Check all roles
+    QCOMPARE(model.data(validIdx, FeedListModel::IdRole).toLongLong(), 1);
+    QCOMPARE(model.data(validIdx, FeedListModel::TitleRole).toString(), QString("F1"));
+    QCOMPARE(model.data(validIdx, FeedListModel::SiteUrlRole).toString(), QString("u1"));
+    QCOMPARE(model.data(validIdx, FeedListModel::FeedUrlRole).toString(), QString("f1"));
+    QCOMPARE(model.data(validIdx, FeedListModel::CategoryIdRole).toLongLong(), 10);
+    QCOMPARE(model.data(validIdx, FeedListModel::UnreadCountRole).toInt(), 2);
+    QCOMPARE(model.data(validIdx, Qt::DisplayRole).toString(), QString("F1"));
+    
+    // Invalid index
+    QVERIFY(!model.data(QModelIndex(), FeedListModel::TitleRole).isValid());
+    QVERIFY(!model.data(model.index(999, 0), FeedListModel::TitleRole).isValid());
+    
+    // Invalid role
+    QVERIFY(!model.data(validIdx, 9999).isValid());
+    
+    // rowCount with valid parent should be 0 (list model)
+    QCOMPARE(model.rowCount(validIdx), 0);
 }
 
 QTEST_GUILESS_MAIN(FeedListModelTest)

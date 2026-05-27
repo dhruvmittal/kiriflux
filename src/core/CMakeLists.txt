@@ -3,6 +3,7 @@
 find_package(KF6Config REQUIRED)
 
 set(kiriflux_core_SRCS
+    AppController.cpp
     DatabaseManager.cpp
     MinifluxClient.cpp
     SyncEngine.cpp

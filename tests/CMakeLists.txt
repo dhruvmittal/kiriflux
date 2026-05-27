@@ -9,6 +9,15 @@ target_link_libraries(DatabaseManagerTest PRIVATE
 )
 add_test(NAME DatabaseManagerTest COMMAND DatabaseManagerTest)
 
+# 11. AppControllerTest
+add_executable(AppControllerTest AppControllerTest.cpp)
+target_link_libraries(AppControllerTest PRIVATE
+    kiriflux_core
+    Qt6::Test
+    Qt6::Qml
+)
+add_test(NAME AppControllerTest COMMAND AppControllerTest)
+
 # 2. ArticleListModelTest
 add_executable(ArticleListModelTest ArticleListModelTest.cpp)
 target_link_libraries(ArticleListModelTest PRIVATE
