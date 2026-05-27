@@ -9,6 +9,7 @@ class ArticleListModelTest : public QObject
 
 private slots:
     void initTestCase();
+    void init();
     void testInitialState();
     void testFilter();
     void testCurrentFeed();
@@ -16,6 +17,8 @@ private slots:
     void testToggleStarred();
     void testGetMap();
     void testFeedSwitching();
+    void testMarkAllAsRead();
+    void testGetByIdEdgeCases();
 
 private:
     void seedData();
@@ -25,6 +28,10 @@ void ArticleListModelTest::initTestCase()
 {
     // Initialize DB in memory
     DatabaseManager::instance().initWithPath(QStringLiteral(":memory:"));
+}
+
+void ArticleListModelTest::init()
+{
     seedData();
 }
 
@@ -132,6 +139,38 @@ void ArticleListModelTest::testCurrentFeed()
 void ArticleListModelTest::testFeedSwitching()
 {
     testCurrentFeed();
+}
+
+void ArticleListModelTest::testMarkAllAsRead()
+{
+    ArticleListModel model;
+    model.setFilterStatus("unread");
+    QCOMPARE(model.rowCount(), 2);
+    
+    QSignalSpy spy(&model, &ArticleListModel::dataChanged);
+    model.markAllAsRead();
+    
+    // Both unread articles should be marked read
+    QCOMPARE(spy.count(), 2);
+    
+    // Now they shouldn't show up in unread filter if we refresh
+    model.refresh();
+    QCOMPARE(model.rowCount(), 0);
+}
+
+void ArticleListModelTest::testGetByIdEdgeCases()
+{
+    ArticleListModel model;
+    model.setFilterStatus("all");
+    
+    // Existing ID
+    QVariantMap map = model.getById(1);
+    QVERIFY(!map.isEmpty());
+    QCOMPARE(map["title"].toString(), QString("A1"));
+    
+    // Non-existent ID
+    QVariantMap map2 = model.getById(999);
+    QVERIFY(map2.isEmpty());
 }
 
 QTEST_GUILESS_MAIN(ArticleListModelTest)

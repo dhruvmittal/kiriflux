@@ -10,7 +10,10 @@ public:
     QNetworkAccessManager *create(QObject *parent) override
     {
         QNetworkAccessManager *nam = new QNetworkAccessManager(parent);
-        nam->setCache(NetworkManager::instance().cache());
+        QNetworkDiskCache *cache = new QNetworkDiskCache(nam);
+        cache->setCacheDirectory(NetworkManager::instance().cache()->cacheDirectory());
+        cache->setMaximumCacheSize(NetworkManager::instance().cache()->maximumCacheSize());
+        nam->setCache(cache);
         return nam;
     }
 };

@@ -14,6 +14,7 @@ private slots:
     void testArticleMutation();
     void testCategoryTitles();
     void testClearAllData();
+    void testPurgeOldReadArticles();
     void testWelcomeArticle();
 
 private:
@@ -110,6 +111,38 @@ void DatabaseManagerTest::testClearAllData()
     QVERIFY(DatabaseManager::instance().getAllArticles().isEmpty());
     QVERIFY(DatabaseManager::instance().getAllFeeds().isEmpty());
     QVERIFY(DatabaseManager::instance().getAllCategories().isEmpty());
+}
+
+void DatabaseManagerTest::testPurgeOldReadArticles()
+{
+    DatabaseManager::instance().clearAllData();
+    
+    Article oldRead, oldStarred, newRead, unread;
+    oldRead.id = 1; oldRead.title = "Old Read"; oldRead.status = ArticleStatus::Read; oldRead.starred = false;
+    oldRead.publishedAt = QDateTime::currentDateTime().addDays(-10);
+    
+    oldStarred.id = 2; oldStarred.title = "Old Starred"; oldStarred.status = ArticleStatus::Read; oldStarred.starred = true;
+    oldStarred.publishedAt = QDateTime::currentDateTime().addDays(-10);
+    
+    newRead.id = 3; newRead.title = "New Read"; newRead.status = ArticleStatus::Read; newRead.starred = false;
+    newRead.publishedAt = QDateTime::currentDateTime().addDays(-1);
+    
+    unread.id = 4; unread.title = "Unread"; unread.status = ArticleStatus::Unread; unread.starred = false;
+    unread.publishedAt = QDateTime::currentDateTime().addDays(-10);
+    
+    DatabaseManager::instance().saveArticles({oldRead, oldStarred, newRead, unread});
+    
+    // Purge older than 7 days
+    DatabaseManager::instance().purgeOldReadArticles(7);
+    
+    auto remaining = DatabaseManager::instance().getAllArticles(ArticleStatus::All, false);
+    QCOMPARE(remaining.size(), 3); // oldRead should be deleted
+    
+    bool oldReadFound = false;
+    for (const auto& a : remaining) {
+        if (a.id == 1) oldReadFound = true;
+    }
+    QVERIFY(!oldReadFound);
 }
 
 void DatabaseManagerTest::testWelcomeArticle()
