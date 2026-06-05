@@ -57,7 +57,10 @@ Kirigami.Page {
                 icon.name: "favorite"
                 checkable: true
                 checked: articleListModel.filterStarred
-                onTriggered: articleListModel.filterStarred = true
+                onTriggered: {
+                    articleListModel.filterStatus = "all";
+                    articleListModel.filterStarred = true;
+                }
             }
         }
     ]

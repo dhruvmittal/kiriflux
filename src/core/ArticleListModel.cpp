@@ -181,8 +181,10 @@ void ArticleListModel::refresh()
 {
     beginResetModel();
     ArticleStatus status = ArticleStatus::All;
-    if (m_filterStatus == "unread") status = ArticleStatus::Unread;
-    else if (m_filterStatus == "read") status = ArticleStatus::Read;
+    if (!m_filterStarred) {
+        if (m_filterStatus == "unread") status = ArticleStatus::Unread;
+        else if (m_filterStatus == "read") status = ArticleStatus::Read;
+    }
 
     if (m_currentFeedId != -1) {
         m_articles = DatabaseManager::instance().getArticlesForFeed(m_currentFeedId, status, m_filterStarred);

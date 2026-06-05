@@ -255,6 +255,7 @@ Kirigami.ApplicationWindow {
     Shortcut {
         sequence: "Alt+3"
         onActivated: {
+            articleListModel.filterStatus = "all"
             articleListModel.filterStarred = true
         }
     }
