@@ -21,7 +21,7 @@ void ArticleListModel::setCurrentFeedId(qint64 id)
     if (m_currentFeedId == id) return;
     m_currentFeedId = id;
     m_currentCategoryId = -1;
-    refresh();
+    refresh(true);
     emit currentFeedIdChanged();
     emit currentCategoryIdChanged();
     emit currentNameChanged();
@@ -32,7 +32,7 @@ void ArticleListModel::setCurrentCategoryId(qint64 id)
     if (m_currentCategoryId == id) return;
     m_currentCategoryId = id;
     m_currentFeedId = -1;
-    refresh();
+    refresh(true);
     emit currentCategoryIdChanged();
     emit currentFeedIdChanged();
     emit currentNameChanged();
@@ -68,7 +68,7 @@ void ArticleListModel::setFilterStatus(const QString &status)
     m_filterStatus = status;
     Settings::setFilterStatus(status);
     Settings::self()->save();
-    refresh();
+    refresh(true);
     emit filterChanged();
 }
 
@@ -88,7 +88,7 @@ void ArticleListModel::setFilterStarred(bool starred)
     m_filterStarred = starred;
     Settings::setFilterStarred(starred);
     Settings::self()->save();
-    refresh();
+    refresh(true);
     emit filterChanged();
 }
 
@@ -177,23 +177,116 @@ void ArticleListModel::onArticleContentUpdated(qint64 id)
     }
 }
 
-void ArticleListModel::refresh()
+void ArticleListModel::refresh(bool forceReset)
 {
-    beginResetModel();
     ArticleStatus status = ArticleStatus::All;
     if (!m_filterStarred) {
         if (m_filterStatus == "unread") status = ArticleStatus::Unread;
         else if (m_filterStatus == "read") status = ArticleStatus::Read;
     }
 
+    QList<Article> newArticles;
     if (m_currentFeedId != -1) {
-        m_articles = DatabaseManager::instance().getArticlesForFeed(m_currentFeedId, status, m_filterStarred);
+        newArticles = DatabaseManager::instance().getArticlesForFeed(m_currentFeedId, status, m_filterStarred);
     } else if (m_currentCategoryId != -1) {
-        m_articles = DatabaseManager::instance().getArticlesForCategory(m_currentCategoryId, status, m_filterStarred);
+        newArticles = DatabaseManager::instance().getArticlesForCategory(m_currentCategoryId, status, m_filterStarred);
     } else {
-        m_articles = DatabaseManager::instance().getAllArticles(status, m_filterStarred);
+        newArticles = DatabaseManager::instance().getAllArticles(status, m_filterStarred);
     }
-    endResetModel();
+
+    if (forceReset || m_articles.isEmpty()) {
+        beginResetModel();
+        m_articles = newArticles;
+        endResetModel();
+        emit countChanged();
+        return;
+    }
+
+    int oldIdx = 0;
+    int newIdx = 0;
+
+    while (oldIdx < m_articles.size() && newIdx < newArticles.size()) {
+        if (m_articles[oldIdx].id == newArticles[newIdx].id) {
+            if (m_articles[oldIdx] != newArticles[newIdx]) {
+                m_articles[oldIdx] = newArticles[newIdx];
+                emit dataChanged(index(oldIdx, 0), index(oldIdx, 0));
+            }
+            oldIdx++;
+            newIdx++;
+        } else {
+            bool newIsFirst = false;
+            if (newArticles[newIdx].publishedAt > m_articles[oldIdx].publishedAt) {
+                newIsFirst = true;
+            } else if (newArticles[newIdx].publishedAt == m_articles[oldIdx].publishedAt) {
+                newIsFirst = (newArticles[newIdx].id > m_articles[oldIdx].id);
+            }
+
+            if (newIsFirst) {
+                int startInsertIdx = newIdx;
+                while (newIdx < newArticles.size() && 
+                       ((newArticles[newIdx].publishedAt > m_articles[oldIdx].publishedAt) || 
+                        (newArticles[newIdx].publishedAt == m_articles[oldIdx].publishedAt && newArticles[newIdx].id > m_articles[oldIdx].id))) {
+                    newIdx++;
+                }
+                int count = newIdx - startInsertIdx;
+                beginInsertRows(QModelIndex(), oldIdx, oldIdx + count - 1);
+                for (int i = 0; i < count; ++i) {
+                    m_articles.insert(oldIdx + i, newArticles[startInsertIdx + i]);
+                }
+                endInsertRows();
+                oldIdx += count;
+            } else {
+                if (m_filterStatus == "unread" && m_articles[oldIdx].status == ArticleStatus::Read) {
+                    oldIdx++; // Evaporation Guard: keep locally read items in the unread list until hard reset
+                } else {
+                    int startRemoveIdx = oldIdx;
+                    while (oldIdx < m_articles.size() && 
+                           ((m_articles[oldIdx].publishedAt > newArticles[newIdx].publishedAt) || 
+                            (m_articles[oldIdx].publishedAt == newArticles[newIdx].publishedAt && m_articles[oldIdx].id > newArticles[newIdx].id))) {
+                        if (m_filterStatus == "unread" && m_articles[oldIdx].status == ArticleStatus::Read) break;
+                        oldIdx++;
+                    }
+                    int count = oldIdx - startRemoveIdx;
+                    if (count > 0) {
+                        beginRemoveRows(QModelIndex(), startRemoveIdx, startRemoveIdx + count - 1);
+                        m_articles.erase(m_articles.begin() + startRemoveIdx, m_articles.begin() + oldIdx);
+                        endRemoveRows();
+                        oldIdx = startRemoveIdx;
+                    }
+                }
+            }
+        }
+    }
+
+    if (newIdx < newArticles.size()) {
+        int count = newArticles.size() - newIdx;
+        beginInsertRows(QModelIndex(), oldIdx, oldIdx + count - 1);
+        while (newIdx < newArticles.size()) {
+            m_articles.append(newArticles[newIdx]);
+            newIdx++;
+        }
+        endInsertRows();
+    }
+
+    if (oldIdx < m_articles.size()) {
+        // Need to respect Evaporation Guard for tail removals too
+        while (oldIdx < m_articles.size()) {
+            if (m_filterStatus == "unread" && m_articles[oldIdx].status == ArticleStatus::Read) {
+                oldIdx++;
+            } else {
+                int startRemoveIdx = oldIdx;
+                while (oldIdx < m_articles.size() && !(m_filterStatus == "unread" && m_articles[oldIdx].status == ArticleStatus::Read)) {
+                    oldIdx++;
+                }
+                int count = oldIdx - startRemoveIdx;
+                beginRemoveRows(QModelIndex(), startRemoveIdx, startRemoveIdx + count - 1);
+                m_articles.erase(m_articles.begin() + startRemoveIdx, m_articles.begin() + oldIdx);
+                endRemoveRows();
+                oldIdx = startRemoveIdx;
+            }
+        }
+    }
+
     emit countChanged();
 }
 

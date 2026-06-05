@@ -52,7 +52,7 @@ public:
     QString currentName() const;
 
 public slots:
-    void refresh();
+    void refresh(bool forceReset = false);
     void onArticleContentUpdated(qint64 id);
     void markAsRead(int index, bool read);
     void markAsReadById(qint64 id, bool read);

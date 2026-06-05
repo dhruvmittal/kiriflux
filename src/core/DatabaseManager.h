@@ -44,6 +44,23 @@ struct Article {
     // UI fields
     QString feedTitle;
     QString siteUrl;
+
+    bool operator==(const Article& other) const {
+        return id == other.id &&
+               feedId == other.feedId &&
+               title == other.title &&
+               author == other.author &&
+               content == other.content &&
+               url == other.url &&
+               publishedAt == other.publishedAt &&
+               status == other.status &&
+               starred == other.starred &&
+               feedTitle == other.feedTitle &&
+               siteUrl == other.siteUrl;
+    }
+    bool operator!=(const Article& other) const {
+        return !(*this == other);
+    }
 };
 
 class DatabaseManager : public QObject

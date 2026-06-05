@@ -226,6 +226,7 @@ Kirigami.Page {
                 onContentYChanged: {
                     if (!settings.markAsReadOnScroll) return;
                     if (contentY <= 0) return;
+                    if (!articleListView.dragging && !articleListView.flicking) return;
                     scrollMarkTimer.restart();
                 }
 

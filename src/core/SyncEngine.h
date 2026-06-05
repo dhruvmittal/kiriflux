@@ -36,7 +36,7 @@ signals:
     void syncStarted();
     void syncFinished(bool success);
     void syncStatusChanged();
-    void articlesUpdated();
+    void articlesUpdated(bool isManual);
     void articleContentUpdated(qint64 articleId);
     void articleStatusUpdated(qint64 entryId, const QString& status);
     void articleBookmarkToggled(qint64 entryId);
@@ -59,6 +59,7 @@ private:
     QSet<qint64> m_pendingReadIds;
     QString m_lastErrorMessage;
     bool m_isSyncing = false;
+    bool m_isManualSync = false;
     bool m_statusRequestInFlight = false;
     QString m_syncStatus;
 };

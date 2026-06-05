@@ -34,11 +34,15 @@ SyncEngine::SyncEngine(QObject *parent)
     m_errorThrottleTimer->setSingleShot(true);
     m_errorThrottleTimer->setInterval(5000); // 5-second error throttle
 
-    connect(m_syncTimer, &QTimer::timeout, this, &SyncEngine::performSync);
+    connect(m_syncTimer, &QTimer::timeout, this, [this]() {
+        m_isManualSync = false;
+        performSync();
+    });
 
     // Sync interval is managed by SettingsManager
     connect(&SettingsManager::instance(), &SettingsManager::syncIntervalChanged, this, [this]() {
         if (m_syncTimer->isActive()) {
+            m_isManualSync = false;
             startIntervalSync();
         }
     });
@@ -93,7 +97,8 @@ SyncEngine::SyncEngine(QObject *parent)
         SettingsManager::instance().save();
         emit syncStatusChanged();
         emit syncFinished(true);
-        emit articlesUpdated();
+        emit articlesUpdated(m_isManualSync);
+        m_isManualSync = false;
     });
 
     connect(m_client, &MinifluxClient::articleUpdated, this, [this](const Article& article) {
@@ -128,6 +133,7 @@ void SyncEngine::startIntervalSync()
 
 void SyncEngine::forceSync()
 {
+    m_isManualSync = true;
     performSync();
 }
 
