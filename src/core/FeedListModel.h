@@ -29,6 +29,9 @@ public slots:
     void refresh();
     void updateUnreadCounts();
 
+    Q_INVOKABLE int getNextFeedId(int currentFeedId) const;
+    Q_INVOKABLE int getPreviousFeedId(int currentFeedId) const;
+
 private:
     QList<Feed> m_feeds;
     QTimer m_unreadUpdateTimer;

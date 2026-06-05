@@ -137,6 +137,30 @@ Kirigami.Page {
         }
     }
 
+    Shortcut {
+        sequence: "m"
+        onActivated: {
+            if (articleListView.currentIndex >= 0) {
+                let modelItem = articleListModel.get(articleListView.currentIndex);
+                if (modelItem) {
+                    articleListModel.markAsReadById(modelItem.id, modelItem.status === "unread");
+                }
+            }
+        }
+    }
+
+    Shortcut {
+        sequence: "f"
+        onActivated: {
+            if (articleListView.currentIndex >= 0) {
+                let modelItem = articleListModel.get(articleListView.currentIndex);
+                if (modelItem && modelItem.url) {
+                    Qt.openUrlExternally(modelItem.url);
+                }
+            }
+        }
+    }
+
     Connections {
         target: articleListModel
         function onModelReset() { 

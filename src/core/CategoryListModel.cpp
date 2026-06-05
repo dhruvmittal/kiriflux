@@ -70,3 +70,35 @@ void CategoryListModel::refresh()
     m_categories = DatabaseManager::instance().getAllCategories();
     endResetModel();
 }
+
+int CategoryListModel::getNextCategoryId(int currentCategoryId) const
+{
+    if (m_categories.isEmpty()) return -1;
+    if (currentCategoryId == -1) return m_categories.first().id;
+    
+    for (int i = 0; i < m_categories.size(); ++i) {
+        if (m_categories[i].id == currentCategoryId) {
+            if (i + 1 < m_categories.size()) {
+                return m_categories[i + 1].id;
+            }
+            return -1; // End of list
+        }
+    }
+    return -1;
+}
+
+int CategoryListModel::getPreviousCategoryId(int currentCategoryId) const
+{
+    if (m_categories.isEmpty()) return -1;
+    if (currentCategoryId == -1) return m_categories.last().id;
+    
+    for (int i = 0; i < m_categories.size(); ++i) {
+        if (m_categories[i].id == currentCategoryId) {
+            if (i - 1 >= 0) {
+                return m_categories[i - 1].id;
+            }
+            return -1; // Top of list
+        }
+    }
+    return -1;
+}

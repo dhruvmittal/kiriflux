@@ -225,6 +225,71 @@ Kirigami.ApplicationWindow {
         onActivated: syncEngine.forceSync()
     }
 
+    Shortcut {
+        sequence: "Ctrl+1"
+        onActivated: root.layoutMode = 1
+    }
+    Shortcut {
+        sequence: "Ctrl+2"
+        onActivated: root.layoutMode = 2
+    }
+    Shortcut {
+        sequence: "Ctrl+3"
+        onActivated: root.layoutMode = 3
+    }
+
+    Shortcut {
+        sequence: "Alt+1"
+        onActivated: {
+            articleListModel.filterStatus = "all"
+            articleListModel.filterStarred = false
+        }
+    }
+    Shortcut {
+        sequence: "Alt+2"
+        onActivated: {
+            articleListModel.filterStatus = "unread"
+            articleListModel.filterStarred = false
+        }
+    }
+    Shortcut {
+        sequence: "Alt+3"
+        onActivated: {
+            articleListModel.filterStarred = true
+        }
+    }
+
+    Shortcut {
+        sequence: "N"
+        onActivated: settings.useReaderMode = !settings.useReaderMode
+    }
+
+    Shortcut {
+        sequence: "Shift+J"
+        onActivated: {
+            let nextId = categoryListModel.getNextCategoryId(articleListModel.currentCategoryId)
+            if (nextId !== -1) {
+                articleListModel.currentCategoryId = nextId
+                articleListModel.currentFeedId = -1
+            }
+        }
+    }
+    Shortcut {
+        sequence: "Shift+K"
+        onActivated: {
+            let prevId = categoryListModel.getPreviousCategoryId(articleListModel.currentCategoryId)
+            if (prevId !== -1) {
+                articleListModel.currentCategoryId = prevId
+                articleListModel.currentFeedId = -1
+            }
+        }
+    }
+
+    Shortcut {
+        sequence: "Shift+A"
+        onActivated: articleListModel.markAllAsRead()
+    }
+
     // ── Pre-instantiated Pages ─────────────────────────────────────
     ArticleListPage {
         id: articleListPage

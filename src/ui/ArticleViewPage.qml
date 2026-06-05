@@ -506,4 +506,23 @@ Kirigami.Page {
             }
         }
     }
+
+    Shortcut {
+        sequence: "m"
+        onActivated: {
+            if (root.articleId !== null) {
+                articleListModel.markAsReadById(root.articleId, root.isUnread)
+                root.isUnread = !root.isUnread
+            }
+        }
+    }
+
+    Shortcut {
+        sequence: "f"
+        onActivated: {
+            if (root.articleUrl) {
+                Qt.openUrlExternally(root.articleUrl)
+            }
+        }
+    }
 }

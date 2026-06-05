@@ -74,3 +74,35 @@ QHash<int, QByteArray> FeedListModel::roleNames() const
     roles[UnreadCountRole] = "unreadCount";
     return roles;
 }
+
+int FeedListModel::getNextFeedId(int currentFeedId) const
+{
+    if (m_feeds.isEmpty()) return -1;
+    if (currentFeedId == -1) return m_feeds.first().id;
+    
+    for (int i = 0; i < m_feeds.size(); ++i) {
+        if (m_feeds[i].id == currentFeedId) {
+            if (i + 1 < m_feeds.size()) {
+                return m_feeds[i + 1].id;
+            }
+            return -1; // End of list
+        }
+    }
+    return -1;
+}
+
+int FeedListModel::getPreviousFeedId(int currentFeedId) const
+{
+    if (m_feeds.isEmpty()) return -1;
+    if (currentFeedId == -1) return m_feeds.last().id;
+    
+    for (int i = 0; i < m_feeds.size(); ++i) {
+        if (m_feeds[i].id == currentFeedId) {
+            if (i - 1 >= 0) {
+                return m_feeds[i - 1].id;
+            }
+            return -1; // Top of list
+        }
+    }
+    return -1;
+}
