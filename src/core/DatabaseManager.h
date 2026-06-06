@@ -99,6 +99,8 @@ public:
     void updateArticleStatus(qint64 articleId, ArticleStatus status);
     void updateArticleContent(qint64 articleId, const QString& content);
     void purgeOldReadArticles(int days = 7);
+    void vacuum();
+    Q_INVOKABLE void optimizeDatabase();
 
 signals:
     void unreadCountsChanged();

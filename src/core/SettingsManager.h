@@ -26,6 +26,11 @@ class SettingsManager : public QObject
     Q_PROPERTY(bool useReaderMode READ useReaderMode WRITE setUseReaderMode NOTIFY useReaderModeChanged)
     Q_PROPERTY(bool preFetchImages READ preFetchImages WRITE setPreFetchImages NOTIFY preFetchImagesChanged)
     Q_PROPERTY(int cacheSizeMB READ cacheSizeMB WRITE setCacheSizeMB NOTIFY cacheSizeMBChanged)
+    Q_PROPERTY(bool lazyLoadingEnabled READ lazyLoadingEnabled WRITE setLazyLoadingEnabled NOTIFY lazyLoadingEnabledChanged)
+    Q_PROPERTY(int lazyLoadingBatchSize READ lazyLoadingBatchSize WRITE setLazyLoadingBatchSize NOTIFY lazyLoadingBatchSizeChanged)
+    Q_PROPERTY(bool autoPruneEnabled READ autoPruneEnabled WRITE setAutoPruneEnabled NOTIFY autoPruneEnabledChanged)
+    Q_PROPERTY(int pruneAfterDays READ pruneAfterDays WRITE setPruneAfterDays NOTIFY pruneAfterDaysChanged)
+    Q_PROPERTY(bool closeReadingPaneOnReset READ closeReadingPaneOnReset WRITE setCloseReadingPaneOnReset NOTIFY closeReadingPaneOnResetChanged)
     
     Q_PROPERTY(QFont leftPaneFont READ leftPaneFont WRITE setLeftPaneFont NOTIFY leftPaneFontChanged)
     Q_PROPERTY(QFont articleListTitleFont READ articleListTitleFont WRITE setArticleListTitleFont NOTIFY articleListTitleFontChanged)
@@ -80,6 +85,21 @@ public:
     int cacheSizeMB() const;
     void setCacheSizeMB(int size);
 
+    bool lazyLoadingEnabled() const;
+    void setLazyLoadingEnabled(bool enabled);
+
+    int lazyLoadingBatchSize() const;
+    void setLazyLoadingBatchSize(int size);
+
+    bool autoPruneEnabled() const;
+    void setAutoPruneEnabled(bool enabled);
+
+    int pruneAfterDays() const;
+    void setPruneAfterDays(int days);
+
+    bool closeReadingPaneOnReset() const;
+    void setCloseReadingPaneOnReset(bool close);
+
     QFont leftPaneFont() const;
     void setLeftPaneFont(const QFont& font);
 
@@ -118,6 +138,11 @@ signals:
     void preFetchImagesChanged();
     void cacheSizeMBChanged();
     void clearCacheRequested();
+    void lazyLoadingEnabledChanged();
+    void lazyLoadingBatchSizeChanged();
+    void autoPruneEnabledChanged();
+    void pruneAfterDaysChanged();
+    void closeReadingPaneOnResetChanged();
     void leftPaneFontChanged();
     void articleListTitleFontChanged();
     void articleListInfoFontChanged();

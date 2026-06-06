@@ -3,6 +3,7 @@
 
 #include <QStandardPaths>
 #include <QDir>
+#include "kiriflux.h"
 #include <QSqlError>
 #include <QSqlQuery>
 #include <QDebug>
@@ -642,4 +643,24 @@ void DatabaseManager::purgeOldReadArticles(int days)
             qCDebug(KIRIFLUX_DB) << "Purged" << purged << "old read articles.";
         }
     }
+}
+
+void DatabaseManager::vacuum()
+{
+    QMutexLocker locker(&m_mutex);
+    QSqlQuery query(getDb());
+    // VACUUM cannot run within a transaction
+    if (!query.exec(QStringLiteral("VACUUM"))) {
+        qCWarning(KIRIFLUX_DB) << "Failed to vacuum database:" << query.lastError().text();
+    } else {
+        qCDebug(KIRIFLUX_DB) << "Database vacuum successful.";
+    }
+}
+
+void DatabaseManager::optimizeDatabase()
+{
+    // Used by UI to manually trigger an optimization
+    purgeOldReadArticles(Settings::self()->pruneAfterDays());
+    vacuum();
+    Settings::self()->setLastVacuumDate(QDateTime::currentDateTime());
 }

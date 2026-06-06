@@ -6,6 +6,7 @@
 #include "ArticleListModel.h"
 #include "CategoryListModel.h"
 #include "SettingsManager.h"
+#include "kiriflux.h"
 #include <QDebug>
 
 AppController::AppController(QObject *parent)
@@ -26,6 +27,15 @@ bool AppController::init()
     m_articleListModel = new ArticleListModel(this);
     m_categoryListModel = new CategoryListModel(this);
 
+    // Perform weekly database maintenance if enabled
+    if (Settings::self()->autoPruneEnabled()) {
+        QDateTime lastVacuum = Settings::self()->lastVacuumDate();
+        if (!lastVacuum.isValid() || lastVacuum.daysTo(QDateTime::currentDateTime()) >= 7) {
+            qDebug() << "Running weekly database optimization...";
+            DatabaseManager::instance().optimizeDatabase();
+        }
+    }
+
     SyncEngine::instance().startIntervalSync();
     return true;
 }
@@ -35,6 +45,7 @@ void AppController::registerContextProperties(QQmlApplicationEngine* engine)
     if (!engine) return;
 
     QQmlContext* ctx = engine->rootContext();
+    ctx->setContextProperty(QStringLiteral("databaseManager"), &DatabaseManager::instance());
     ctx->setContextProperty(QStringLiteral("syncEngine"), &SyncEngine::instance());
     ctx->setContextProperty(QStringLiteral("settings"), &SettingsManager::instance());
     ctx->setContextProperty(QStringLiteral("feedListModel"), m_feedListModel);

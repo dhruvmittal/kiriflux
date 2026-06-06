@@ -80,6 +80,17 @@
       <min>10</min>
       <max>500</max>
     </entry>
+    <entry name="AutoPruneEnabled" type="Bool">
+      <label>Automatically prune old read articles and vacuum database</label>
+      <default>true</default>
+    </entry>
+    <entry name="PruneAfterDays" type="Int">
+      <label>Number of days to keep read articles before deleting</label>
+      <default>7</default>
+    </entry>
+    <entry name="LastVacuumDate" type="DateTime">
+      <label>Last time the database was vacuumed</label>
+    </entry>
   </group>
   <group name="Reading">
     <entry name="MarkAsReadOnOpen" type="Bool">

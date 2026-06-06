@@ -105,7 +105,6 @@ SyncEngine::SyncEngine(QObject *parent)
             }
 
             DatabaseManager::instance().saveArticles(articles);
-            DatabaseManager::instance().purgeOldReadArticles(); // Performance: Keep DB lean
         });
         watcher->setFuture(future);
     });
