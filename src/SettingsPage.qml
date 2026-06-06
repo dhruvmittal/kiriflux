@@ -306,6 +306,15 @@ QQC2.Dialog {
                         Layout.fillWidth: true
                         onToggled: settings.useReaderMode = checked
                     }
+
+                    SettingLabel { text: i18n("Reading Pane") }
+                    QQC2.CheckBox {
+                        id: closeReadingPaneCheck
+                        text: i18n("Close reading pane when switching filters or feeds")
+                        checked: settings.closeReadingPaneOnReset
+                        Layout.fillWidth: true
+                        onToggled: settings.closeReadingPaneOnReset = checked
+                    }
                 }
                 Item { Layout.fillHeight: true }
             }

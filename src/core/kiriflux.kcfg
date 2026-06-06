@@ -94,6 +94,10 @@
       <label>Use native Qt Text instead of Chromium WebView</label>
       <default>false</default>
     </entry>
+    <entry name="CloseReadingPaneOnReset" type="Bool">
+      <label>Close reading pane when switching filters or feeds</label>
+      <default>false</default>
+    </entry>
   </group>
   <group name="Fonts">
     <entry name="LeftPaneFont" type="Font">
