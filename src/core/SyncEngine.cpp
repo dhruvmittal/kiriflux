@@ -8,6 +8,8 @@
 
 #include "KirifluxLogging.h"
 #include "SettingsManager.h"
+#include <QtConcurrent>
+#include <QFutureWatcher>
 #include <QRegularExpression>
 #include <QNetworkRequest>
 
@@ -60,45 +62,52 @@ SyncEngine::SyncEngine(QObject *parent)
     });
 
     connect(m_client, &MinifluxClient::articlesFetched, this, [this](const QList<Article>& articles) {
-        // Find all IDs of fetched unread articles
-        QSet<qint64> fetchedUnreadIds;
-        int fetchedUnreadCount = 0;
-        for (const auto& a : articles) {
-            if (a.status == ArticleStatus::Unread) {
-                fetchedUnreadIds.insert(a.id);
-                fetchedUnreadCount++;
+        QFutureWatcher<void> *watcher = new QFutureWatcher<void>(this);
+        connect(watcher, &QFutureWatcher<void>::finished, this, [this, watcher, articles]() {
+            m_isSyncing = false;
+            
+            if (SettingsManager::instance().preFetchImages()) {
+                prefetchImages(articles);
             }
-        }
-        
-        // Clean up local unread articles that are no longer unread on the server.
-        // We only do this if we didn't hit the 10000 limit, meaning we received ALL unread articles.
-        if (fetchedUnreadCount < 10000) {
-            QList<Article> localUnread = DatabaseManager::instance().getAllArticles(ArticleStatus::Unread, false);
-            QList<qint64> toMarkRead;
-            for (const auto& local : localUnread) {
-                if (!fetchedUnreadIds.contains(local.id)) {
-                    toMarkRead.append(local.id);
+
+            SettingsManager::instance().setLastSyncTime(QDateTime::currentDateTime());
+            SettingsManager::instance().save();
+            emit syncStatusChanged();
+            emit syncFinished(true);
+            emit articlesUpdated(m_isManualSync);
+            m_isManualSync = false;
+            watcher->deleteLater();
+        });
+
+        QFuture<void> future = QtConcurrent::run([articles]() {
+            // Find all IDs of fetched unread articles
+            QSet<qint64> fetchedUnreadIds;
+            int fetchedUnreadCount = 0;
+            for (const auto& a : articles) {
+                if (a.status == ArticleStatus::Unread) {
+                    fetchedUnreadIds.insert(a.id);
+                    fetchedUnreadCount++;
                 }
             }
-            if (!toMarkRead.isEmpty()) {
-                DatabaseManager::instance().markArticlesAsRead(toMarkRead, true);
+            
+            // Clean up local unread articles that are no longer unread on the server.
+            if (fetchedUnreadCount < 10000) {
+                QList<Article> localUnread = DatabaseManager::instance().getAllArticles(ArticleStatus::Unread, false);
+                QList<qint64> toMarkRead;
+                for (const auto& local : localUnread) {
+                    if (!fetchedUnreadIds.contains(local.id)) {
+                        toMarkRead.append(local.id);
+                    }
+                }
+                if (!toMarkRead.isEmpty()) {
+                    DatabaseManager::instance().markArticlesAsRead(toMarkRead, true);
+                }
             }
-        }
 
-        DatabaseManager::instance().saveArticles(articles);
-        DatabaseManager::instance().purgeOldReadArticles(); // Performance: Keep DB lean
-        m_isSyncing = false;
-        
-        if (SettingsManager::instance().preFetchImages()) {
-            prefetchImages(articles);
-        }
-
-        SettingsManager::instance().setLastSyncTime(QDateTime::currentDateTime());
-        SettingsManager::instance().save();
-        emit syncStatusChanged();
-        emit syncFinished(true);
-        emit articlesUpdated(m_isManualSync);
-        m_isManualSync = false;
+            DatabaseManager::instance().saveArticles(articles);
+            DatabaseManager::instance().purgeOldReadArticles(); // Performance: Keep DB lean
+        });
+        watcher->setFuture(future);
     });
 
     connect(m_client, &MinifluxClient::articleUpdated, this, [this](const Article& article) {

@@ -1,4 +1,4 @@
-find_package(Qt6 REQUIRED COMPONENTS Test Sql Network)
+find_package(Qt6 REQUIRED COMPONENTS Test Sql Network Concurrent)
 
 # 1. DatabaseManagerTest
 add_executable(DatabaseManagerTest DatabaseManagerTest.cpp)

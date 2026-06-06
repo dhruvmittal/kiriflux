@@ -25,6 +25,7 @@ add_library(kiriflux_core STATIC ${kiriflux_core_SRCS})
 target_link_libraries(kiriflux_core PUBLIC
     Qt6::Core
     Qt6::Network
+    Qt6::Concurrent
     Qt6::Sql
     Qt6::Qml
     KF6::ConfigCore

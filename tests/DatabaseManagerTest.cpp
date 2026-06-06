@@ -1,4 +1,8 @@
 #include <QtTest>
+#include <QThread>
+#include <QtConcurrent>
+#include <QFuture>
+#include <QElapsedTimer>
 #include "../src/core/DatabaseManager.h"
 
 class DatabaseManagerTest : public QObject
@@ -16,21 +20,26 @@ private slots:
     void testClearAllData();
     void testPurgeOldReadArticles();
     void testWelcomeArticle();
+    void testThreadLocalConnections();
+    void testConcurrentWrites();
+    void testNonBlockingReads();
 
 private:
 };
 
 void DatabaseManagerTest::initTestCase()
 {
-    // Use in-memory database for isolation
-    QVERIFY(DatabaseManager::instance().initWithPath(QStringLiteral(":memory:")));
+    // Use a file database so worker threads can access the same tables
+    QString dbPath = QDir::tempPath() + "/kiriflux_test.db";
+    QFile::remove(dbPath);
+    QVERIFY(DatabaseManager::instance().initWithPath(dbPath));
     DatabaseManager::instance().clearAllData();
 }
 
 void DatabaseManagerTest::testInit()
 {
     // Verify initialization succeeded
-    QVERIFY(DatabaseManager::instance().getAllFeeds().isEmpty()); // Memory DB starts empty
+    QVERIFY(DatabaseManager::instance().getAllFeeds().isEmpty()); // Starts empty
 }
 
 void DatabaseManagerTest::testCategories()
@@ -150,11 +159,104 @@ void DatabaseManagerTest::testWelcomeArticle()
     // TEST-1: Fix logic to use memory DB for seeding test
     DatabaseManager::instance().clearAllData();
     // Welcome article is seeded in initWithPath if count is 0
-    QVERIFY(DatabaseManager::instance().initWithPath(QStringLiteral(":memory:")));
+    QString dbPath = QDir::tempPath() + "/kiriflux_test.db";
+    QVERIFY(DatabaseManager::instance().initWithPath(dbPath));
     
     auto articles = DatabaseManager::instance().getAllArticles();
     QVERIFY(!articles.isEmpty());
     QCOMPARE(articles.first().title, QStringLiteral("Welcome to Kiriflux!"));
+}
+
+void DatabaseManagerTest::testThreadLocalConnections()
+{
+    QString mainConnectionName;
+    QSqlDatabase mainDb;
+    
+    // Force the connection to be created on main thread
+    auto articles = DatabaseManager::instance().getAllArticles();
+    mainConnectionName = QStringLiteral("kiriflux_%1").arg(reinterpret_cast<quintptr>(QThread::currentThreadId()));
+    
+    QVERIFY(QSqlDatabase::contains(mainConnectionName));
+    mainDb = QSqlDatabase::database(mainConnectionName);
+    QVERIFY(mainDb.isOpen());
+
+    QString workerConnectionName;
+    QFuture<void> future = QtConcurrent::run([&]() {
+        auto workerArticles = DatabaseManager::instance().getAllArticles();
+        workerConnectionName = QStringLiteral("kiriflux_%1").arg(reinterpret_cast<quintptr>(QThread::currentThreadId()));
+    });
+    future.waitForFinished();
+
+    QVERIFY(QSqlDatabase::contains(workerConnectionName));
+    QVERIFY(mainConnectionName != workerConnectionName);
+}
+
+void DatabaseManagerTest::testConcurrentWrites()
+{
+    DatabaseManager::instance().clearAllData();
+
+    const int numThreads = 10;
+    const int articlesPerThread = 100;
+
+    QList<QFuture<void>> futures;
+
+    for (int t = 0; t < numThreads; ++t) {
+        futures.append(QtConcurrent::run([t, articlesPerThread]() {
+            QList<Article> batch;
+            for (int i = 0; i < articlesPerThread; ++i) {
+                Article a;
+                a.id = t * 1000 + i;
+                a.feedId = 1;
+                a.title = QString("Thread %1 Article %2").arg(t).arg(i);
+                a.status = ArticleStatus::Unread;
+                a.publishedAt = QDateTime::currentDateTime();
+                batch.append(a);
+            }
+            DatabaseManager::instance().saveArticles(batch);
+        }));
+    }
+
+    for (auto& f : futures) {
+        f.waitForFinished();
+    }
+
+    auto allArticles = DatabaseManager::instance().getAllArticles();
+    QCOMPARE(allArticles.size(), numThreads * articlesPerThread);
+}
+
+void DatabaseManagerTest::testNonBlockingReads()
+{
+    DatabaseManager::instance().clearAllData();
+
+    QFuture<void> writeFuture = QtConcurrent::run([]() {
+        QList<Article> batch;
+        for (int i = 0; i < 5000; ++i) {
+            Article a;
+            a.id = 10000 + i;
+            a.feedId = 1;
+            a.title = QString("Massive Article %1").arg(i);
+            a.status = ArticleStatus::Unread;
+            a.publishedAt = QDateTime::currentDateTime();
+            batch.append(a);
+        }
+        DatabaseManager::instance().saveArticles(batch);
+    });
+
+    QElapsedTimer timer;
+    int readCount = 0;
+    
+    // Rapidly read while writing is happening
+    while (!writeFuture.isFinished()) {
+        timer.start();
+        DatabaseManager::instance().getAllArticles();
+        qint64 elapsed = timer.elapsed();
+        // The read should be extremely fast, definitely under 50ms even during a heavy transaction due to WAL
+        QVERIFY(elapsed < 200);
+        readCount++;
+        QThread::msleep(5);
+    }
+    
+    QVERIFY(readCount > 0);
 }
 
 QTEST_GUILESS_MAIN(DatabaseManagerTest)

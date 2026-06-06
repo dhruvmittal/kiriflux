@@ -7,6 +7,7 @@
 #include <QSqlQuery>
 #include <QDebug>
 #include <QDateTime>
+#include <QThread>
 #include "KirifluxLogging.h"
 
 DatabaseManager& DatabaseManager::instance()
@@ -27,32 +28,42 @@ bool DatabaseManager::init()
     return initWithPath(dataDir + QStringLiteral("/kiriflux.db"));
 }
 
-bool DatabaseManager::initWithPath(const QString &dbPath)
+QSqlDatabase DatabaseManager::getDb() const
 {
-    QMutexLocker locker(&m_mutex);
+    QString connectionName = QStringLiteral("kiriflux_%1").arg(reinterpret_cast<quintptr>(QThread::currentThreadId()));
+    if (QSqlDatabase::contains(connectionName)) {
+        return QSqlDatabase::database(connectionName);
+    }
     
-    // DB-1: Use a stable connection name to ensure test data persistence within a session.
-    const QString connectionName = QStringLiteral("kiriflux_main");
-    
-    m_db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connectionName);
-    m_db.setDatabaseName(dbPath);
+    QSqlDatabase db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connectionName);
+    db.setDatabaseName(m_dbPath);
 
-    if (!m_db.open()) {
-        qCWarning(KIRIFLUX_DB) << "Failed to open database:" << m_db.lastError().text();
-        return false;
+    if (!db.open()) {
+        qCWarning(KIRIFLUX_DB) << "Failed to open thread-local database:" << db.lastError().text();
     }
 
-    // Enable WAL mode for better concurrency during sync (only for file-based DBs)
-    if (dbPath != QStringLiteral(":memory:")) {
-        QSqlQuery walQuery(m_db);
+    if (m_dbPath != QStringLiteral(":memory:")) {
+        QSqlQuery walQuery(db);
         if (!walQuery.exec(QStringLiteral("PRAGMA journal_mode=WAL"))) {
             qCWarning(KIRIFLUX_DB) << "Failed to enable WAL mode:" << walQuery.lastError().text();
         }
     }
+    return db;
+}
+
+bool DatabaseManager::initWithPath(const QString &dbPath)
+{
+    QMutexLocker locker(&m_mutex);
+    m_dbPath = dbPath;
+    
+    QSqlDatabase db = getDb();
+    if (!db.isOpen()) {
+        return false;
+    }
 
     qCDebug(KIRIFLUX_DB) << "Database opened successfully at:" << dbPath;
 
-    QSqlQuery query(m_db);
+    QSqlQuery query(db);
     // Create feeds table
     if (!query.exec(QStringLiteral(
             "CREATE TABLE IF NOT EXISTS feeds ("
@@ -134,23 +145,23 @@ bool DatabaseManager::initWithPath(const QString &dbPath)
 void DatabaseManager::saveFeeds(const QList<Feed>& feeds)
 {
     QMutexLocker locker(&m_mutex);
-    if (!m_db.transaction()) {
-        qWarning() << "Failed to start transaction for feeds:" << m_db.lastError().text();
+    if (!getDb().transaction()) {
+        qWarning() << "Failed to start transaction for feeds:" << getDb().lastError().text();
         return;
     }
 
-    QSqlQuery query(m_db); // DB-3: Use explicit DB connection
+    QSqlQuery query(getDb()); // DB-3: Use explicit DB connection
     query.prepare(QStringLiteral(
         "INSERT OR REPLACE INTO feeds (id, title, site_url, feed_url, category_id) "
         "VALUES (?, ?, ?, ?, ?)"));
 
     bool allOk = true;
     for (const auto& feed : feeds) {
-        query.addBindValue(feed.id);
-        query.addBindValue(feed.title);
-        query.addBindValue(feed.siteUrl);
-        query.addBindValue(feed.feedUrl);
-        query.addBindValue(feed.categoryId);
+        query.bindValue(0, feed.id);
+        query.bindValue(1, feed.title);
+        query.bindValue(2, feed.siteUrl);
+        query.bindValue(3, feed.feedUrl);
+        query.bindValue(4, feed.categoryId);
         if (!query.exec()) {
             qWarning() << "Failed to save feed:" << query.lastError().text();
             allOk = false;
@@ -159,9 +170,9 @@ void DatabaseManager::saveFeeds(const QList<Feed>& feeds)
     }
 
     if (allOk) {
-        m_db.commit();
+        getDb().commit();
     } else {
-        m_db.rollback(); // DB-2: Rollback on failure
+        getDb().rollback(); // DB-2: Rollback on failure
     }
 }
 
@@ -169,7 +180,7 @@ QList<Feed> DatabaseManager::getAllFeeds() const
 {
     QMutexLocker locker(&m_mutex);
     QList<Feed> feeds;
-    QSqlQuery query(m_db);
+    QSqlQuery query(getDb());
     // Optimized: Use LEFT JOIN and GROUP BY instead of correlated subquery
     query.prepare(QStringLiteral(
         "SELECT f.id AS id, f.title AS title, f.site_url AS site_url, f.feed_url AS feed_url, f.category_id AS category_id, "
@@ -197,7 +208,7 @@ QList<Feed> DatabaseManager::getAllFeeds() const
 QString DatabaseManager::getFeedTitle(qint64 feedId) const
 {
     QMutexLocker locker(&m_mutex);
-    QSqlQuery query(m_db);
+    QSqlQuery query(getDb());
     query.prepare(QStringLiteral("SELECT title FROM feeds WHERE id = ?"));
     query.addBindValue(feedId);
     if (query.exec() && query.next()) {
@@ -209,20 +220,20 @@ QString DatabaseManager::getFeedTitle(qint64 feedId) const
 void DatabaseManager::saveCategories(const QList<Category>& categories)
 {
     QMutexLocker locker(&m_mutex);
-    if (!m_db.transaction()) {
-        qWarning() << "Failed to start transaction for categories:" << m_db.lastError().text();
+    if (!getDb().transaction()) {
+        qWarning() << "Failed to start transaction for categories:" << getDb().lastError().text();
         return;
     }
 
-    QSqlQuery query(m_db);
+    QSqlQuery query(getDb());
     query.prepare(QStringLiteral(
         "INSERT OR REPLACE INTO categories (id, title) "
         "VALUES (?, ?)"));
 
     bool allOk = true;
     for (const auto& category : categories) {
-        query.addBindValue(category.id);
-        query.addBindValue(category.title);
+        query.bindValue(0, category.id);
+        query.bindValue(1, category.title);
         if (!query.exec()) {
             qWarning() << "Failed to save category:" << query.lastError().text();
             allOk = false;
@@ -231,9 +242,9 @@ void DatabaseManager::saveCategories(const QList<Category>& categories)
     }
 
     if (allOk) {
-        m_db.commit();
+        getDb().commit();
     } else {
-        m_db.rollback();
+        getDb().rollback();
     }
 }
 
@@ -241,7 +252,7 @@ QList<Category> DatabaseManager::getAllCategories() const
 {
     QMutexLocker locker(&m_mutex);
     QList<Category> categories;
-    QSqlQuery query(m_db);
+    QSqlQuery query(getDb());
     // Optimized: Use LEFT JOIN and GROUP BY instead of correlated subquery
     query.prepare(QStringLiteral(
         "SELECT c.id AS id, c.title AS title, "
@@ -267,7 +278,7 @@ QList<Category> DatabaseManager::getAllCategories() const
 QString DatabaseManager::getCategoryTitle(qint64 categoryId) const
 {
     QMutexLocker locker(&m_mutex);
-    QSqlQuery query(m_db);
+    QSqlQuery query(getDb());
     query.prepare(QStringLiteral("SELECT title FROM categories WHERE id = ?"));
     query.addBindValue(categoryId);
     if (query.exec() && query.next()) {
@@ -279,27 +290,27 @@ QString DatabaseManager::getCategoryTitle(qint64 categoryId) const
 void DatabaseManager::saveArticles(const QList<Article>& articles)
 {
     QMutexLocker locker(&m_mutex);
-    if (!m_db.transaction()) {
-        qWarning() << "Failed to start transaction for articles:" << m_db.lastError().text();
+    if (!getDb().transaction()) {
+        qWarning() << "Failed to start transaction for articles:" << getDb().lastError().text();
         return;
     }
 
-    QSqlQuery query(m_db);
+    QSqlQuery query(getDb());
     query.prepare(QStringLiteral(
         "INSERT OR REPLACE INTO articles (id, feed_id, title, author, content, url, published_at, status, starred) "
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"));
 
     bool allOk = true;
     for (const auto& article : articles) {
-        query.addBindValue(article.id);
-        query.addBindValue(article.feedId);
-        query.addBindValue(article.title);
-        query.addBindValue(article.author);
-        query.addBindValue(article.content);
-        query.addBindValue(article.url);
-        query.addBindValue(article.publishedAt.toString(Qt::ISODate));
-        query.addBindValue(static_cast<int>(article.status));
-        query.addBindValue(article.starred ? 1 : 0);
+        query.bindValue(0, article.id);
+        query.bindValue(1, article.feedId);
+        query.bindValue(2, article.title);
+        query.bindValue(3, article.author);
+        query.bindValue(4, article.content);
+        query.bindValue(5, article.url);
+        query.bindValue(6, article.publishedAt.toString(Qt::ISODate));
+        query.bindValue(7, static_cast<int>(article.status));
+        query.bindValue(8, article.starred ? 1 : 0);
         if (!query.exec()) {
             qWarning() << "Failed to save article:" << query.lastError().text();
             allOk = false;
@@ -308,9 +319,9 @@ void DatabaseManager::saveArticles(const QList<Article>& articles)
     }
 
     if (allOk) {
-        m_db.commit();
+        getDb().commit();
     } else {
-        m_db.rollback();
+        getDb().rollback();
     }
 }
 
@@ -350,7 +361,7 @@ QList<Article> DatabaseManager::getAllArticles(ArticleStatus filterStatus, bool 
 {
     QMutexLocker locker(&m_mutex);
     QList<Article> articles;
-    QSqlQuery query(m_db);
+    QSqlQuery query(getDb());
     
     QString sql = QStringLiteral(
         "SELECT a.id, a.feed_id, a.title, a.author, a.content, a.url, a.published_at, a.status, a.starred, "
@@ -379,7 +390,7 @@ QList<Article> DatabaseManager::getAllArticles(ArticleStatus filterStatus, bool 
 std::optional<Article> DatabaseManager::getArticleById(qint64 id) const
 {
     QMutexLocker locker(&m_mutex);
-    QSqlQuery query(m_db);
+    QSqlQuery query(getDb());
     query.prepare(QStringLiteral(
         "SELECT a.id, a.feed_id, a.title, a.author, a.content, a.url, a.published_at, a.status, a.starred, "
         "f.title as feed_title, f.site_url "
@@ -397,7 +408,7 @@ QList<Article> DatabaseManager::getArticlesForFeed(qint64 feedId, ArticleStatus 
 {
     QMutexLocker locker(&m_mutex);
     QList<Article> articles;
-    QSqlQuery query(m_db);
+    QSqlQuery query(getDb());
     
     QString sql = QStringLiteral(
         "SELECT a.id, a.feed_id, a.title, a.author, a.content, a.url, a.published_at, a.status, a.starred, "
@@ -427,19 +438,19 @@ QList<Article> DatabaseManager::getArticlesForFeed(qint64 feedId, ArticleStatus 
 void DatabaseManager::clearAllData()
 {
     QMutexLocker locker(&m_mutex);
-    if (!m_db.transaction()) return;
-    QSqlQuery query(m_db);
+    if (!getDb().transaction()) return;
+    QSqlQuery query(getDb());
     if (!query.exec(QStringLiteral("DELETE FROM articles"))) qWarning() << "Clear articles failed:" << query.lastError().text();
     if (!query.exec(QStringLiteral("DELETE FROM feeds"))) qWarning() << "Clear feeds failed:" << query.lastError().text();
     if (!query.exec(QStringLiteral("DELETE FROM categories"))) qWarning() << "Clear categories failed:" << query.lastError().text();
-    m_db.commit();
+    getDb().commit();
 }
 
 QList<Article> DatabaseManager::getArticlesForCategory(qint64 categoryId, ArticleStatus filterStatus, bool filterStarred) const
 {
     QMutexLocker locker(&m_mutex);
     QList<Article> articles;
-    QSqlQuery query(m_db);
+    QSqlQuery query(getDb());
     
     QString sql = QStringLiteral(
         "SELECT a.id, a.feed_id, a.title, a.author, a.content, a.url, a.published_at, a.status, a.starred, "
@@ -476,9 +487,9 @@ void DatabaseManager::markArticlesAsRead(const QList<qint64>& articleIds, bool r
     if (articleIds.isEmpty()) return;
 
     QMutexLocker locker(&m_mutex);
-    if (!m_db.transaction()) return;
-
-    QSqlQuery query(m_db);
+    if (!getDb().transaction()) return;
+    
+    QSqlQuery query(getDb());
     // Optimization: For batch, we could use WHERE id IN (...) but SQLite has limits on params.
     // For simplicity, we loop within the transaction.
     query.prepare(QStringLiteral("UPDATE articles SET status = ? WHERE id = ?"));
@@ -496,17 +507,17 @@ void DatabaseManager::markArticlesAsRead(const QList<qint64>& articleIds, bool r
     }
 
     if (allOk) {
-        m_db.commit();
+        getDb().commit();
         emit unreadCountsChanged();
     } else {
-        m_db.rollback();
+        getDb().rollback();
     }
 }
 
 void DatabaseManager::toggleStar(qint64 articleId, bool starred)
 {
     QMutexLocker locker(&m_mutex);
-    QSqlQuery query(m_db);
+    QSqlQuery query(getDb());
     query.prepare(QStringLiteral("UPDATE articles SET starred = ? WHERE id = ?"));
     query.addBindValue(starred);
     query.addBindValue(articleId);
@@ -518,7 +529,7 @@ void DatabaseManager::toggleStar(qint64 articleId, bool starred)
 void DatabaseManager::updateArticleStatus(qint64 articleId, ArticleStatus status)
 {
     QMutexLocker locker(&m_mutex);
-    QSqlQuery query(m_db);
+    QSqlQuery query(getDb());
     query.prepare(QStringLiteral("UPDATE articles SET status = ? WHERE id = ?"));
     query.addBindValue(static_cast<int>(status));
     query.addBindValue(articleId);
@@ -532,7 +543,7 @@ void DatabaseManager::updateArticleStatus(qint64 articleId, ArticleStatus status
 void DatabaseManager::updateArticleContent(qint64 articleId, const QString& content)
 {
     QMutexLocker locker(&m_mutex);
-    QSqlQuery query(m_db);
+    QSqlQuery query(getDb());
     query.prepare(QStringLiteral("UPDATE articles SET content = ? WHERE id = ?"));
     query.addBindValue(content);
     query.addBindValue(articleId);
@@ -546,7 +557,7 @@ void DatabaseManager::purgeOldReadArticles(int days)
     QMutexLocker locker(&m_mutex);
     QDateTime cutoff = QDateTime::currentDateTime().addDays(-days);
     
-    QSqlQuery query(m_db);
+    QSqlQuery query(getDb());
     query.prepare(QStringLiteral(
         "DELETE FROM articles "
         "WHERE status = ? "

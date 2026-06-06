@@ -29,6 +29,7 @@ private slots:
 
     void testContextRegistration() {
         AppController controller;
+        controller.init();
         QQmlApplicationEngine engine;
         
         controller.registerContextProperties(&engine);

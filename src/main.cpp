@@ -20,6 +20,7 @@
 
 int main(int argc, char *argv[])
 {
+
     qputenv("QTWEBENGINE_CHROMIUM_FLAGS", "--disable-gpu-compositing");
     QtWebEngineQuick::initialize();
     qDebug() << "Kiriflux starting...";
@@ -80,6 +81,7 @@ int main(int argc, char *argv[])
         qCritical() << "Failed to load QML root objects!";
         return -1;
     }
+
 
     qDebug() << "Kiriflux running.";
     return app.exec();

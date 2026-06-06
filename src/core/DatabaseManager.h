@@ -104,6 +104,8 @@ private:
     explicit DatabaseManager(QObject *parent = nullptr);
     ~DatabaseManager() = default;
     
-    QSqlDatabase m_db;
+    QSqlDatabase getDb() const;
+
     mutable QRecursiveMutex m_mutex;
+    QString m_dbPath;
 };

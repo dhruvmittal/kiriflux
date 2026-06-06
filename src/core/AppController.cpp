@@ -11,9 +11,6 @@
 AppController::AppController(QObject *parent)
     : QObject(parent)
 {
-    m_feedListModel = new FeedListModel(this);
-    m_articleListModel = new ArticleListModel(this);
-    m_categoryListModel = new CategoryListModel(this);
 }
 
 AppController::~AppController() = default;
@@ -24,6 +21,10 @@ bool AppController::init()
         qWarning() << "Failed to initialize database.";
         return false;
     }
+
+    m_feedListModel = new FeedListModel(this);
+    m_articleListModel = new ArticleListModel(this);
+    m_categoryListModel = new CategoryListModel(this);
 
     SyncEngine::instance().startIntervalSync();
     return true;
