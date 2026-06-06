@@ -357,7 +357,7 @@ static Article articleFromQuery(const QSqlQuery& query)
     return a;
 }
 
-QList<Article> DatabaseManager::getAllArticles(ArticleStatus filterStatus, bool filterStarred) const
+QList<Article> DatabaseManager::getAllArticles(ArticleStatus filterStatus, bool filterStarred, int limit, int offset) const
 {
     QMutexLocker locker(&m_mutex);
     QList<Article> articles;
@@ -376,7 +376,11 @@ QList<Article> DatabaseManager::getAllArticles(ArticleStatus filterStatus, bool 
     if (filterStarred) {
         sql += QStringLiteral("AND a.starred = 1 ");
     }
-    sql += QStringLiteral("ORDER BY a.published_at DESC, a.id DESC");
+    sql += QStringLiteral("ORDER BY a.published_at DESC, a.id DESC ");
+
+    if (limit > 0) {
+        sql += QStringLiteral("LIMIT %1 OFFSET %2").arg(limit).arg(offset);
+    }
 
     query.prepare(sql);
     if (query.exec()) {
@@ -385,6 +389,24 @@ QList<Article> DatabaseManager::getAllArticles(ArticleStatus filterStatus, bool 
         }
     }
     return articles;
+}
+
+int DatabaseManager::countAllArticles(ArticleStatus filterStatus, bool filterStarred) const
+{
+    QMutexLocker locker(&m_mutex);
+    QSqlQuery query(getDb());
+    QString sql = QStringLiteral("SELECT COUNT(*) FROM articles a WHERE 1=1 ");
+    if (filterStatus != ArticleStatus::All) {
+        sql += QStringLiteral("AND a.status = %1 ").arg(static_cast<int>(filterStatus));
+    }
+    if (filterStarred) {
+        sql += QStringLiteral("AND a.starred = 1 ");
+    }
+    query.prepare(sql);
+    if (query.exec() && query.next()) {
+        return query.value(0).toInt();
+    }
+    return 0;
 }
 
 std::optional<Article> DatabaseManager::getArticleById(qint64 id) const
@@ -404,7 +426,7 @@ std::optional<Article> DatabaseManager::getArticleById(qint64 id) const
     return std::nullopt;
 }
 
-QList<Article> DatabaseManager::getArticlesForFeed(qint64 feedId, ArticleStatus filterStatus, bool filterStarred) const
+QList<Article> DatabaseManager::getArticlesForFeed(qint64 feedId, ArticleStatus filterStatus, bool filterStarred, int limit, int offset) const
 {
     QMutexLocker locker(&m_mutex);
     QList<Article> articles;
@@ -423,7 +445,11 @@ QList<Article> DatabaseManager::getArticlesForFeed(qint64 feedId, ArticleStatus 
     if (filterStarred) {
         sql += QStringLiteral("AND a.starred = 1 ");
     }
-    sql += QStringLiteral("ORDER BY a.published_at DESC, a.id DESC");
+    sql += QStringLiteral("ORDER BY a.published_at DESC, a.id DESC ");
+
+    if (limit > 0) {
+        sql += QStringLiteral("LIMIT %1 OFFSET %2").arg(limit).arg(offset);
+    }
 
     query.prepare(sql);
     query.addBindValue(feedId);
@@ -433,6 +459,25 @@ QList<Article> DatabaseManager::getArticlesForFeed(qint64 feedId, ArticleStatus 
         }
     }
     return articles;
+}
+
+int DatabaseManager::countArticlesForFeed(qint64 feedId, ArticleStatus filterStatus, bool filterStarred) const
+{
+    QMutexLocker locker(&m_mutex);
+    QSqlQuery query(getDb());
+    QString sql = QStringLiteral("SELECT COUNT(*) FROM articles a WHERE a.feed_id = ? ");
+    if (filterStatus != ArticleStatus::All) {
+        sql += QStringLiteral("AND a.status = %1 ").arg(static_cast<int>(filterStatus));
+    }
+    if (filterStarred) {
+        sql += QStringLiteral("AND a.starred = 1 ");
+    }
+    query.prepare(sql);
+    query.addBindValue(feedId);
+    if (query.exec() && query.next()) {
+        return query.value(0).toInt();
+    }
+    return 0;
 }
 
 void DatabaseManager::clearAllData()
@@ -446,7 +491,7 @@ void DatabaseManager::clearAllData()
     getDb().commit();
 }
 
-QList<Article> DatabaseManager::getArticlesForCategory(qint64 categoryId, ArticleStatus filterStatus, bool filterStarred) const
+QList<Article> DatabaseManager::getArticlesForCategory(qint64 categoryId, ArticleStatus filterStatus, bool filterStarred, int limit, int offset) const
 {
     QMutexLocker locker(&m_mutex);
     QList<Article> articles;
@@ -465,7 +510,11 @@ QList<Article> DatabaseManager::getArticlesForCategory(qint64 categoryId, Articl
     if (filterStarred) {
         sql += QStringLiteral("AND a.starred = 1 ");
     }
-    sql += QStringLiteral("ORDER BY a.published_at DESC, a.id DESC");
+    sql += QStringLiteral("ORDER BY a.published_at DESC, a.id DESC ");
+
+    if (limit > 0) {
+        sql += QStringLiteral("LIMIT %1 OFFSET %2").arg(limit).arg(offset);
+    }
 
     query.prepare(sql);
     query.addBindValue(categoryId);
@@ -475,6 +524,25 @@ QList<Article> DatabaseManager::getArticlesForCategory(qint64 categoryId, Articl
         }
     }
     return articles;
+}
+
+int DatabaseManager::countArticlesForCategory(qint64 categoryId, ArticleStatus filterStatus, bool filterStarred) const
+{
+    QMutexLocker locker(&m_mutex);
+    QSqlQuery query(getDb());
+    QString sql = QStringLiteral("SELECT COUNT(*) FROM articles a JOIN feeds f ON a.feed_id = f.id WHERE f.category_id = ? ");
+    if (filterStatus != ArticleStatus::All) {
+        sql += QStringLiteral("AND a.status = %1 ").arg(static_cast<int>(filterStatus));
+    }
+    if (filterStarred) {
+        sql += QStringLiteral("AND a.starred = 1 ");
+    }
+    query.prepare(sql);
+    query.addBindValue(categoryId);
+    if (query.exec() && query.next()) {
+        return query.value(0).toInt();
+    }
+    return 0;
 }
 
 void DatabaseManager::markAsRead(qint64 articleId, bool read)

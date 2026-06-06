@@ -2,6 +2,7 @@
 #include "../src/core/ArticleListModel.h"
 #include "../src/core/DatabaseManager.h"
 #include "../src/core/SyncEngine.h"
+#include "../src/core/kiriflux.h"
 
 class ArticleListModelTest : public QObject
 {
@@ -22,6 +23,7 @@ private slots:
     void testCategoryFilter();
     void testArticleContentUpdated();
     void testDataRoles();
+    void testWiggleRoom();
 
 private:
     void seedData();
@@ -245,6 +247,63 @@ void ArticleListModelTest::testDataRoles()
     
     // Test invalid index
     QVERIFY(!model.data(model.index(999, 0), Qt::DisplayRole).isValid());
+}
+
+void ArticleListModelTest::testWiggleRoom()
+{
+    // Seed 150 articles
+    DatabaseManager::instance().clearAllData();
+    Feed f1{1, "F1", "u1", "f1", 1, 0};
+    DatabaseManager::instance().saveFeeds({f1});
+
+    QList<Article> articles;
+    for (int i = 1; i <= 150; ++i) {
+        Article a;
+        a.id = i;
+        a.feedId = 1;
+        a.title = QString("Article %1").arg(i);
+        a.status = ArticleStatus::Unread;
+        a.publishedAt = QDateTime::currentDateTime().addSecs(i); // ascending
+        articles.append(a);
+    }
+    DatabaseManager::instance().saveArticles(articles);
+
+    // Enable lazy loading
+    Settings::self()->setLazyLoadingEnabled(true);
+    Settings::self()->setLazyLoadingBatchSize(50);
+
+    ArticleListModel model;
+    model.setFilterStatus("all");
+    model.setFilterStarred(false);
+    
+    // Verify only 50 loaded
+    QCOMPARE(model.rowCount(), 50);
+    
+    // Verify fetchMore loads next 50
+    model.fetchMore(QModelIndex());
+    QCOMPARE(model.rowCount(), 100);
+
+    // Programmatically inject 10 new articles
+    QList<Article> newArticles;
+    for (int i = 151; i <= 160; ++i) {
+        Article a;
+        a.id = i;
+        a.feedId = 1;
+        a.title = QString("Article %1").arg(i);
+        a.status = ArticleStatus::Unread;
+        a.publishedAt = QDateTime::currentDateTime().addSecs(i + 1000); // newer
+        newArticles.append(a);
+    }
+    DatabaseManager::instance().saveArticles(newArticles);
+
+    // Trigger background sync (forceReset = false)
+    model.refresh(false);
+
+    // Model should now have 110 items (100 originally loaded + 10 new)
+    QCOMPARE(model.rowCount(), 110);
+    
+    // Clean up
+    Settings::self()->setLazyLoadingEnabled(false);
 }
 
 QTEST_GUILESS_MAIN(ArticleListModelTest)

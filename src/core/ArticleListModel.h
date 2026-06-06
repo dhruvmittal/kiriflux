@@ -36,6 +36,9 @@ public:
     Q_INVOKABLE int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     QHash<int, QByteArray> roleNames() const override;
+    
+    bool canFetchMore(const QModelIndex &parent) const override;
+    void fetchMore(const QModelIndex &parent) override;
 
     long currentFeedId() const { return m_currentFeedId; }
     void setCurrentFeedId(qint64 id);
@@ -75,4 +78,5 @@ private:
     qint64 m_currentCategoryId = -1;
     QString m_filterStatus = "all"; // "all" or "unread"
     bool m_filterStarred = false;
+    int m_totalAvailableCount = 0;
 };

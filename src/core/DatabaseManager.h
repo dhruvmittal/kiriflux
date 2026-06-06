@@ -84,10 +84,13 @@ public:
 
     // Articles
     void saveArticles(const QList<Article>& articles);
-    QList<Article> getArticlesForFeed(qint64 feedId, ArticleStatus status = ArticleStatus::Unread, bool filterStarred = false) const;
-    QList<Article> getArticlesForCategory(qint64 categoryId, ArticleStatus status = ArticleStatus::Unread, bool filterStarred = false) const;
+    QList<Article> getArticlesForFeed(qint64 feedId, ArticleStatus status = ArticleStatus::Unread, bool filterStarred = false, int limit = -1, int offset = 0) const;
+    QList<Article> getArticlesForCategory(qint64 categoryId, ArticleStatus status = ArticleStatus::Unread, bool filterStarred = false, int limit = -1, int offset = 0) const;
     Q_INVOKABLE void clearAllData();
-    QList<Article> getAllArticles(ArticleStatus status = ArticleStatus::Unread, bool filterStarred = false) const;
+    QList<Article> getAllArticles(ArticleStatus status = ArticleStatus::Unread, bool filterStarred = false, int limit = -1, int offset = 0) const;
+    int countAllArticles(ArticleStatus status = ArticleStatus::Unread, bool filterStarred = false) const;
+    int countArticlesForFeed(qint64 feedId, ArticleStatus status = ArticleStatus::Unread, bool filterStarred = false) const;
+    int countArticlesForCategory(qint64 categoryId, ArticleStatus status = ArticleStatus::Unread, bool filterStarred = false) const;
     std::optional<Article> getArticleById(qint64 id) const;
     
     void markAsRead(qint64 articleId, bool read);

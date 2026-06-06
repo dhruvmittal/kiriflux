@@ -16,6 +16,46 @@ ArticleListModel::ArticleListModel(QObject *parent)
     refresh();
 }
 
+bool ArticleListModel::canFetchMore(const QModelIndex &parent) const
+{
+    if (parent.isValid()) return false;
+    if (!Settings::self()->lazyLoadingEnabled()) return false;
+    if (m_totalAvailableCount == -1) return false;
+    return m_articles.size() < m_totalAvailableCount;
+}
+
+void ArticleListModel::fetchMore(const QModelIndex &parent)
+{
+    if (parent.isValid()) return;
+    if (!canFetchMore(parent)) return;
+
+    int batchSize = Settings::self()->lazyLoadingBatchSize();
+    int offset = m_articles.size();
+    
+    ArticleStatus status = ArticleStatus::All;
+    if (!m_filterStarred) {
+        if (m_filterStatus == "unread") status = ArticleStatus::Unread;
+        else if (m_filterStatus == "read") status = ArticleStatus::Read;
+    }
+
+    QList<Article> moreArticles;
+    if (m_currentFeedId != -1) {
+        moreArticles = DatabaseManager::instance().getArticlesForFeed(m_currentFeedId, status, m_filterStarred, batchSize, offset);
+    } else if (m_currentCategoryId != -1) {
+        moreArticles = DatabaseManager::instance().getArticlesForCategory(m_currentCategoryId, status, m_filterStarred, batchSize, offset);
+    } else {
+        moreArticles = DatabaseManager::instance().getAllArticles(status, m_filterStarred, batchSize, offset);
+    }
+
+    if (moreArticles.isEmpty()) return;
+
+    beginInsertRows(QModelIndex(), m_articles.size(), m_articles.size() + moreArticles.size() - 1);
+    m_articles.append(moreArticles);
+    endInsertRows();
+    
+    emit countChanged();
+}
+
 void ArticleListModel::setCurrentFeedId(qint64 id)
 {
     if (m_currentFeedId == id) return;
@@ -185,13 +225,30 @@ void ArticleListModel::refresh(bool forceReset)
         else if (m_filterStatus == "read") status = ArticleStatus::Read;
     }
 
+    bool lazy = Settings::self()->lazyLoadingEnabled();
+    int batchSize = Settings::self()->lazyLoadingBatchSize();
+    int limit = -1;
+    
+    if (lazy) {
+        limit = (forceReset || m_articles.isEmpty()) ? batchSize : (m_articles.size() + batchSize);
+        if (m_currentFeedId != -1) {
+            m_totalAvailableCount = DatabaseManager::instance().countArticlesForFeed(m_currentFeedId, status, m_filterStarred);
+        } else if (m_currentCategoryId != -1) {
+            m_totalAvailableCount = DatabaseManager::instance().countArticlesForCategory(m_currentCategoryId, status, m_filterStarred);
+        } else {
+            m_totalAvailableCount = DatabaseManager::instance().countAllArticles(status, m_filterStarred);
+        }
+    } else {
+        m_totalAvailableCount = -1;
+    }
+
     QList<Article> newArticles;
     if (m_currentFeedId != -1) {
-        newArticles = DatabaseManager::instance().getArticlesForFeed(m_currentFeedId, status, m_filterStarred);
+        newArticles = DatabaseManager::instance().getArticlesForFeed(m_currentFeedId, status, m_filterStarred, limit, 0);
     } else if (m_currentCategoryId != -1) {
-        newArticles = DatabaseManager::instance().getArticlesForCategory(m_currentCategoryId, status, m_filterStarred);
+        newArticles = DatabaseManager::instance().getArticlesForCategory(m_currentCategoryId, status, m_filterStarred, limit, 0);
     } else {
-        newArticles = DatabaseManager::instance().getAllArticles(status, m_filterStarred);
+        newArticles = DatabaseManager::instance().getAllArticles(status, m_filterStarred, limit, 0);
     }
 
     if (forceReset || m_articles.isEmpty()) {

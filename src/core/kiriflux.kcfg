@@ -70,6 +70,16 @@
       <min>32</min>
       <max>4096</max>
     </entry>
+    <entry name="LazyLoadingEnabled" type="Bool">
+      <label>Load articles in batches while scrolling to save memory</label>
+      <default>true</default>
+    </entry>
+    <entry name="LazyLoadingBatchSize" type="Int">
+      <label>Number of articles to load per batch</label>
+      <default>50</default>
+      <min>10</min>
+      <max>500</max>
+    </entry>
   </group>
   <group name="Reading">
     <entry name="MarkAsReadOnOpen" type="Bool">

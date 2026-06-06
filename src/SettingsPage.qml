@@ -215,6 +215,30 @@ QQC2.Dialog {
 
                 SectionHeader { title: i18n("Performance & Cache"); Layout.topMargin: Kirigami.Units.largeSpacing }
                 SettingsGrid {
+                    SettingLabel { text: i18n("Lazy Loading") }
+                    QQC2.CheckBox {
+                        id: lazyLoadingCheck
+                        text: i18n("Load articles dynamically while scrolling")
+                        checked: settings.lazyLoadingEnabled
+                        Layout.fillWidth: true
+                        onToggled: settings.lazyLoadingEnabled = checked
+                    }
+
+                    SettingLabel { text: i18n("Batch Size") }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        QQC2.SpinBox {
+                            id: batchSizeSpin
+                            from: 10
+                            to: 500
+                            stepSize: 10
+                            value: settings.lazyLoadingBatchSize
+                            Layout.fillWidth: true
+                            onValueModified: settings.lazyLoadingBatchSize = value
+                        }
+                        QQC2.Label { text: i18n("articles") }
+                    }
+
                     SettingLabel { text: i18n("Pre-fetching") }
                     QQC2.CheckBox {
                         id: prefetchCheck
