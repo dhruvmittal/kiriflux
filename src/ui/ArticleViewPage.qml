@@ -345,16 +345,110 @@ Kirigami.Page {
                 settings.javascriptEnabled: true
                 
                 property bool webViewReady: false
-                
-                onLoadingChanged: (loadingInfo) => {
-                    if (loadingInfo.status === WebEngineView.LoadSucceededStatus) {
-                        runJavaScript("window.scrollTo(0, 0);")
+
+                onNavigationRequested: function(request) {
+                    if (request.navigationType === WebEngineNavigationRequest.LinkClickedNavigation) {
+                        Qt.openUrlExternally(request.url);
+                        request.action = WebEngineNavigationRequest.IgnoreRequest;
+                    } else {
+                        request.action = WebEngineNavigationRequest.AcceptRequest;
                     }
                 }
 
-                property var updateContent: function() {
-                    if (!webViewReady) return;
+                onLoadingChanged: (loadingInfo) => {
+                    if (loadingInfo.status === WebEngineView.LoadSucceededStatus) {
+                        if (!webViewReady) {
+                            webViewReady = true;
+                            updateTheme();
+                            updateContent();
+                        }
+                        runJavaScript("window.scrollTo(0, 0);");
+                    }
+                }
 
+                property var loadTemplate: function() {
+                    let html = `
+                        <html>
+                        <head>
+                            <style>
+                                :root { 
+                                    --color-scheme: light;
+                                    --text-color: #000;
+                                    --bg-color: #fff;
+                                    --alt-bg-color: #eee;
+                                    --highlight-color: #3daee9;
+                                    --focus-color: #3daee9;
+                                }
+                                color-scheme: var(--color-scheme);
+                                body {
+                                    font-family: "${(settings && settings.articleViewTextFont) ? settings.articleViewTextFont.family : 'serif'}", serif;
+                                    font-size: ${(settings && settings.articleViewTextFont && settings.articleViewTextFont.pointSize > 0) ? settings.articleViewTextFont.pointSize + "pt" : '12pt'};
+                                    font-weight: ${(settings && settings.articleViewTextFont) ? settings.articleViewTextFont.weight : 'normal'};
+                                    font-style: ${(settings && settings.articleViewTextFont) ? (settings.articleViewTextFont.italic ? 'italic' : 'normal') : 'normal'};
+                                    padding: 40px; line-height: 1.6;
+                                    color: var(--text-color) !important; background-color: var(--bg-color) !important;
+                                    margin: 0 auto; max-width: 800px;
+                                }
+                                .header { margin-bottom: 40px; border-bottom: 1px solid var(--alt-bg-color); padding-bottom: 20px; }
+                                .title {
+                                    font-family: "${(settings && settings.articleViewTitleFont) ? settings.articleViewTitleFont.family : 'sans-serif'}", sans-serif;
+                                    font-size: ${(settings && settings.articleViewTitleFont && settings.articleViewTitleFont.pointSize > 0) ? settings.articleViewTitleFont.pointSize + "pt" : '18pt'};
+                                    font-weight: ${(settings && settings.articleViewTitleFont) ? settings.articleViewTitleFont.weight : 'bold'};
+                                    font-style: ${(settings && settings.articleViewTitleFont) ? (settings.articleViewTitleFont.italic ? 'italic' : 'normal') : 'normal'};
+                                    line-height: 1.2; margin-bottom: 15px; color: var(--text-color);
+                                }
+                                .meta {
+                                    font-family: "${(settings && settings.articleViewInfoFont) ? settings.articleViewInfoFont.family : 'sans-serif'}", sans-serif;
+                                    font-size: ${(settings && settings.articleViewInfoFont && settings.articleViewInfoFont.pointSize > 0) ? settings.articleViewInfoFont.pointSize + "pt" : '10pt'};
+                                    font-weight: ${(settings && settings.articleViewInfoFont) ? settings.articleViewInfoFont.weight : 'normal'};
+                                    font-style: ${(settings && settings.articleViewInfoFont) ? (settings.articleViewInfoFont.italic ? 'italic' : 'normal') : 'normal'};
+                                    opacity: 0.7; color: var(--text-color);
+                                }
+                                img { 
+                                    max-width: 100% !important; 
+                                    height: auto !important; 
+                                    border-radius: 8px; 
+                                    margin: 20px 0; 
+                                    background-color: var(--alt-bg-color);
+                                    transition: opacity 0.3s ease-in;
+                                }
+                                pre {
+                                    background-color: var(--alt-bg-color) !important; padding: 15px; border-radius: 8px;
+                                    overflow-x: auto; color: var(--text-color) !important;
+                                    font-family: 'Fira Code', 'Cascadia Code', monospace; font-size: 14px;
+                                }
+                                code { font-family: monospace; background-color: var(--alt-bg-color); padding: 2px 4px; border-radius: 4px; }
+                                a { color: var(--text-color) !important; font-weight: bold !important; text-decoration: none !important; border-bottom: 1px solid var(--highlight-color); }
+                                a:hover { background-color: var(--highlight-color); color: var(--bg-color) !important; }
+                                blockquote {
+                                    border-left: 5px solid var(--focus-color); margin: 20px 0; padding: 10px 20px;
+                                    background-color: var(--alt-bg-color); font-style: italic; border-radius: 0 8px 8px 0;
+                                }
+                                ::-webkit-scrollbar { width: 10px; height: 10px; }
+                                ::-webkit-scrollbar-track { background: transparent; }
+                                ::-webkit-scrollbar-thumb {
+                                    background: var(--text-color); opacity: 0.2; border-radius: 5px;
+                                    border: 3px solid transparent; background-clip: content-box;
+                                }
+                                ::-webkit-scrollbar-thumb:hover { background: var(--highlight-color); background-clip: content-box; }
+                                p, div, span, h1, h2, h3, h4, h5, h6, li { color: var(--text-color) !important; }
+                            </style>
+                        </head>
+                        <body>
+                            <div class="header">
+                                <div class="title" id="article-title"></div>
+                                <div class="meta" id="article-meta"></div>
+                            </div>
+                            <div class="content" id="article-content">
+                                <div style="display:flex; justify-content:center; align-items:center; height:50vh; color:#888;">Loading...</div>
+                            </div>
+                        </body>
+                        </html>
+                    `;
+                    loadHtml(html);
+                }
+
+                property var updateTheme: function() {
                     let textColor = root.themedTextColor;
                     let bgColor = root.themedBgColor;
                     let alternateBgColor = root.themedAlternateBgColor;
@@ -382,6 +476,32 @@ Kirigami.Page {
                         focusColor = root.colorToCss(focusColor);
                     }
 
+                    if (!webViewReady) return;
+
+                    let colorScheme = Kirigami.Theme.colorSet === Kirigami.Theme.Dark ? 'dark' : 'light';
+
+                    runJavaScript(`
+                        document.documentElement.style.setProperty('--color-scheme', '${colorScheme}');
+                        document.documentElement.style.setProperty('--text-color', '${textColor}');
+                        document.documentElement.style.setProperty('--bg-color', '${bgColor}');
+                        document.documentElement.style.setProperty('--alt-bg-color', '${alternateBgColor}');
+                        document.documentElement.style.setProperty('--highlight-color', '${highlightColor}');
+                        document.documentElement.style.setProperty('--focus-color', '${focusColor}');
+                    `);
+                }
+
+                Connections {
+                    target: Kirigami.Theme
+                    function onBackgroundColorChanged() {
+                        if (articleWebView.webViewReady) {
+                            articleWebView.updateTheme();
+                        }
+                    }
+                }
+
+                property var updateContent: function() {
+                    if (!webViewReady) return;
+
                     if (root.articleContent || root.articleTitle) {
                         let dateStr = root.publishedAt ? new Date(root.publishedAt).toLocaleString(Qt.locale()) : "";
                         let metadata = (root.feedTitle ? root.feedTitle : "") + 
@@ -390,79 +510,23 @@ Kirigami.Page {
                                        ((root.feedTitle || root.author) && dateStr ? " • " : "") + 
                                        dateStr;
 
-                        let html = `
-                            <html>
-                            <head>
-                                <style>
-                                    :root { color-scheme: ${Kirigami.Theme.colorSet === Kirigami.Theme.Dark ? 'dark' : 'light'}; }
-                                    body {
-                                        font-family: "${(settings && settings.articleViewTextFont) ? settings.articleViewTextFont.family : 'serif'}", serif;
-                                        font-size: ${(settings && settings.articleViewTextFont && settings.articleViewTextFont.pointSize > 0) ? settings.articleViewTextFont.pointSize + "pt" : '12pt'};
-                                        font-weight: ${(settings && settings.articleViewTextFont) ? settings.articleViewTextFont.weight : 'normal'};
-                                        font-style: ${(settings && settings.articleViewTextFont) ? (settings.articleViewTextFont.italic ? 'italic' : 'normal') : 'normal'};
-                                        padding: 40px; line-height: 1.6;
-                                        color: ${textColor} !important; background-color: ${bgColor} !important;
-                                        margin: 0 auto; max-width: 800px;
-                                    }
-                                    .header { margin-bottom: 40px; border-bottom: 1px solid ${alternateBgColor}; padding-bottom: 20px; }
-                                    .title {
-                                        font-family: "${(settings && settings.articleViewTitleFont) ? settings.articleViewTitleFont.family : 'sans-serif'}", sans-serif;
-                                        font-size: ${(settings && settings.articleViewTitleFont && settings.articleViewTitleFont.pointSize > 0) ? settings.articleViewTitleFont.pointSize + "pt" : '18pt'};
-                                        font-weight: ${(settings && settings.articleViewTitleFont) ? settings.articleViewTitleFont.weight : 'bold'};
-                                        font-style: ${(settings && settings.articleViewTitleFont) ? (settings.articleViewTitleFont.italic ? 'italic' : 'normal') : 'normal'};
-                                        line-height: 1.2; margin-bottom: 15px; color: ${textColor};
-                                    }
-                                    .meta {
-                                        font-family: "${(settings && settings.articleViewInfoFont) ? settings.articleViewInfoFont.family : 'sans-serif'}", sans-serif;
-                                        font-size: ${(settings && settings.articleViewInfoFont && settings.articleViewInfoFont.pointSize > 0) ? settings.articleViewInfoFont.pointSize + "pt" : '10pt'};
-                                        font-weight: ${(settings && settings.articleViewInfoFont) ? settings.articleViewInfoFont.weight : 'normal'};
-                                        font-style: ${(settings && settings.articleViewInfoFont) ? (settings.articleViewInfoFont.italic ? 'italic' : 'normal') : 'normal'};
-                                        opacity: 0.7; color: ${textColor};
-                                    }
-                                    img { 
-                                        max-width: 100% !important; 
-                                        height: auto !important; 
-                                        border-radius: 8px; 
-                                        margin: 20px 0; 
-                                        background-color: ${alternateBgColor};
-                                        transition: opacity 0.3s ease-in;
-                                    }
-                                    pre {
-                                        background-color: ${alternateBgColor} !important; padding: 15px; border-radius: 8px;
-                                        overflow-x: auto; color: ${textColor} !important;
-                                        font-family: 'Fira Code', 'Cascadia Code', monospace; font-size: 14px;
-                                    }
-                                    code { font-family: monospace; background-color: ${alternateBgColor}; padding: 2px 4px; border-radius: 4px; }
-                                    a { color: ${textColor} !important; font-weight: bold !important; text-decoration: none !important; border-bottom: 1px solid ${highlightColor}; }
-                                    a:hover { background-color: ${highlightColor}; color: ${bgColor} !important; }
-                                    blockquote {
-                                        border-left: 5px solid ${focusColor}; margin: 20px 0; padding: 10px 20px;
-                                        background-color: ${alternateBgColor}; font-style: italic; border-radius: 0 8px 8px 0;
-                                    }
-                                    ::-webkit-scrollbar { width: 10px; height: 10px; }
-                                    ::-webkit-scrollbar-track { background: transparent; }
-                                    ::-webkit-scrollbar-thumb {
-                                        background: ${textColor}; opacity: 0.2; border-radius: 5px;
-                                        border: 3px solid transparent; background-clip: content-box;
-                                    }
-                                    ::-webkit-scrollbar-thumb:hover { background: ${highlightColor}; background-clip: content-box; }
-                                    p, div, span, h1, h2, h3, h4, h5, h6, li { color: ${textColor} !important; }
-                                </style>
-                            </head>
-                            <body>
-                                <div class="header">
-                                    <div class="title">${root.articleTitle}</div>
-                                    <div class="meta">${metadata}</div>
-                                </div>
-                                <div class="content">
-                                    ${root.articleContent}
-                                </div>
-                            </body>
-                            </html>
-                        `;
-                        loadHtml(html);
+                        let titleHtml = root.articleTitle || "";
+                        let contentHtml = root.articleContent || "<p>No content available.</p>";
+
+                        runJavaScript(`
+                            document.getElementById('article-title').innerHTML = ${JSON.stringify(titleHtml)};
+                            document.getElementById('article-meta').textContent = ${JSON.stringify(metadata)};
+                            document.getElementById('article-content').innerHTML = ${JSON.stringify(contentHtml)};
+                            window.scrollTo(0, 0);
+                        `);
                     } else {
-                        loadHtml("<html><body style='display:flex; justify-content:center; align-items:center; height:90vh; color:#888; font-family:sans-serif; background-color:" + root.colorToCss(bgColor) + ";'>Select an article to read.</body></html>");
+                        let emptyHtml = "<div style='display:flex; justify-content:center; align-items:center; height:50vh; color:#888;'>Select an article to read.</div>";
+                        runJavaScript(`
+                            document.getElementById('article-title').innerHTML = "";
+                            document.getElementById('article-meta').textContent = "";
+                            document.getElementById('article-content').innerHTML = ${JSON.stringify(emptyHtml)};
+                            window.scrollTo(0, 0);
+                        `);
                     }
                 }
                 
@@ -475,8 +539,7 @@ Kirigami.Page {
                     interval: 50
                     repeat: false
                     onTriggered: {
-                        articleWebView.webViewReady = true;
-                        articleWebView.updateContent();
+                        articleWebView.loadTemplate();
                     }
                 }
 
