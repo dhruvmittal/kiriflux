@@ -122,11 +122,77 @@ void SettingsManager::setPreFetchImages(bool prefetch) {
 }
 
 int SettingsManager::cacheSizeMB() const { return Settings::cacheSizeMB(); }
-void SettingsManager::setCacheSizeMB(int size) {
+void SettingsManager::setCacheSizeMB(int size)
+{
     if (size == cacheSizeMB()) return;
     Settings::setCacheSizeMB(size);
     emit cacheSizeMBChanged();
     emit settingsChanged();
+}
+
+bool SettingsManager::lazyLoadingEnabled() const
+{
+    return Settings::self()->lazyLoadingEnabled();
+}
+
+void SettingsManager::setLazyLoadingEnabled(bool enabled)
+{
+    if (Settings::self()->lazyLoadingEnabled() == enabled) return;
+    Settings::self()->setLazyLoadingEnabled(enabled);
+    Settings::self()->save();
+    emit lazyLoadingEnabledChanged();
+}
+
+int SettingsManager::lazyLoadingBatchSize() const
+{
+    return Settings::self()->lazyLoadingBatchSize();
+}
+
+void SettingsManager::setLazyLoadingBatchSize(int size)
+{
+    if (Settings::self()->lazyLoadingBatchSize() == size) return;
+    Settings::self()->setLazyLoadingBatchSize(size);
+    Settings::self()->save();
+    emit lazyLoadingBatchSizeChanged();
+}
+
+bool SettingsManager::autoPruneEnabled() const
+{
+    return Settings::self()->autoPruneEnabled();
+}
+
+void SettingsManager::setAutoPruneEnabled(bool enabled)
+{
+    if (Settings::self()->autoPruneEnabled() == enabled) return;
+    Settings::self()->setAutoPruneEnabled(enabled);
+    Settings::self()->save();
+    emit autoPruneEnabledChanged();
+}
+
+int SettingsManager::pruneAfterDays() const
+{
+    return Settings::self()->pruneAfterDays();
+}
+
+void SettingsManager::setPruneAfterDays(int days)
+{
+    if (Settings::self()->pruneAfterDays() == days) return;
+    Settings::self()->setPruneAfterDays(days);
+    Settings::self()->save();
+    emit pruneAfterDaysChanged();
+}
+
+bool SettingsManager::closeReadingPaneOnReset() const
+{
+    return Settings::self()->closeReadingPaneOnReset();
+}
+
+void SettingsManager::setCloseReadingPaneOnReset(bool close)
+{
+    if (Settings::self()->closeReadingPaneOnReset() == close) return;
+    Settings::self()->setCloseReadingPaneOnReset(close);
+    Settings::self()->save();
+    emit closeReadingPaneOnResetChanged();
 }
 
 QFont SettingsManager::leftPaneFont() const { return Settings::leftPaneFont(); }

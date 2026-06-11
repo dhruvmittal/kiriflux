@@ -34,8 +34,13 @@ private slots:
         QNetworkAccessManager* nam = factory.create(&parent);
         
         QVERIFY(nam != nullptr);
-        // Verify that the factory sets the global cache on the newly created NAM
-        QCOMPARE(nam->cache(), NetworkManager::instance().cache());
+        QVERIFY(nam->cache() != nullptr);
+        
+        // Verify that the factory sets the global cache directory on the newly created NAM's cache
+        auto namCache = qobject_cast<QNetworkDiskCache*>(nam->cache());
+        QVERIFY(namCache != nullptr);
+        QCOMPARE(namCache->cacheDirectory(), NetworkManager::instance().cache()->cacheDirectory());
+        QCOMPARE(namCache->maximumCacheSize(), NetworkManager::instance().cache()->maximumCacheSize());
     }
 
     void testClearCache() {

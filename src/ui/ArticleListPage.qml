@@ -57,7 +57,10 @@ Kirigami.Page {
                 icon.name: "favorite"
                 checkable: true
                 checked: articleListModel.filterStarred
-                onTriggered: articleListModel.filterStarred = true
+                onTriggered: {
+                    articleListModel.filterStatus = "all";
+                    articleListModel.filterStarred = true;
+                }
             }
         }
     ]
@@ -137,6 +140,30 @@ Kirigami.Page {
         }
     }
 
+    Shortcut {
+        sequence: "m"
+        onActivated: {
+            if (articleListView.currentIndex >= 0) {
+                let modelItem = articleListModel.get(articleListView.currentIndex);
+                if (modelItem) {
+                    articleListModel.markAsReadById(modelItem.id, modelItem.status === "unread");
+                }
+            }
+        }
+    }
+
+    Shortcut {
+        sequence: "f"
+        onActivated: {
+            if (articleListView.currentIndex >= 0) {
+                let modelItem = articleListModel.get(articleListView.currentIndex);
+                if (modelItem && modelItem.url) {
+                    Qt.openUrlExternally(modelItem.url);
+                }
+            }
+        }
+    }
+
     Connections {
         target: articleListModel
         function onModelReset() { 
@@ -148,16 +175,18 @@ Kirigami.Page {
             
             // Close any open ArticleViewPage on the stack
             // Search from top to find and pop the article view
-            for (let i = applicationWindow().pageStack.depth - 1; i >= 0; i--) {
-                let item = applicationWindow().pageStack.get(i);
-                if (item && item.objectName === "articleViewPage") {
-                    // Pop everything from this page onwards
-                    if (i > 0) {
-                        applicationWindow().pageStack.pop(applicationWindow().pageStack.get(i-1));
-                    } else {
-                        applicationWindow().pageStack.pop();
+            if (settings && settings.closeReadingPaneOnReset) {
+                for (let i = applicationWindow().pageStack.depth - 1; i >= 0; i--) {
+                    let item = applicationWindow().pageStack.get(i);
+                    if (item && item.objectName === "articleViewPage") {
+                        // Pop everything from this page onwards
+                        if (i > 0) {
+                            applicationWindow().pageStack.pop(applicationWindow().pageStack.get(i-1));
+                        } else {
+                            applicationWindow().pageStack.pop();
+                        }
+                        break;
                     }
-                    break;
                 }
             }
         }
@@ -199,6 +228,7 @@ Kirigami.Page {
                 onContentYChanged: {
                     if (!settings.markAsReadOnScroll) return;
                     if (contentY <= 0) return;
+                    if (!articleListView.dragging && !articleListView.flicking) return;
                     scrollMarkTimer.restart();
                 }
 

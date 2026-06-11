@@ -1,4 +1,4 @@
-find_package(Qt6 REQUIRED COMPONENTS Test Sql Network)
+find_package(Qt6 REQUIRED COMPONENTS Test Sql Network Concurrent)
 
 # 1. DatabaseManagerTest
 add_executable(DatabaseManagerTest DatabaseManagerTest.cpp)
@@ -8,6 +8,15 @@ target_link_libraries(DatabaseManagerTest PRIVATE
     Qt6::Sql
 )
 add_test(NAME DatabaseManagerTest COMMAND DatabaseManagerTest)
+
+# 11. AppControllerTest
+add_executable(AppControllerTest AppControllerTest.cpp)
+target_link_libraries(AppControllerTest PRIVATE
+    kiriflux_core
+    Qt6::Test
+    Qt6::Qml
+)
+add_test(NAME AppControllerTest COMMAND AppControllerTest)
 
 # 2. ArticleListModelTest
 add_executable(ArticleListModelTest ArticleListModelTest.cpp)

@@ -8,10 +8,10 @@ qt_add_executable(kiriflux
     main.cpp
 )
 
-# Manual resource embedding for guaranteed QRC paths
-qt_add_resources(kiriflux "qml"
-    PREFIX "/ui/"
-    FILES
+# Ahead-of-Time QML compilation and embedding
+qt_add_qml_module(kiriflux
+    URI org.kde.kiriflux
+    QML_FILES
         Main.qml
         SettingsPage.qml
         ui/FeedsDrawer.qml

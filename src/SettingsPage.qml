@@ -215,6 +215,30 @@ QQC2.Dialog {
 
                 SectionHeader { title: i18n("Performance & Cache"); Layout.topMargin: Kirigami.Units.largeSpacing }
                 SettingsGrid {
+                    SettingLabel { text: i18n("Lazy Loading") }
+                    QQC2.CheckBox {
+                        id: lazyLoadingCheck
+                        text: i18n("Load articles dynamically while scrolling")
+                        checked: settings.lazyLoadingEnabled
+                        Layout.fillWidth: true
+                        onToggled: settings.lazyLoadingEnabled = checked
+                    }
+
+                    SettingLabel { text: i18n("Batch Size") }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        QQC2.SpinBox {
+                            id: batchSizeSpin
+                            from: 10
+                            to: 500
+                            stepSize: 10
+                            value: settings.lazyLoadingBatchSize
+                            Layout.fillWidth: true
+                            onValueModified: settings.lazyLoadingBatchSize = value
+                        }
+                        QQC2.Label { text: i18n("articles") }
+                    }
+
                     SettingLabel { text: i18n("Pre-fetching") }
                     QQC2.CheckBox {
                         id: prefetchCheck
@@ -239,11 +263,44 @@ QQC2.Dialog {
                         QQC2.Label { text: i18n("MB") }
                     }
 
+                    SettingLabel { text: i18n("Database Pruning") }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: Kirigami.Units.smallSpacing
+                        QQC2.CheckBox {
+                            text: i18n("Automatically purge old read articles")
+                            checked: settings.autoPruneEnabled
+                            onToggled: settings.autoPruneEnabled = checked
+                        }
+                        RowLayout {
+                            enabled: settings.autoPruneEnabled
+                            QQC2.Label { text: i18n("Keep read articles for:") }
+                            QQC2.SpinBox {
+                                from: 1
+                                to: 365
+                                value: settings.pruneAfterDays
+                                onValueModified: settings.pruneAfterDays = value
+                            }
+                            QQC2.Label { text: i18n("days") }
+                        }
+                    }
+
                     SettingLabel { text: i18n("Maintenance") }
-                    QQC2.Button {
-                        text: i18n("Clear Image Cache")
-                        icon.name: "edit-clear-history"
-                        onClicked: clearCacheDialog.open()
+                    RowLayout {
+                        spacing: Kirigami.Units.largeSpacing
+                        QQC2.Button {
+                            text: i18n("Clear Image Cache")
+                            icon.name: "edit-clear-history"
+                            onClicked: clearCacheDialog.open()
+                        }
+                        QQC2.Button {
+                            text: i18n("Optimize Database Now")
+                            icon.name: "database-index"
+                            onClicked: {
+                                databaseManager.optimizeDatabase();
+                                applicationWindow().showPassiveNotification(i18n("Database optimized and vacuumed successfully."))
+                            }
+                        }
                     }
                 }
                 Item { Layout.fillHeight: true }
@@ -281,6 +338,15 @@ QQC2.Dialog {
                         checked: settings.useReaderMode
                         Layout.fillWidth: true
                         onToggled: settings.useReaderMode = checked
+                    }
+
+                    SettingLabel { text: i18n("Reading Pane") }
+                    QQC2.CheckBox {
+                        id: closeReadingPaneCheck
+                        text: i18n("Close reading pane when switching filters or feeds")
+                        checked: settings.closeReadingPaneOnReset
+                        Layout.fillWidth: true
+                        onToggled: settings.closeReadingPaneOnReset = checked
                     }
                 }
                 Item { Layout.fillHeight: true }

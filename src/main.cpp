@@ -15,17 +15,12 @@
 #include <KLocalizedContext>
 #include <KLocalizedString>
 
-#include "core/DatabaseManager.h"
-#include "core/SyncEngine.h"
-#include "core/FeedListModel.h"
-#include "core/ArticleListModel.h"
-#include "core/CategoryListModel.h"
-#include "core/SettingsManager.h"
-#include "core/NetworkManager.h"
+#include "core/AppController.h"
 #include "core/KirifluxNAMFactory.h"
 
 int main(int argc, char *argv[])
 {
+
     qputenv("QTWEBENGINE_CHROMIUM_FLAGS", "--disable-gpu-compositing");
     QtWebEngineQuick::initialize();
     qDebug() << "Kiriflux starting...";
@@ -63,31 +58,21 @@ int main(int argc, char *argv[])
     KDBusService service(KDBusService::Unique);
 
     // 5. Backend Logic
-    if (!DatabaseManager::instance().init()) {
-        qWarning() << "Failed to initialize database.";
+    AppController appController;
+    if (!appController.init()) {
+        qWarning() << "Failed to initialize application backend.";
     }
 
-    // 6. Instantiate Persistent Models
-    FeedListModel *feedListModel = new FeedListModel(&app);
-    ArticleListModel *articleListModel = new ArticleListModel(&app);
-    CategoryListModel *categoryListModel = new CategoryListModel(&app);
-
-    SyncEngine::instance().startIntervalSync();
-
-    // 7. QML Engine Setup
+    // 6. QML Engine Setup
     QQmlApplicationEngine engine;
     engine.setNetworkAccessManagerFactory(new KirifluxNAMFactory());
     engine.rootContext()->setContextObject(new KLocalizedContext(&engine));
     
-    // Expose objects as global context properties
-    engine.rootContext()->setContextProperty(QStringLiteral("syncEngine"), &SyncEngine::instance());
-    engine.rootContext()->setContextProperty(QStringLiteral("settings"), &SettingsManager::instance());
-    engine.rootContext()->setContextProperty(QStringLiteral("feedListModel"), feedListModel);
-    engine.rootContext()->setContextProperty(QStringLiteral("articleListModel"), articleListModel);
-    engine.rootContext()->setContextProperty(QStringLiteral("categoryListModel"), categoryListModel);
+    // Register context properties via AppController
+    appController.registerContextProperties(&engine);
 
     // 8. Load from explicit QRC path
-    const QUrl url(QStringLiteral("qrc:/ui/Main.qml"));
+    const QUrl url(QStringLiteral("qrc:/qt/qml/org/kde/kiriflux/Main.qml"));
     qDebug() << "Loading QML from:" << url;
     
     engine.load(url);
@@ -96,6 +81,7 @@ int main(int argc, char *argv[])
         qCritical() << "Failed to load QML root objects!";
         return -1;
     }
+
 
     qDebug() << "Kiriflux running.";
     return app.exec();

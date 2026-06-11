@@ -3,6 +3,7 @@
 find_package(KF6Config REQUIRED)
 
 set(kiriflux_core_SRCS
+    AppController.cpp
     DatabaseManager.cpp
     MinifluxClient.cpp
     SyncEngine.cpp
@@ -24,6 +25,7 @@ add_library(kiriflux_core STATIC ${kiriflux_core_SRCS})
 target_link_libraries(kiriflux_core PUBLIC
     Qt6::Core
     Qt6::Network
+    Qt6::Concurrent
     Qt6::Sql
     Qt6::Qml
     KF6::ConfigCore

@@ -70,6 +70,27 @@
       <min>32</min>
       <max>4096</max>
     </entry>
+    <entry name="LazyLoadingEnabled" type="Bool">
+      <label>Load articles in batches while scrolling to save memory</label>
+      <default>true</default>
+    </entry>
+    <entry name="LazyLoadingBatchSize" type="Int">
+      <label>Number of articles to load per batch</label>
+      <default>50</default>
+      <min>10</min>
+      <max>500</max>
+    </entry>
+    <entry name="AutoPruneEnabled" type="Bool">
+      <label>Automatically prune old read articles and vacuum database</label>
+      <default>true</default>
+    </entry>
+    <entry name="PruneAfterDays" type="Int">
+      <label>Number of days to keep read articles before deleting</label>
+      <default>7</default>
+    </entry>
+    <entry name="LastVacuumDate" type="DateTime">
+      <label>Last time the database was vacuumed</label>
+    </entry>
   </group>
   <group name="Reading">
     <entry name="MarkAsReadOnOpen" type="Bool">
@@ -82,6 +103,10 @@
     </entry>
     <entry name="UseReaderMode" type="Bool">
       <label>Use native Qt Text instead of Chromium WebView</label>
+      <default>false</default>
+    </entry>
+    <entry name="CloseReadingPaneOnReset" type="Bool">
+      <label>Close reading pane when switching filters or feeds</label>
       <default>false</default>
     </entry>
   </group>

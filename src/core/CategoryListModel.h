@@ -26,6 +26,9 @@ public slots:
     void refresh();
     void updateUnreadCounts();
 
+    Q_INVOKABLE int getNextCategoryId(int currentCategoryId) const;
+    Q_INVOKABLE int getPreviousCategoryId(int currentCategoryId) const;
+
 private:
     QList<Category> m_categories;
     QTimer m_unreadUpdateTimer;
