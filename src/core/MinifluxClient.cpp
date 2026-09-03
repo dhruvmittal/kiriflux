@@ -113,7 +113,7 @@ void MinifluxClient::fetchArticles(const QString& url, const QString& apiKey)
     // SYNC-3: Restored parallel fetching now that server availability is confirmed.
     // This maximizes throughput on stable connections.
     QStringList endpoints = {
-        QStringLiteral("/v1/entries?status=unread&order=published_at&direction=desc&limit=10000"),
+        QStringLiteral("/v1/entries?status=unread&order=published_at&direction=desc&limit=1000"),
         QStringLiteral("/v1/entries?starred=1&order=published_at&direction=desc&limit=1000")
     };
 
@@ -141,7 +141,12 @@ void MinifluxClient::fetchArticles(const QString& url, const QString& apiKey)
             if (reply->error() != QNetworkReply::NoError) {
                 if (!*hasError) {
                     *hasError = true;
-                    qCWarning(KIRIFLUX_SYNC) << "Article fetch error:" << reply->errorString();
+                    const QByteArray errorBody = reply->readAll();
+                    if (!errorBody.isEmpty()) {
+                        qCWarning(KIRIFLUX_SYNC) << "Article fetch error:" << reply->errorString() << "Body:" << errorBody;
+                    } else {
+                        qCWarning(KIRIFLUX_SYNC) << "Article fetch error:" << reply->errorString();
+                    }
                     emit errorOccurred(reply->errorString());
                 }
             } else {
