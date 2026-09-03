@@ -455,12 +455,12 @@ Kirigami.Page {
                     let highlightColor = root.themedHighlightColor;
                     let focusColor = root.themedFocusColor;
 
+                    let isDark = (Application.styleHints.colorScheme === Qt.Dark) || 
+                                 (Kirigami.Theme.backgroundColor.r + Kirigami.Theme.backgroundColor.g + Kirigami.Theme.backgroundColor.b) < 1.5;
+
                     if (Math.abs(textColor.r - bgColor.r) < 0.05 && 
                         Math.abs(textColor.g - bgColor.g) < 0.05 && 
                         Math.abs(textColor.b - bgColor.b) < 0.05) {
-                        
-                        let isDark = Kirigami.Theme.colorSet === Kirigami.Theme.Dark || 
-                                     (Kirigami.Theme.backgroundColor.r + Kirigami.Theme.backgroundColor.g + Kirigami.Theme.backgroundColor.b) < 1.5;
                         
                         if (isDark) {
                             textColor = "#ffffff"; bgColor = "#2a2e32"; alternateBgColor = "#31363b";
@@ -478,7 +478,7 @@ Kirigami.Page {
 
                     if (!webViewReady) return;
 
-                    let colorScheme = Kirigami.Theme.colorSet === Kirigami.Theme.Dark ? 'dark' : 'light';
+                    let colorScheme = isDark ? 'dark' : 'light';
 
                     runJavaScript(`
                         document.documentElement.style.setProperty('--color-scheme', '${colorScheme}');
@@ -493,6 +493,15 @@ Kirigami.Page {
                 Connections {
                     target: Kirigami.Theme
                     function onBackgroundColorChanged() {
+                        if (articleWebView.webViewReady) {
+                            articleWebView.updateTheme();
+                        }
+                    }
+                }
+
+                Connections {
+                    target: Application.styleHints
+                    function onColorSchemeChanged() {
                         if (articleWebView.webViewReady) {
                             articleWebView.updateTheme();
                         }
