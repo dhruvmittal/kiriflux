@@ -91,7 +91,8 @@ SyncEngine::SyncEngine(QObject *parent)
             }
             
             // Clean up local unread articles that are no longer unread on the server.
-            if (fetchedUnreadCount < 10000) {
+            // We only do this if we didn't hit the 1000 limit, meaning we received ALL unread articles.
+            if (fetchedUnreadCount < 1000) {
                 QList<Article> localUnread = DatabaseManager::instance().getAllArticles(ArticleStatus::Unread, false);
                 QList<qint64> toMarkRead;
                 for (const auto& local : localUnread) {

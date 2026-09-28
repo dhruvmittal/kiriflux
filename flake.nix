@@ -42,6 +42,7 @@
             qtdeclarative
             qtsvg
             kirigami
+            qqc2-desktop-style
             qqc2-breeze-style
             kconfig
             ki18n
@@ -73,6 +74,7 @@
               --set QTWEBENGINE_RESOURCES_PATH "${pkgs.kdePackages.qtwebengine}/resources" \
               --set QTWEBENGINE_LOCALES_PATH "${pkgs.kdePackages.qtwebengine}/translations/qtwebengine_locales" \
               --prefix QML2_IMPORT_PATH : "${kirigamiQml}" \
+              --prefix QML2_IMPORT_PATH : "${pkgs.kdePackages.qqc2-desktop-style}/lib/qt-6/qml" \
               --prefix QML2_IMPORT_PATH : "${pkgs.kdePackages.qqc2-breeze-style}/lib/qt-6/qml" \
               --prefix QML2_IMPORT_PATH : "${pkgs.kdePackages.kitemmodels}/lib/qt-6/qml" \
               --prefix QML2_IMPORT_PATH : "${pkgs.kdePackages.qtdeclarative}/lib/qt-6/qml" \
@@ -84,7 +86,7 @@
               --prefix XDG_DATA_DIRS : "${pkgs.kdePackages.breeze-icons}/share" \
               --prefix XDG_DATA_DIRS : "$out/share" \
               --set QT_QPA_PLATFORMTHEME "kde" \
-              --set QT_QUICK_CONTROLS_STYLE "org.kde.breeze"
+              --set QT_QUICK_CONTROLS_STYLE "org.kde.desktop"
           '';
         };
 
@@ -122,11 +124,11 @@
         # Mirror the postInstall wrapper environment for dev builds
         shellHook = ''
           export QML_DISABLE_DISK_CACHE=1
-          export QML2_IMPORT_PATH="${kirigamiQml}:${pkgs.kdePackages.qqc2-breeze-style}/lib/qt-6/qml:${pkgs.kdePackages.kitemmodels}/lib/qt-6/qml:${pkgs.kdePackages.qtdeclarative}/lib/qt-6/qml:${pkgs.kdePackages.qtwebengine}/lib/qt-6/qml"
+          export QML2_IMPORT_PATH="${kirigamiQml}:${pkgs.kdePackages.qqc2-desktop-style}/lib/qt-6/qml:${pkgs.kdePackages.qqc2-breeze-style}/lib/qt-6/qml:${pkgs.kdePackages.kitemmodels}/lib/qt-6/qml:${pkgs.kdePackages.qtdeclarative}/lib/qt-6/qml:${pkgs.kdePackages.qtwebengine}/lib/qt-6/qml"
           export QT_PLUGIN_PATH="${pkgs.kdePackages.qtbase}/lib/qt-6/plugins:${pkgs.kdePackages.plasma-integration}/lib/qt-6/plugins:${pkgs.kdePackages.breeze}/lib/qt-6/plugins"
           export XDG_DATA_DIRS="${pkgs.kdePackages.kirigami}/share:${pkgs.kdePackages.breeze-icons}/share:$XDG_DATA_DIRS"
           export QT_QPA_PLATFORMTHEME="kde"
-          export QT_QUICK_CONTROLS_STYLE="org.kde.breeze"
+          export QT_QUICK_CONTROLS_STYLE="org.kde.desktop"
           echo "Kiriflux dev shell ready. Run: cmake -B build -G Ninja -DNIX_BUILD=ON && cmake --build build"
         '';
       };

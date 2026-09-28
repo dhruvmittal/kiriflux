@@ -39,7 +39,9 @@ int main(int argc, char *argv[])
     app.setWindowIcon(QIcon(":/icons/org.kde.kiriflux.svg"));
     
     KLocalizedString::setApplicationDomain("kiriflux");
-    QQuickStyle::setStyle(QStringLiteral("org.kde.desktop"));
+    if (qEnvironmentVariableIsEmpty("QT_QUICK_CONTROLS_STYLE")) {
+        QQuickStyle::setStyle(QStringLiteral("org.kde.desktop"));
+    }
 
     // 3. KDE framework metadata
     KAboutData about(
