@@ -13,6 +13,7 @@ class ImagePrefetchTest : public QObject
 
 private slots:
     void initTestCase() {
+        QStandardPaths::setTestModeEnabled(true);
         QCoreApplication::setApplicationName("ImagePrefetchTest");
     }
 

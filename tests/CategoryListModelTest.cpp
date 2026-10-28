@@ -15,6 +15,7 @@ private:
 
 void CategoryListModelTest::initTestCase()
 {
+    QStandardPaths::setTestModeEnabled(true);
     DatabaseManager::instance().initWithPath(QStringLiteral(":memory:"));
     
     Category c1{1, "C1", 10};

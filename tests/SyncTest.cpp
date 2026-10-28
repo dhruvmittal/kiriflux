@@ -24,6 +24,7 @@ private:
 
 void SyncTest::initTestCase()
 {
+    QStandardPaths::setTestModeEnabled(true);
     QVERIFY(DatabaseManager::instance().init());
 }
 
@@ -65,6 +66,10 @@ void SyncTest::testRealConnection()
 
 void SyncTest::testEndToEndSync()
 {
+    if (SettingsManager::instance().apiKey().isEmpty()) {
+        QSKIP("No secrets provided, skipping end-to-end sync test.");
+    }
+
     // Verify that database now has feeds
     auto feeds = DatabaseManager::instance().getAllFeeds();
     QVERIFY(feeds.count() > 0);

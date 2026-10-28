@@ -12,6 +12,7 @@ class AppControllerTest : public QObject
 
 private slots:
     void initTestCase() {
+        QStandardPaths::setTestModeEnabled(true);
         QCoreApplication::setApplicationName("AppControllerTest");
         DatabaseManager::instance().initWithPath(QStringLiteral(":memory:"));
     }

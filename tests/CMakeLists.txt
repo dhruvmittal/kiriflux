@@ -103,3 +103,18 @@ target_link_libraries(ImagePrefetchTest PRIVATE
     Qt6::Test
 )
 add_test(NAME ImagePrefetchTest COMMAND ImagePrefetchTest)
+
+set_tests_properties(
+    DatabaseManagerTest
+    AppControllerTest
+    ArticleListModelTest
+    FeedListModelTest
+    CategoryListModelTest
+    SyncTest
+    BatchSyncTest
+    NetworkConcurrencyTest
+    SettingsManagerTest
+    NetworkManagerTest
+    ImagePrefetchTest
+    PROPERTIES ENVIRONMENT "XDG_CONFIG_HOME=${CMAKE_CURRENT_BINARY_DIR}/test-config;XDG_DATA_HOME=${CMAKE_CURRENT_BINARY_DIR}/test-data"
+)

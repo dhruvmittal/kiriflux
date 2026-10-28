@@ -32,6 +32,7 @@ private:
 
 void ArticleListModelTest::initTestCase()
 {
+    QStandardPaths::setTestModeEnabled(true);
     // Initialize DB in memory
     DatabaseManager::instance().initWithPath(QStringLiteral(":memory:"));
 }

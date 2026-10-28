@@ -9,6 +9,10 @@ class NetworkConcurrencyTest : public QObject
     Q_OBJECT
 
 private slots:
+    void initTestCase() {
+        QStandardPaths::setTestModeEnabled(true);
+    }
+
     // This test simulates the CURRENT problematic behavior
     void testUnthrottledBurst() {
         QNetworkAccessManager nam;
