@@ -172,6 +172,7 @@ void ArticleListModelTest::testGetByIdEdgeCases()
     QVariantMap map = model.getById(1);
     QVERIFY(!map.isEmpty());
     QCOMPARE(map["title"].toString(), QString("A1"));
+    QCOMPARE(map["status"].toString(), QStringLiteral("unread"));
     
     // Non-existent ID
     QVariantMap map2 = model.getById(999);
@@ -182,6 +183,11 @@ void ArticleListModelTest::testGetByIdEdgeCases()
     QVariantMap fallbackMap = model.getById(1); // A1 is in DB, not in model
     QCOMPARE(fallbackMap["title"].toString(), QStringLiteral("A1"));
     QCOMPARE(fallbackMap["isRead"].toBool(), false);
+    QCOMPARE(fallbackMap["status"].toString(), QStringLiteral("unread"));
+
+    QVariantMap fallbackReadMap = model.getById(2); // A2 is in DB, read
+    QCOMPARE(fallbackReadMap["isRead"].toBool(), true);
+    QCOMPARE(fallbackReadMap["status"].toString(), QStringLiteral("read"));
 }
 
 void ArticleListModelTest::testCategoryFilter()

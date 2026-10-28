@@ -170,6 +170,9 @@ void MinifluxClient::fetchArticles(const QString& url, const QString& apiKey)
             }
             
             if (*pendingRequests == 0) {
+                if (*hasError) {
+                    return;
+                }
                 QList<Article> deduped;
                 QSet<qint64> seen;
                 for (const auto& a : *allArticles) {

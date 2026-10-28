@@ -431,7 +431,9 @@ QVariantMap ArticleListModel::getById(qint64 id) const
         res["content"] = article->content;
         res["url"] = article->url;
         res["publishedAt"] = article->publishedAt;
-        res["status"] = static_cast<int>(article->status);
+        res["status"] = (article->status == ArticleStatus::Read) ? QStringLiteral("read")
+                      : (article->status == ArticleStatus::Removed) ? QStringLiteral("removed")
+                      : QStringLiteral("unread");
         res["starred"] = article->starred;
         res["isRead"] = article->status == ArticleStatus::Read;
         res["feedTitle"] = article->feedTitle;
