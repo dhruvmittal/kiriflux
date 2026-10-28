@@ -246,11 +246,15 @@ Kirigami.Page {
                         
                         if (topIndex > 0) {
                             // Any item with index < topIndex has scrolled out of view at the top 
+                            let unreadIds = [];
                             for (let i = 0; i < topIndex; i++) {
                                 let modelItem = articleListModel.get(i);
                                 if (modelItem && modelItem.status === "unread") {
-                                    articleListModel.markAsRead(i, true);
+                                    unreadIds.push(modelItem.id);
                                 }
+                            }
+                            if (unreadIds.length > 0) {
+                                articleListModel.markArticlesAsReadByIds(unreadIds, true);
                             }
                         }
                     }

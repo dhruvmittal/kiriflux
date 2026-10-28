@@ -19,6 +19,7 @@ private slots:
     void testGetMap();
     void testFeedSwitching();
     void testMarkAllAsRead();
+    void testMarkArticlesAsReadByIds();
     void testGetByIdEdgeCases();
     void testCategoryFilter();
     void testArticleContentUpdated();
@@ -161,6 +162,26 @@ void ArticleListModelTest::testMarkAllAsRead()
     // Now they shouldn't show up in unread filter if we refresh (force hard reset to bypass evaporation guard)
     model.refresh(true);
     QCOMPARE(model.rowCount(), 0);
+}
+
+void ArticleListModelTest::testMarkArticlesAsReadByIds()
+{
+    ArticleListModel model;
+    model.setFilterStatus("all");
+    model.setFilterStarred(false);
+
+    QSignalSpy spy(&model, &ArticleListModel::dataChanged);
+    model.markArticlesAsReadByIds({1, 3}, true);
+
+    // Both A1 (id 1) and A3 (id 3) should have had dataChanged emitted
+    QCOMPARE(spy.count(), 2);
+
+    auto dbA1 = DatabaseManager::instance().getArticleById(1);
+    auto dbA3 = DatabaseManager::instance().getArticleById(3);
+    QVERIFY(dbA1.has_value());
+    QVERIFY(dbA3.has_value());
+    QCOMPARE(dbA1->status, ArticleStatus::Read);
+    QCOMPARE(dbA3->status, ArticleStatus::Read);
 }
 
 void ArticleListModelTest::testGetByIdEdgeCases()

@@ -86,18 +86,30 @@ void ArticleListModel::markAsRead(int index, bool read)
 
 void ArticleListModel::markAsReadById(qint64 id, bool read)
 {
-    qDebug() << "ArticleListModel::markAsReadById" << id << read;
-    DatabaseManager::instance().markAsRead(id, read);
-    
-    SyncEngine::instance().enqueueMarkAsRead(id);
-    
-    // Find and update local list for immediate UI feedback
+    markArticlesAsReadByIds({id}, read);
+}
+
+void ArticleListModel::markArticlesAsReadByIds(const QList<qint64>& ids, bool read)
+{
+    if (ids.isEmpty()) return;
+
+    DatabaseManager::instance().markArticlesAsRead(ids, read);
+
+    if (read) {
+        for (qint64 id : ids) {
+            SyncEngine::instance().enqueueMarkAsRead(id);
+        }
+    } else {
+        SyncEngine::instance().updateArticlesStatus(ids, QStringLiteral("unread"));
+    }
+
+    QSet<qint64> idSet(ids.begin(), ids.end());
+    ArticleStatus targetStatus = read ? ArticleStatus::Read : ArticleStatus::Unread;
     for (int i = 0; i < m_articles.count(); ++i) {
-        if (m_articles.at(i).id == id) {
-            m_articles[i].status = read ? ArticleStatus::Read : ArticleStatus::Unread;
+        if (idSet.contains(m_articles.at(i).id)) {
+            m_articles[i].status = targetStatus;
             QModelIndex qidx = this->index(i, 0);
             emit dataChanged(qidx, qidx, {StatusRole});
-            break;
         }
     }
 }

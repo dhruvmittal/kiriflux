@@ -59,6 +59,7 @@ public slots:
     void onArticleContentUpdated(qint64 id);
     void markAsRead(int index, bool read);
     void markAsReadById(qint64 id, bool read);
+    void markArticlesAsReadByIds(const QList<qint64>& ids, bool read = true);
     void markAllAsRead();
     void toggleStarred(int index);
     void toggleStarredById(qint64 id);
