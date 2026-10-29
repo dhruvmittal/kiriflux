@@ -146,15 +146,29 @@ void ArticleListModel::setFilterStarred(bool starred)
 
 void ArticleListModel::markAllAsRead()
 {
-    QList<qint64> unreadIds;
+    QList<Article> unreadArticles;
+    if (m_currentFeedId != -1) {
+        unreadArticles = DatabaseManager::instance().getArticlesForFeed(m_currentFeedId, ArticleStatus::Unread, m_filterStarred);
+    } else if (m_currentCategoryId != -1) {
+        unreadArticles = DatabaseManager::instance().getArticlesForCategory(m_currentCategoryId, ArticleStatus::Unread, m_filterStarred);
+    } else {
+        unreadArticles = DatabaseManager::instance().getAllArticles(ArticleStatus::Unread, m_filterStarred);
+    }
+
+    QSet<qint64> unreadSet;
+    unreadSet.reserve(unreadArticles.size() + m_articles.size());
+    for (const auto& a : unreadArticles) {
+        unreadSet.insert(a.id);
+    }
     for (const auto& a : m_articles) {
         if (a.status == ArticleStatus::Unread) {
-            unreadIds.append(a.id);
+            unreadSet.insert(a.id);
         }
     }
 
-    if (unreadIds.isEmpty()) return;
+    if (unreadSet.isEmpty()) return;
 
+    QList<qint64> unreadIds(unreadSet.begin(), unreadSet.end());
     DatabaseManager::instance().markArticlesAsRead(unreadIds, true);
     SyncEngine::instance().updateArticlesStatus(unreadIds, QStringLiteral("read"));
 
@@ -165,6 +179,10 @@ void ArticleListModel::markAllAsRead()
             QModelIndex qidx = index(i, 0);
             emit dataChanged(qidx, qidx, {StatusRole});
         }
+    }
+
+    if (Settings::self()->lazyLoadingEnabled() && m_filterStatus == QStringLiteral("unread")) {
+        m_totalAvailableCount = m_articles.size();
     }
 }
 

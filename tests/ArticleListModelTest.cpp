@@ -19,6 +19,7 @@ private slots:
     void testGetMap();
     void testFeedSwitching();
     void testMarkAllAsRead();
+    void testMarkAllAsReadLazyLoading();
     void testMarkArticlesAsReadByIds();
     void testGetByIdEdgeCases();
     void testCategoryFilter();
@@ -163,6 +164,55 @@ void ArticleListModelTest::testMarkAllAsRead()
     // Now they shouldn't show up in unread filter if we refresh (force hard reset to bypass evaporation guard)
     model.refresh(true);
     QCOMPARE(model.rowCount(), 0);
+}
+
+void ArticleListModelTest::testMarkAllAsReadLazyLoading()
+{
+    bool prevLazy = Settings::self()->lazyLoadingEnabled();
+    int prevBatch = Settings::self()->lazyLoadingBatchSize();
+
+    // In seedData(), there are 2 unread articles (id 1, id 3)
+    // Add 13 more unread articles so we have 15 unread in DB
+    QList<Article> extraArticles;
+    for (int i = 4; i <= 16; ++i) {
+        Article a;
+        a.id = i;
+        a.feedId = 10;
+        a.title = QString("A%1").arg(i);
+        a.status = ArticleStatus::Unread;
+        a.starred = false;
+        extraArticles.append(a);
+    }
+    DatabaseManager::instance().saveArticles(extraArticles);
+
+    Settings::self()->setLazyLoadingEnabled(true);
+    Settings::self()->setLazyLoadingBatchSize(10);
+
+    ArticleListModel model;
+    model.setFilterStatus("unread");
+    // Initial batch loaded in memory is only 10 articles
+    QCOMPARE(model.rowCount(), 10);
+    QVERIFY(model.canFetchMore(QModelIndex()));
+
+    // Mark all as read should mark all 15 articles in the database
+    model.markAllAsRead();
+
+    // Verify all articles in DB are now read
+    QList<Article> unreadInDb = DatabaseManager::instance().getAllArticles(ArticleStatus::Unread);
+    QCOMPARE(unreadInDb.size(), 0);
+
+    // Verify in-memory articles were marked read
+    for (int i = 0; i < model.rowCount(); ++i) {
+        QCOMPARE(model.data(model.index(i, 0), ArticleListModel::StatusRole).toString(), QStringLiteral("read"));
+    }
+
+    // Refreshing should show 0 unread
+    model.refresh(true);
+    QCOMPARE(model.rowCount(), 0);
+
+    // Restore settings
+    Settings::self()->setLazyLoadingEnabled(prevLazy);
+    Settings::self()->setLazyLoadingBatchSize(prevBatch);
 }
 
 void ArticleListModelTest::testMarkArticlesAsReadByIds()
