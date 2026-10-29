@@ -15,6 +15,7 @@ private:
 
 void FeedListModelTest::initTestCase()
 {
+    QStandardPaths::setTestModeEnabled(true);
     DatabaseManager::instance().initWithPath(QStringLiteral(":memory:"));
     DatabaseManager::instance().clearAllData();
     

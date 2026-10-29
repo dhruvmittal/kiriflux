@@ -18,6 +18,7 @@ private:
 
 void BatchSyncTest::initTestCase()
 {
+    QStandardPaths::setTestModeEnabled(true);
     // Setup minimal settings for requests
     SettingsManager::instance().setApiUrl("https://example.com");
     SettingsManager::instance().setApiKey("test-key");

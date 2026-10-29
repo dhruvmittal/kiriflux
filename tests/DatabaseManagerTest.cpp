@@ -29,6 +29,7 @@ private:
 
 void DatabaseManagerTest::initTestCase()
 {
+    QStandardPaths::setTestModeEnabled(true);
     // Use a file database so worker threads can access the same tables
     QString dbPath = QDir::tempPath() + "/kiriflux_test.db";
     QFile::remove(dbPath);

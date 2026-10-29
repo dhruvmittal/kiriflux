@@ -10,6 +10,7 @@ class NetworkManagerTest : public QObject
 
 private slots:
     void initTestCase() {
+        QStandardPaths::setTestModeEnabled(true);
         QCoreApplication::setApplicationName("NetworkManagerTest");
     }
 

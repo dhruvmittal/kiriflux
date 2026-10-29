@@ -19,6 +19,8 @@ private slots:
     void testGetMap();
     void testFeedSwitching();
     void testMarkAllAsRead();
+    void testMarkAllAsReadLazyLoading();
+    void testMarkArticlesAsReadByIds();
     void testGetByIdEdgeCases();
     void testCategoryFilter();
     void testArticleContentUpdated();
@@ -31,6 +33,7 @@ private:
 
 void ArticleListModelTest::initTestCase()
 {
+    QStandardPaths::setTestModeEnabled(true);
     // Initialize DB in memory
     DatabaseManager::instance().initWithPath(QStringLiteral(":memory:"));
 }
@@ -163,6 +166,75 @@ void ArticleListModelTest::testMarkAllAsRead()
     QCOMPARE(model.rowCount(), 0);
 }
 
+void ArticleListModelTest::testMarkAllAsReadLazyLoading()
+{
+    bool prevLazy = Settings::self()->lazyLoadingEnabled();
+    int prevBatch = Settings::self()->lazyLoadingBatchSize();
+
+    // In seedData(), there are 2 unread articles (id 1, id 3)
+    // Add 13 more unread articles so we have 15 unread in DB
+    QList<Article> extraArticles;
+    for (int i = 4; i <= 16; ++i) {
+        Article a;
+        a.id = i;
+        a.feedId = 10;
+        a.title = QString("A%1").arg(i);
+        a.status = ArticleStatus::Unread;
+        a.starred = false;
+        extraArticles.append(a);
+    }
+    DatabaseManager::instance().saveArticles(extraArticles);
+
+    Settings::self()->setLazyLoadingEnabled(true);
+    Settings::self()->setLazyLoadingBatchSize(10);
+
+    ArticleListModel model;
+    model.setFilterStatus("unread");
+    // Initial batch loaded in memory is only 10 articles
+    QCOMPARE(model.rowCount(), 10);
+    QVERIFY(model.canFetchMore(QModelIndex()));
+
+    // Mark all as read should mark all 15 articles in the database
+    model.markAllAsRead();
+
+    // Verify all articles in DB are now read
+    QList<Article> unreadInDb = DatabaseManager::instance().getAllArticles(ArticleStatus::Unread);
+    QCOMPARE(unreadInDb.size(), 0);
+
+    // Verify in-memory articles were marked read
+    for (int i = 0; i < model.rowCount(); ++i) {
+        QCOMPARE(model.data(model.index(i, 0), ArticleListModel::StatusRole).toString(), QStringLiteral("read"));
+    }
+
+    // Refreshing should show 0 unread
+    model.refresh(true);
+    QCOMPARE(model.rowCount(), 0);
+
+    // Restore settings
+    Settings::self()->setLazyLoadingEnabled(prevLazy);
+    Settings::self()->setLazyLoadingBatchSize(prevBatch);
+}
+
+void ArticleListModelTest::testMarkArticlesAsReadByIds()
+{
+    ArticleListModel model;
+    model.setFilterStatus("all");
+    model.setFilterStarred(false);
+
+    QSignalSpy spy(&model, &ArticleListModel::dataChanged);
+    model.markArticlesAsReadByIds({1, 3}, true);
+
+    // Both A1 (id 1) and A3 (id 3) should have had dataChanged emitted
+    QCOMPARE(spy.count(), 2);
+
+    auto dbA1 = DatabaseManager::instance().getArticleById(1);
+    auto dbA3 = DatabaseManager::instance().getArticleById(3);
+    QVERIFY(dbA1.has_value());
+    QVERIFY(dbA3.has_value());
+    QCOMPARE(dbA1->status, ArticleStatus::Read);
+    QCOMPARE(dbA3->status, ArticleStatus::Read);
+}
+
 void ArticleListModelTest::testGetByIdEdgeCases()
 {
     ArticleListModel model;
@@ -172,6 +244,7 @@ void ArticleListModelTest::testGetByIdEdgeCases()
     QVariantMap map = model.getById(1);
     QVERIFY(!map.isEmpty());
     QCOMPARE(map["title"].toString(), QString("A1"));
+    QCOMPARE(map["status"].toString(), QStringLiteral("unread"));
     
     // Non-existent ID
     QVariantMap map2 = model.getById(999);
@@ -182,6 +255,11 @@ void ArticleListModelTest::testGetByIdEdgeCases()
     QVariantMap fallbackMap = model.getById(1); // A1 is in DB, not in model
     QCOMPARE(fallbackMap["title"].toString(), QStringLiteral("A1"));
     QCOMPARE(fallbackMap["isRead"].toBool(), false);
+    QCOMPARE(fallbackMap["status"].toString(), QStringLiteral("unread"));
+
+    QVariantMap fallbackReadMap = model.getById(2); // A2 is in DB, read
+    QCOMPARE(fallbackReadMap["isRead"].toBool(), true);
+    QCOMPARE(fallbackReadMap["status"].toString(), QStringLiteral("read"));
 }
 
 void ArticleListModelTest::testCategoryFilter()

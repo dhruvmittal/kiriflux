@@ -8,14 +8,22 @@ class SettingsManagerTest : public QObject
 
 private slots:
     void initTestCase() {
+        QStandardPaths::setTestModeEnabled(true);
         QCoreApplication::setApplicationName("SettingsManagerTest");
+        QString testConfig = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) + QStringLiteral("/kirifluxrc");
+        QFile::remove(testConfig);
+    }
+
+    void cleanupTestCase() {
+        QString testConfig = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) + QStringLiteral("/kirifluxrc");
+        QFile::remove(testConfig);
     }
 
     void testDefaultValues() {
         SettingsManager settings;
         // Verify some defaults from kcfg
         QVERIFY(settings.syncInterval() > 0);
-        QVERIFY(!settings.apiUrl().isEmpty() || settings.apiUrl() == "https://miniflux.example.com");
+        QVERIFY(settings.apiUrl().isEmpty() || settings.apiUrl() == "https://miniflux.example.com");
         QVERIFY(settings.titleLines() >= 1);
         QVERIFY(settings.leftPaneWidth() > 0);
         QVERIFY(settings.centerPaneWidth() > 0);
