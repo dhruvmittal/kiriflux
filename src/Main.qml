@@ -17,9 +17,40 @@ Kirigami.ApplicationWindow {
     minimumWidth: layoutMode === 1 ? 320 : 900
     minimumHeight: layoutMode === 1 ? 400 : 600
 
-    // ── Preferences Dialog ─────────────────────────────────────────
+    // ── Preferences & About Dialogs ────────────────────────────────
     SettingsPage {
         id: settingsDialog
+    }
+
+    QQC2.Dialog {
+        id: aboutDialog
+        title: i18n("About Kiriflux")
+        modal: true
+        standardButtons: QQC2.Dialog.Close
+        width: 520
+        anchors.centerIn: parent
+
+        Kirigami.AboutItem {
+            width: parent.width
+            getInvolvedUrl: ""
+            donateUrl: ""
+            aboutData: ({
+                displayName: "Kiriflux",
+                productName: "kiriflux",
+                componentName: "kiriflux",
+                shortDescription: i18n("A desktop-first RSS reader for Miniflux"),
+                homepage: "https://github.com",
+                bugAddress: "",
+                version: Qt.application.version,
+                otherText: "",
+                authors: [{ name: i18n("Kiriflux Team"), task: "", emailAddress: "", webAddress: "https://github.com", ocsUsername: "" }],
+                credits: [],
+                translators: [],
+                licenses: [{ name: "GPL v3", text: "", spdx: "GPL-3.0-or-later" }],
+                copyrightStatement: i18n("© 2026 Kiriflux Contributors"),
+                desktopFileName: "org.kde.kiriflux"
+            })
+        }
     }
 
     Connections {
@@ -133,16 +164,6 @@ Kirigami.ApplicationWindow {
         }
 
         Platform.Menu {
-            title: i18n("&Edit")
-            Platform.MenuItem {
-                text: i18n("&Preferences…")
-                icon.name: "settings-configure"
-                shortcut: "Ctrl+,"
-                onTriggered: settingsDialog.open()
-            }
-        }
-
-        Platform.Menu {
             title: i18n("&View")
 
             Platform.MenuItem {
@@ -208,6 +229,30 @@ Kirigami.ApplicationWindow {
                 }
             }
         }
+
+        Platform.Menu {
+            title: i18n("&Settings")
+            Platform.MenuItem {
+                text: i18n("&Configure Kiriflux…")
+                icon.name: "settings-configure"
+                shortcut: "Ctrl+Shift+,"
+                onTriggered: settingsDialog.open()
+            }
+        }
+
+        Platform.Menu {
+            title: i18n("&Help")
+            Platform.MenuItem {
+                text: i18n("&About Kiriflux")
+                icon.name: "help-about"
+                onTriggered: aboutDialog.open()
+            }
+        }
+    }
+
+    Shortcut {
+        sequence: "Ctrl+,"
+        onActivated: settingsDialog.open()
     }
 
     // ── Global Drawer (Left Pane: Feeds) ───────────────────────────

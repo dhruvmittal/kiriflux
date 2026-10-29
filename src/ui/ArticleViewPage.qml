@@ -116,51 +116,64 @@ Kirigami.Page {
         Kirigami.Action {
             text: root.isUnread ? i18n("Mark Read") : i18n("Mark Unread")
             icon.name: root.isUnread ? "mail-mark-read" : "mail-mark-unread"
+            enabled: root.articleId !== null
             onTriggered: {
                 if (root.articleId !== null) {
                     articleListModel.markAsReadById(root.articleId, root.isUnread)
                     root.isUnread = !root.isUnread
                 }
             }
-            displayHint: (settings && settings.showToolbarLabels) ? 0 : 1
+            displayHint: (settings && settings.showToolbarLabels) ? Kirigami.DisplayHint.NoPreference : Kirigami.DisplayHint.IconOnly
         },
         Kirigami.Action {
             text: i18n("Star")
             icon.name: "favorite"
+            enabled: root.articleId !== null
             onTriggered: {
                 if (root.articleId !== null) {
                     articleListModel.toggleStarredById(root.articleId)
                 }
             }
-            displayHint: (settings && settings.showToolbarLabels) ? 0 : 1
+            displayHint: (settings && settings.showToolbarLabels) ? Kirigami.DisplayHint.NoPreference : Kirigami.DisplayHint.IconOnly
         },
         Kirigami.Action {
             text: i18n("Full Content")
-            icon.name: "document-import"
+            icon.name: "download"
+            enabled: root.articleId !== null
             onTriggered: {
                 if (root.articleId !== null && syncEngine) {
                     syncEngine.fetchFullContent(root.articleId)
                 }
             }
-            displayHint: (settings && settings.showToolbarLabels) ? 0 : 1
+            displayHint: (settings && settings.showToolbarLabels) ? Kirigami.DisplayHint.NoPreference : Kirigami.DisplayHint.IconOnly
         },
         Kirigami.Action {
             text: i18n("Open Browser")
-            icon.name: "internet-services"
+            icon.name: "globe"
+            enabled: root.articleId !== null
             onTriggered: {
                 if (root.articleUrl) {
                     Qt.openUrlExternally(root.articleUrl)
                 }
             }
-            displayHint: (settings && settings.showToolbarLabels) ? 0 : 1
+            displayHint: (settings && settings.showToolbarLabels) ? Kirigami.DisplayHint.NoPreference : Kirigami.DisplayHint.IconOnly
         }
     ]
+
+    Kirigami.PlaceholderMessage {
+        anchors.centerIn: parent
+        width: parent.width - Kirigami.Units.largeSpacing * 4
+        visible: root.articleId === null
+        icon.name: "news-subscribe"
+        text: i18n("Select an article to read")
+    }
 
     // ── Native Reader Mode (Lightweight, No Chromium) ──────────────────
     Loader {
         id: readerModeLoader
         anchors.fill: parent
         active: settings ? settings.useReaderMode : false
+        visible: root.articleId !== null
         sourceComponent: Component {
             QQC2.ScrollView {
                 id: readerScroll
@@ -170,7 +183,7 @@ Kirigami.Page {
                 readonly property alias nativeTextItem: nativeText
 
                 property var updateContent: function() {
-                    let dateStr = root.publishedAt ? new Date(root.publishedAt).toLocaleString(Qt.locale()) : "";
+                    let dateStr = root.publishedAt ? new Date(root.publishedAt).toLocaleString(Qt.locale(), Locale.ShortFormat) : "";
                     let metadata = (root.feedTitle ? root.feedTitle : "") + 
                                    (root.feedTitle && root.author ? " • " : "") + 
                                    (root.author ? root.author : "") + 
@@ -336,6 +349,7 @@ Kirigami.Page {
         id: webViewLoader
         anchors.fill: parent
         active: settings ? !settings.useReaderMode : false
+        visible: root.articleId !== null
         sourceComponent: Component {
             WebEngineView {
                 id: articleWebView
@@ -389,7 +403,7 @@ Kirigami.Page {
                                     color: var(--text-color) !important; background-color: var(--bg-color) !important;
                                     margin: 0 auto; max-width: 800px;
                                 }
-                                .header { margin-bottom: 40px; border-bottom: 1px solid var(--alt-bg-color); padding-bottom: 20px; }
+                                .header { margin-bottom: 24px; border-bottom: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent); padding-bottom: 16px; }
                                 .title {
                                     font-family: "${(settings && settings.articleViewTitleFont) ? settings.articleViewTitleFont.family : 'sans-serif'}", sans-serif;
                                     font-size: ${(settings && settings.articleViewTitleFont && settings.articleViewTitleFont.pointSize > 0) ? settings.articleViewTitleFont.pointSize + "pt" : '18pt'};
@@ -512,7 +526,7 @@ Kirigami.Page {
                     if (!webViewReady) return;
 
                     if (root.articleContent || root.articleTitle) {
-                        let dateStr = root.publishedAt ? new Date(root.publishedAt).toLocaleString(Qt.locale()) : "";
+                        let dateStr = root.publishedAt ? new Date(root.publishedAt).toLocaleString(Qt.locale(), Locale.ShortFormat) : "";
                         let metadata = (root.feedTitle ? root.feedTitle : "") + 
                                        (root.feedTitle && root.author ? " • " : "") + 
                                        (root.author ? root.author : "") + 

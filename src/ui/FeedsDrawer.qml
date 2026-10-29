@@ -14,29 +14,63 @@ Kirigami.GlobalDrawer {
     modal: isMobile
     collapsed: false
 
-    title: "Kiriflux"
-
-    actions: [
-        Kirigami.Action {
-            text: i18n("Sync")
-            icon.name: "view-refresh"
-            onTriggered: syncEngine.forceSync()
-            tooltip: syncEngine.lastSyncTimeText
-            displayHint: (settings && settings.showToolbarLabels) ? 0 : 1
+    component UnreadBadge : Rectangle {
+        property int count: 0
+        property bool highlighted: false
+        visible: count > 0
+        implicitWidth: Math.max(20, badgeLabel.implicitWidth + 8)
+        implicitHeight: 16
+        radius: 8
+        color: highlighted ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.highlightColor
+        QQC2.Label {
+            id: badgeLabel
+            anchors.centerIn: parent
+            text: parent.count
+            font.pointSize: 9
+            font.bold: true
+            color: parent.highlighted ? Kirigami.Theme.highlightColor : Kirigami.Theme.highlightedTextColor
         }
-    ]
+    }
 
-    QQC2.ScrollView {
-        id: feedsScroll
+    header: Kirigami.AbstractApplicationHeader {
+        minimumHeight: applicationWindow()?.pageStack?.globalToolBar?.minimumHeight ?? (Kirigami.Units.iconSizes.medium + Kirigami.Units.smallSpacing * 2)
+        maximumHeight: applicationWindow()?.pageStack?.globalToolBar?.maximumHeight ?? minimumHeight
+        preferredHeight: applicationWindow()?.pageStack?.globalToolBar?.preferredHeight ?? minimumHeight
+        leftPadding: Kirigami.Units.largeSpacing
+        rightPadding: Kirigami.Units.mediumSpacing
+
+        contentItem: RowLayout {
+            anchors.fill: parent
+            spacing: Kirigami.Units.smallSpacing
+
+            Kirigami.Heading {
+                text: i18n("Kiriflux")
+                maximumLineCount: 1
+                elide: Text.ElideRight
+                Layout.fillWidth: true
+            }
+
+            Kirigami.ActionToolBar {
+                Layout.alignment: Qt.AlignVCenter
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                alignment: Qt.AlignRight
+                actions: [
+                    Kirigami.Action {
+                        text: i18n("Sync")
+                        icon.name: "view-refresh"
+                        onTriggered: syncEngine.forceSync()
+                        tooltip: syncEngine.lastSyncTimeText
+                        displayHint: (settings && settings.showToolbarLabels) ? Kirigami.DisplayHint.NoPreference : Kirigami.DisplayHint.IconOnly
+                    }
+                ]
+            }
+        }
+    }
+
+    ColumnLayout {
         Layout.fillWidth: true
-        Layout.fillHeight: true
-        contentWidth: availableWidth
-        QQC2.ScrollBar.horizontal.policy: QQC2.ScrollBar.AlwaysOff
-        clip: true
-
-        ColumnLayout {
-            width: feedsScroll.availableWidth
-            spacing: 0
+        spacing: 0
 
             // 1. All Articles
             QQC2.ItemDelegate {
@@ -54,16 +88,10 @@ Kirigami.GlobalDrawer {
                 }
             }
 
-            Kirigami.Separator { Layout.fillWidth: true; Layout.margins: Kirigami.Units.smallSpacing }
-
             // 2. Categories Section
-            QQC2.Label {
+            Kirigami.ListSectionHeader {
+                Layout.fillWidth: true
                 text: i18n("Categories")
-                font.family: (settings && settings.leftPaneFont) ? settings.leftPaneFont.family : ""
-                font.bold: true
-                opacity: 0.6
-                font.pointSize: (settings && settings.leftPaneFont && settings.leftPaneFont.pointSize > 0) ? Math.max(1, Math.floor(settings.leftPaneFont.pointSize * 0.7)) : 9
-                Layout.margins: Kirigami.Units.smallSpacing
             }
 
             Repeater {
@@ -105,24 +133,14 @@ Kirigami.GlobalDrawer {
                                 text: model.title
                                 Layout.fillWidth: true
                                 elide: Text.ElideRight
+                                font.bold: model.unreadCount > 0
                                 color: categoryDelegate.highlighted
                                     ? Kirigami.Theme.highlightedTextColor
                                     : Kirigami.Theme.textColor
                             }
-                            Rectangle {
-                                visible: model.unreadCount > 0
-                                implicitWidth: Math.max(20, catLabel.implicitWidth + 8)
-                                implicitHeight: 16
-                                radius: 8
-                                color: Kirigami.Theme.highlightColor
-                                QQC2.Label {
-                                    id: catLabel
-                                    anchors.centerIn: parent
-                                    text: model.unreadCount
-                                    font.pointSize: 9
-                                    font.bold: true
-                                    color: "white"
-                                }
+                            UnreadBadge {
+                                count: model.unreadCount
+                                highlighted: categoryDelegate.highlighted
                             }
                         }
                     }
@@ -153,20 +171,9 @@ Kirigami.GlobalDrawer {
                                         ? Kirigami.Theme.highlightedTextColor
                                         : Kirigami.Theme.textColor
                                 }
-                                Rectangle {
-                                    visible: model.unreadCount > 0
-                                    implicitWidth: Math.max(20, nestedLabel.implicitWidth + 8)
-                                    implicitHeight: 16
-                                    radius: 8
-                                    color: Kirigami.Theme.highlightColor
-                                    QQC2.Label {
-                                        id: nestedLabel
-                                        anchors.centerIn: parent
-                                        text: model.unreadCount
-                                        font.pointSize: 9
-                                        font.bold: true
-                                        color: "white"
-                                    }
+                                UnreadBadge {
+                                    count: model.unreadCount
+                                    highlighted: nestedFeedDelegate.highlighted
                                 }
                             }
                         }
@@ -174,16 +181,10 @@ Kirigami.GlobalDrawer {
                 }
             }
 
-            Kirigami.Separator { Layout.fillWidth: true; Layout.margins: Kirigami.Units.smallSpacing }
-
             // 3. Feeds Section (Flat list)
-            QQC2.Label {
+            Kirigami.ListSectionHeader {
+                Layout.fillWidth: true
                 text: i18n("Feeds")
-                font.family: (settings && settings.leftPaneFont) ? settings.leftPaneFont.family : ""
-                font.bold: true
-                opacity: 0.6
-                font.pointSize: (settings && settings.leftPaneFont && settings.leftPaneFont.pointSize > 0) ? Math.max(1, Math.floor(settings.leftPaneFont.pointSize * 0.7)) : 9
-                Layout.margins: Kirigami.Units.smallSpacing
             }
 
             Repeater {
@@ -214,24 +215,16 @@ Kirigami.GlobalDrawer {
                                 ? Kirigami.Theme.highlightedTextColor
                                 : Kirigami.Theme.textColor
                         }
-                        Rectangle {
-                            visible: model.unreadCount > 0
-                            implicitWidth: Math.max(20, cLabel.implicitWidth + 8)
-                            implicitHeight: 16
-                            radius: 8
-                            color: Kirigami.Theme.highlightColor
-                            QQC2.Label {
-                                id: cLabel
-                                anchors.centerIn: parent
-                                text: model.unreadCount
-                                font.pointSize: 9
-                                font.bold: true
-                                color: "white"
-                            }
+                        UnreadBadge {
+                            count: model.unreadCount
+                            highlighted: flatFeedDelegate.highlighted
                         }
                     }
                 }
             }
-        }
+
+            Item {
+                Layout.fillHeight: true
+            }
     }
 }

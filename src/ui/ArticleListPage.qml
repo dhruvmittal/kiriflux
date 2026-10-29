@@ -263,22 +263,25 @@ Kirigami.Page {
                     id: delegate
                     width: ListView.view.width
                     highlighted: ListView.isCurrentItem
+
+                    QQC2.ToolTip.visible: hovered && titleLabel.truncated
+                    QQC2.ToolTip.text: model.title
+                    QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
                     
                     onClicked: root.openArticle(index)
 
                     contentItem: RowLayout {
-                        spacing: Kirigami.Units.largeSpacing
+                        spacing: Kirigami.Units.mediumSpacing
 
-                        // 1. Prefix: Unread dot and Feed Icon (Fixed Width Gutter)
+                        // 1. Prefix: Unread dot and Feed Icon
                         RowLayout {
-                            Layout.preferredWidth: Kirigami.Units.gridUnit * 1.6
                             Layout.alignment: Qt.AlignTop
-                            Layout.topMargin: Kirigami.Units.smallSpacing // Align with first line of title
-                            spacing: 8
+                            Layout.topMargin: 2
+                            spacing: Kirigami.Units.smallSpacing
 
                             Rectangle {
                                 width: 8; height: 8; radius: 4
-                                color: Kirigami.Theme.highlightColor
+                                color: delegate.highlighted ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.highlightColor
                                 opacity: model.status === "unread" ? 1 : 0
                                 Layout.alignment: Qt.AlignVCenter
                             }
@@ -294,7 +297,7 @@ Kirigami.Page {
                         // 2. Content: Title and Metadata (Aligned)
                         ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: 4
+                            spacing: 2
 
                             QQC2.Label {
                                 id: titleLabel
@@ -311,19 +314,37 @@ Kirigami.Page {
                             }
 
                             QQC2.Label {
-                                text: (model.author ? model.author + " • " : "") + 
-                                      (model.publishedAt ? new Date(model.publishedAt).toLocaleString(Qt.locale(), "MMM d, hh:mm") : "")
+                                text: {
+                                    let parts = [];
+                                    if (articleListModel.currentFeedId === -1 && model.feedTitle)
+                                        parts.push(model.feedTitle);
+                                    if (model.author && model.author !== model.feedTitle)
+                                        parts.push(model.author);
+                                    if (model.publishedAt)
+                                        parts.push(new Date(model.publishedAt).toLocaleString(Qt.locale(), "MMM d, hh:mm"));
+                                    return parts.join(" • ");
+                                }
                                 font.family: (settings && settings.articleListInfoFont) ? settings.articleListInfoFont.family : ""
                                 font.pointSize: (settings && settings.articleListInfoFont && settings.articleListInfoFont.pointSize > 0) ? settings.articleListInfoFont.pointSize : -1
                                 font.weight: (settings && settings.articleListInfoFont) ? settings.articleListInfoFont.weight : Font.Normal
                                 font.italic: (settings && settings.articleListInfoFont) ? settings.articleListInfoFont.italic : false
-                                opacity: delegate.highlighted ? 1.0 : 0.6
+                                opacity: delegate.highlighted ? 0.85 : 0.65
                                 elide: Text.ElideRight
                                 Layout.fillWidth: true
                                 color: delegate.highlighted ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
                             }
                         }
                     }
+                }
+
+                Kirigami.PlaceholderMessage {
+                    anchors.centerIn: parent
+                    width: parent.width - Kirigami.Units.largeSpacing * 4
+                    visible: articleListView.count === 0
+                    icon.name: articleListModel.filterStarred ? "favorite" : "mail-mark-read"
+                    text: articleListModel.filterStarred
+                        ? i18n("No starred articles")
+                        : (articleListModel.filterStatus === "unread" ? i18n("No unread articles") : i18n("No articles"))
                 }
             }
         }
