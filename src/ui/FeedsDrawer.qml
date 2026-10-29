@@ -27,13 +27,15 @@ Kirigami.GlobalDrawer {
     ]
 
     QQC2.ScrollView {
+        id: feedsScroll
         Layout.fillWidth: true
         Layout.fillHeight: true
-        contentWidth: -1
+        contentWidth: availableWidth
+        QQC2.ScrollBar.horizontal.policy: QQC2.ScrollBar.AlwaysOff
         clip: true
 
         ColumnLayout {
-            width: parent.width
+            width: feedsScroll.availableWidth
             spacing: 0
 
             // 1. All Articles

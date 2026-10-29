@@ -219,7 +219,6 @@ Kirigami.Page {
 
             ListView {
                 id: articleListView
-                width: parent.width
                 model: articleListModel
                 currentIndex: -1
                 highlightFollowsCurrentItem: true
@@ -262,8 +261,7 @@ Kirigami.Page {
 
                 delegate: QQC2.ItemDelegate {
                     id: delegate
-                    width: articleListView.width
-                    padding: Kirigami.Units.largeSpacing
+                    width: ListView.view.width
                     highlighted: ListView.isCurrentItem
                     
                     onClicked: root.openArticle(index)

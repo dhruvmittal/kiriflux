@@ -44,12 +44,13 @@ QQC2.Dialog {
     }
 
     component SettingsPageContent : QQC2.ScrollView {
+        id: pageScroll
         default property alias content: innerLayout.data
         QQC2.ScrollBar.horizontal.policy: QQC2.ScrollBar.AlwaysOff
         contentWidth: availableWidth
         
         ColumnLayout {
-            width: parent.width
+            width: pageScroll.availableWidth
             spacing: 0
             
             Item { Layout.fillWidth: true; Layout.preferredHeight: Kirigami.Units.largeSpacing }
