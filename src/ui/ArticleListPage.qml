@@ -6,6 +6,7 @@ import org.kde.kirigami as Kirigami
 
 Kirigami.Page {
     id: root
+    property var articleViewPage: null
     
     padding: 0
     leftPadding: 0
@@ -111,8 +112,8 @@ Kirigami.Page {
                 }
             }
         } else {
-            // Push new page
-            applicationWindow().pageStack.push(Qt.resolvedUrl("ArticleViewPage.qml"), props);
+            // Push pre-instantiated page (avoids PageRow creating it under a QtObject parent)
+            applicationWindow().pageStack.push(root.articleViewPage ?? Qt.resolvedUrl("ArticleViewPage.qml"), props);
         }
 
         // Automatic Read Marking: On Open

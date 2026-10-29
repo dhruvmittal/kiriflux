@@ -27,29 +27,40 @@ Kirigami.ApplicationWindow {
         title: i18n("About Kiriflux")
         modal: true
         standardButtons: QQC2.Dialog.Close
-        width: 520
+        width: Math.min(root.width * 0.9, 540)
+        height: Math.min(root.height * 0.85, 580)
         anchors.centerIn: parent
 
-        Kirigami.AboutItem {
-            width: parent.width
-            getInvolvedUrl: ""
-            donateUrl: ""
-            aboutData: ({
-                displayName: "Kiriflux",
-                productName: "kiriflux",
-                componentName: "kiriflux",
-                shortDescription: i18n("A desktop-first RSS reader for Miniflux"),
-                homepage: "https://github.com",
-                bugAddress: "",
-                version: Qt.application.version,
-                otherText: "",
-                authors: [{ name: i18n("Kiriflux Team"), task: "", emailAddress: "", webAddress: "https://github.com", ocsUsername: "" }],
-                credits: [],
-                translators: [],
-                licenses: [{ name: "GPL v3", text: "", spdx: "GPL-3.0-or-later" }],
-                copyrightStatement: i18n("© 2026 Kiriflux Contributors"),
-                desktopFileName: "org.kde.kiriflux"
-            })
+        contentItem: QQC2.ScrollView {
+            id: aboutScroll
+            clip: true
+            contentWidth: availableWidth
+            QQC2.ScrollBar.horizontal.policy: QQC2.ScrollBar.AlwaysOff
+
+            Loader {
+                active: aboutDialog.opened
+                width: aboutScroll.availableWidth
+                sourceComponent: Kirigami.AboutItem {
+                    getInvolvedUrl: ""
+                    donateUrl: ""
+                    aboutData: ({
+                        displayName: "Kiriflux",
+                        productName: "kiriflux",
+                        componentName: "kiriflux",
+                        shortDescription: i18n("A desktop-first RSS reader for Miniflux"),
+                        homepage: "https://github.com",
+                        bugAddress: "",
+                        version: Qt.application.version,
+                        otherText: "",
+                        authors: [{ name: i18n("Kiriflux Team"), task: "", emailAddress: "", webAddress: "https://github.com", ocsUsername: "" }],
+                        credits: [],
+                        translators: [],
+                        licenses: [{ name: "GPL v3", text: "", spdx: "GPL-3.0-or-later" }],
+                        copyrightStatement: i18n("© 2026 Kiriflux Contributors"),
+                        desktopFileName: "org.kde.kiriflux"
+                    })
+                }
+            }
         }
     }
 
@@ -339,6 +350,12 @@ Kirigami.ApplicationWindow {
     // ── Pre-instantiated Pages ─────────────────────────────────────
     ArticleListPage {
         id: articleListPage
+        articleViewPage: articleViewPageInstance
+    }
+
+    ArticleViewPage {
+        id: articleViewPageInstance
+        visible: false
     }
 
     // ── Main Content (Middle Pane: Article List) ───────────────────
