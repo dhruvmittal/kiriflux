@@ -53,9 +53,47 @@ Kirigami.Page {
         clipboardHelper.copy();
     }
 
+    QQC2.Popup {
+        id: imageLightbox
+        parent: QQC2.Overlay.overlay
+        anchors.centerIn: parent
+        width: parent ? parent.width : root.width
+        height: parent ? parent.height : root.height
+        modal: true
+        focus: true
+        padding: Kirigami.Units.largeSpacing * 2
+        closePolicy: QQC2.Popup.CloseOnEscape | QQC2.Popup.CloseOnPressOutside
+        property url imageSource: ""
+
+        background: Rectangle {
+            color: Qt.rgba(0, 0, 0, 0.85)
+            MouseArea {
+                anchors.fill: parent
+                onClicked: imageLightbox.close()
+            }
+        }
+
+        contentItem: Image {
+            source: imageLightbox.imageSource
+            fillMode: Image.PreserveAspectFit
+            asynchronous: true
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: imageLightbox.close()
+            }
+
+            QQC2.BusyIndicator {
+                anchors.centerIn: parent
+                running: parent.status === Image.Loading
+            }
+        }
+    }
+
     QQC2.Menu {
         id: contextMenu
         property string linkUrl: ""
+        readonly property bool isImageLink: linkUrl.startsWith("kiriflux-img:")
 
         QQC2.MenuItem {
             text: i18n("Copy")
@@ -65,19 +103,44 @@ Kirigami.Page {
         }
 
         QQC2.MenuItem {
-            text: i18n("Copy Link Address")
+            text: contextMenu.isImageLink ? i18n("Copy Image Address") : i18n("Copy Link Address")
             icon.name: "edit-copy-url"
             visible: contextMenu.linkUrl !== ""
-            onTriggered: root.copyToClipboard(contextMenu.linkUrl)
+            onTriggered: root.copyToClipboard(contextMenu.isImageLink ? root.resolveImageUrl(contextMenu.linkUrl) : contextMenu.linkUrl)
         }
         
         QQC2.MenuSeparator { visible: contextMenu.linkUrl !== "" }
         
         QQC2.MenuItem {
-            text: i18n("Open Link in Browser")
+            text: contextMenu.isImageLink ? i18n("Open Image in Browser") : i18n("Open Link in Browser")
             icon.name: "internet-services"
             visible: contextMenu.linkUrl !== ""
-            onTriggered: Qt.openUrlExternally(contextMenu.linkUrl)
+            onTriggered: Qt.openUrlExternally(contextMenu.isImageLink ? root.resolveImageUrl(contextMenu.linkUrl) : contextMenu.linkUrl)
+        }
+    }
+
+    function resolveImageUrl(schemeUrl) {
+        let raw = decodeURIComponent(schemeUrl.slice("kiriflux-img:".length));
+        if (!raw) return "";
+        if (/^https?:\/\/|^data:/i.test(raw)) {
+            return raw;
+        }
+        if (raw.startsWith("//")) {
+            let scheme = (root.articleUrl && root.articleUrl.startsWith("http:")) ? "http:" : "https:";
+            return scheme + raw;
+        }
+        if (!root.articleUrl) {
+            return raw;
+        }
+        try {
+            return new URL(raw, root.articleUrl).href;
+        } catch (e) {
+            if (raw.startsWith("/")) {
+                let m = root.articleUrl.match(/^https?:\/\/[^\/]+/i);
+                return (m ? m[0] : "") + raw;
+            }
+            let base = root.articleUrl.replace(/\/[^\/]*$/, "/");
+            return base + raw;
         }
     }
 
@@ -182,6 +245,24 @@ Kirigami.Page {
                 
                 readonly property alias nativeTextItem: nativeText
 
+                function formatReaderHtml(html) {
+                    if (!html) return "<p style='color:#888; text-align:center;'>Select an article to read.</p>";
+                    let colWidth = Math.min(760, Math.max(100, (readerScroll.width > 0 ? readerScroll.width : root.width) - Kirigami.Units.largeSpacing * 4));
+                    let maxImgWidth = Math.max(160, Math.min(colWidth - Kirigami.Units.largeSpacing * 4, 520));
+                    return html.replace(/<img([^>]*)>/gi, function(match, attributes) {
+                        let srcMatch = attributes.match(/\bsrc=["']([^"']+)["']/i);
+                        let widthMatch = attributes.match(/\bwidth=["']?(\d+)(?:px)?["']?/i);
+                        let origWidth = widthMatch ? parseInt(widthMatch[1], 10) : 0;
+                        let targetWidth = (origWidth > 0 && origWidth < maxImgWidth) ? origWidth : maxImgWidth;
+                        let cleanAttrs = attributes.replace(/\b(width|height)=["'][^"']*["']/gi, "");
+                        let imgTag = `<img width="${targetWidth}" ${cleanAttrs}>`;
+                        if (srcMatch && srcMatch[1]) {
+                            imgTag = `<a href="kiriflux-img:${encodeURIComponent(srcMatch[1])}">${imgTag}</a>`;
+                        }
+                        return (origWidth > 0 && origWidth <= 64) ? imgTag : `<div align="center">${imgTag}</div>`;
+                    });
+                }
+
                 property var updateContent: function() {
                     let dateStr = root.publishedAt ? new Date(root.publishedAt).toLocaleString(Qt.locale(), Locale.ShortFormat) : "";
                     let metadata = (root.feedTitle ? root.feedTitle : "") + 
@@ -192,23 +273,7 @@ Kirigami.Page {
                     
                     nativeTitle.text = root.articleTitle;
                     nativeInfo.text = metadata;
-                    
-                    // We use availableWidth to account for the ScrollView's vertical scrollbar footprint.
-                    // An extra Kirigami.Units.largeSpacing * 12 ensures that inherent blockquote/paragraph indents completely safely center.
-                    let maxWidth = Math.max(100, readerScroll.availableWidth - Kirigami.Units.largeSpacing * 12);
-                    let processedHtml = root.articleContent;
-                    
-                    if (processedHtml) {
-                        // Simplified Responsive Scaling for QQuickText (RichText)
-                        processedHtml = processedHtml.replace(/<img([^>]*)>/gi, function(match, attributes) {
-                            let cleanAttrs = attributes.replace(/(width|height)=["'][^"']*["']/gi, "");
-                            // We use a simple div wrapper which is better handled by RichText than tables
-                            return `<div align="center"><img width="${maxWidth}" ${cleanAttrs}></div>`;
-                        });
-                    } else {
-                        processedHtml = "<p style='color:#888; text-align:center;'>Select an article to read.</p>";
-                    }
-                    nativeText.text = processedHtml;
+                    nativeText.text = formatReaderHtml(root.articleContent);
                     readerScroll.contentItem.contentY = 0;
                 }
 
@@ -220,10 +285,11 @@ Kirigami.Page {
 
                     RowLayout {
                         Layout.fillWidth: true
-                        Item { Layout.preferredWidth: Kirigami.Units.largeSpacing * 2 }
+                        Item { Layout.fillWidth: true; Layout.minimumWidth: Kirigami.Units.largeSpacing * 2 }
                         
                         ColumnLayout {
                             Layout.fillWidth: true
+                            Layout.maximumWidth: 760
                             spacing: Kirigami.Units.largeSpacing
 
                             TextEdit {
@@ -298,7 +364,14 @@ Kirigami.Page {
                                 color: root.themedTextColor
                                 wrapMode: TextEdit.WordWrap
                                 Layout.fillWidth: true
-                                onLinkActivated: (link) => Qt.openUrlExternally(link)
+                                onLinkActivated: (link) => {
+                                    if (link.startsWith("kiriflux-img:")) {
+                                        imageLightbox.imageSource = root.resolveImageUrl(link);
+                                        imageLightbox.open();
+                                    } else {
+                                        Qt.openUrlExternally(link);
+                                    }
+                                }
                                 
                                 MouseArea {
                                     anchors.fill: parent
@@ -318,7 +391,7 @@ Kirigami.Page {
                             Item { Layout.fillWidth: true; Layout.preferredHeight: Kirigami.Units.largeSpacing * 4 }
                         }
                         
-                        Item { Layout.preferredWidth: Kirigami.Units.largeSpacing * 2 }
+                        Item { Layout.fillWidth: true; Layout.minimumWidth: Kirigami.Units.largeSpacing * 2 }
                     }
                 }
                 
