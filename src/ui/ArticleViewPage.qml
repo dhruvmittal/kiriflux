@@ -259,7 +259,7 @@ Kirigami.Page {
                         if (srcMatch && srcMatch[1]) {
                             imgTag = `<a href="kiriflux-img:${encodeURIComponent(srcMatch[1])}">${imgTag}</a>`;
                         }
-                        return (origWidth > 0 && origWidth <= 64) ? imgTag : `<div align="center">${imgTag}</div>`;
+                        return (origWidth > 0 && origWidth <= 64) ? imgTag : `<table align="center" style="margin-top: 12px; margin-bottom: 12px;"><tr><td>${imgTag}</td></tr></table>`;
                     });
                 }
 
