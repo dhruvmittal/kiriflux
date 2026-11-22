@@ -322,7 +322,8 @@ Kirigami.Page {
                         let origWidth = widthMatch ? parseInt(widthMatch[1], 10) : 0;
                         let targetWidth = (origWidth > 0 && origWidth < maxImgWidth) ? origWidth : maxImgWidth;
                         let cleanAttrs = attributes.replace(/(^|\s)(?:width|height)=["'][^"']*["']/gi, "$1");
-                        let resolvedSrc = (srcMatch && srcMatch[1]) ? root.resolveImageUrl(srcMatch[1]) : "";
+                        let rawSrc = (srcMatch && srcMatch[1]) ? srcMatch[1].replace(/&amp;/gi, "&") : "";
+                        let resolvedSrc = rawSrc ? root.resolveImageUrl(rawSrc) : "";
                         if (resolvedSrc) {
                             let providerSrc = root.toProviderImageUrl(resolvedSrc);
                             cleanAttrs = cleanAttrs.replace(/(^|\s)src=["'][^"']*["']/i, `$1src="${providerSrc}"`);

@@ -19,17 +19,19 @@ private slots:
             "<img class='hero' src='https://cdn.example.com/b.png' />"
             "<img data-src=\"https://ignored.example.com/lazy.jpg\" src=\"/images/c.gif\">"
             "<img src=\"//media.example.com/d.webp\">"
+            "<img src=\"https://example.com/pic.jpg?w=400&amp;fit=crop\">"
             "<img src=\"https://cdn.example.com/a.jpg\">"
             "<img src=\"data:image/png;base64,iVBORw0KGgo=\">"
             "<img src=\"javascript:alert(1)\">"
             "</body></html>");
 
         const QList<QUrl> urls = SyncEngine::extractImageUrls(html, baseUrl);
-        QCOMPARE(urls.size(), 4);
+        QCOMPARE(urls.size(), 5);
         QCOMPARE(urls.at(0), QUrl(QStringLiteral("https://cdn.example.com/a.jpg")));
         QCOMPARE(urls.at(1), QUrl(QStringLiteral("https://cdn.example.com/b.png")));
         QCOMPARE(urls.at(2), QUrl(QStringLiteral("https://blog.example.com/images/c.gif")));
         QCOMPARE(urls.at(3), QUrl(QStringLiteral("https://media.example.com/d.webp")));
+        QCOMPARE(urls.at(4), QUrl(QStringLiteral("https://example.com/pic.jpg?w=400&fit=crop")));
     }
 };
 

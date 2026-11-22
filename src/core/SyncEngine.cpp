@@ -142,8 +142,9 @@ QList<QUrl> SyncEngine::extractImageUrls(const QString& html, const QUrl& baseUr
     QSet<QUrl> seen;
     auto it = imgRegex.globalMatch(html);
     while (it.hasNext()) {
-        const QString raw = it.next().captured(1).trimmed();
+        QString raw = it.next().captured(1).trimmed();
         if (raw.isEmpty()) continue;
+        raw.replace(QLatin1String("&amp;"), QLatin1String("&"), Qt::CaseInsensitive);
 
         const QUrl rawUrl(raw);
         const QUrl resolved = baseUrl.isValid() ? baseUrl.resolved(rawUrl) : rawUrl;
