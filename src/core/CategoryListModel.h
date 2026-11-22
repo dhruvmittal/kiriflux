@@ -2,7 +2,6 @@
 #pragma once
 
 #include <QAbstractListModel>
-#include <QtQml/qqmlregistration.h>
 #include <QTimer>
 #include "DatabaseManager.h"
 
@@ -26,10 +25,12 @@ public slots:
     void refresh();
     void updateUnreadCounts();
 
-    Q_INVOKABLE int getNextCategoryId(int currentCategoryId) const;
-    Q_INVOKABLE int getPreviousCategoryId(int currentCategoryId) const;
+    Q_INVOKABLE qint64 getNextCategoryId(qint64 currentCategoryId) const;
+    Q_INVOKABLE qint64 getPreviousCategoryId(qint64 currentCategoryId) const;
 
 private:
+    qint64 adjacentCategoryId(qint64 currentCategoryId, int delta) const;
+
     QList<Category> m_categories;
     QTimer m_unreadUpdateTimer;
 };

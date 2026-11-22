@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "CategoryListModel.h"
-
 #include "SyncEngine.h"
+#include <QHash>
 
 CategoryListModel::CategoryListModel(QObject *parent)
     : QAbstractListModel(parent)
@@ -10,7 +10,7 @@ CategoryListModel::CategoryListModel(QObject *parent)
     
     m_unreadUpdateTimer.setInterval(50);
     m_unreadUpdateTimer.setSingleShot(true);
-    connect(&DatabaseManager::instance(), &DatabaseManager::unreadCountsChanged, &m_unreadUpdateTimer, static_cast<void(QTimer::*)()>(&QTimer::start));
+    connect(&DatabaseManager::instance(), &DatabaseManager::unreadCountsChanged, &m_unreadUpdateTimer, qOverload<>(&QTimer::start));
     connect(&m_unreadUpdateTimer, &QTimer::timeout, this, &CategoryListModel::updateUnreadCounts);
     
     refresh();
@@ -18,17 +18,19 @@ CategoryListModel::CategoryListModel(QObject *parent)
 
 void CategoryListModel::updateUnreadCounts()
 {
-    auto newCategories = DatabaseManager::instance().getAllCategories();
+    const auto newCategories = DatabaseManager::instance().getAllCategories();
+    QHash<qint64, int> unreadById;
+    unreadById.reserve(newCategories.size());
+    for (const auto& newCategory : newCategories) {
+        unreadById.insert(newCategory.id, newCategory.unreadCount);
+    }
+
     for (int i = 0; i < m_categories.size(); ++i) {
-        for (const auto& newCategory : newCategories) {
-            if (m_categories[i].id == newCategory.id) {
-                if (m_categories[i].unreadCount != newCategory.unreadCount) {
-                    m_categories[i].unreadCount = newCategory.unreadCount;
-                    QModelIndex qidx = index(i, 0);
-                    emit dataChanged(qidx, qidx, {UnreadCountRole});
-                }
-                break;
-            }
+        auto it = unreadById.constFind(m_categories[i].id);
+        if (it != unreadById.constEnd() && m_categories[i].unreadCount != it.value()) {
+            m_categories[i].unreadCount = it.value();
+            const QModelIndex qidx = index(i, 0);
+            emit dataChanged(qidx, qidx, {UnreadCountRole});
         }
     }
 }
@@ -57,10 +59,11 @@ QVariant CategoryListModel::data(const QModelIndex &index, int role) const
 
 QHash<int, QByteArray> CategoryListModel::roleNames() const
 {
-    QHash<int, QByteArray> roles;
-    roles[IdRole] = "id";
-    roles[TitleRole] = "title";
-    roles[UnreadCountRole] = "unreadCount";
+    static const QHash<int, QByteArray> roles = {
+        {IdRole, "id"},
+        {TitleRole, "title"},
+        {UnreadCountRole, "unreadCount"}
+    };
     return roles;
 }
 
@@ -71,34 +74,31 @@ void CategoryListModel::refresh()
     endResetModel();
 }
 
-int CategoryListModel::getNextCategoryId(int currentCategoryId) const
+qint64 CategoryListModel::adjacentCategoryId(qint64 currentCategoryId, int delta) const
 {
     if (m_categories.isEmpty()) return -1;
-    if (currentCategoryId == -1) return m_categories.first().id;
-    
+    if (currentCategoryId == -1) {
+        return (delta > 0) ? m_categories.first().id : m_categories.last().id;
+    }
+
     for (int i = 0; i < m_categories.size(); ++i) {
         if (m_categories[i].id == currentCategoryId) {
-            if (i + 1 < m_categories.size()) {
-                return m_categories[i + 1].id;
+            const int target = i + delta;
+            if (target >= 0 && target < m_categories.size()) {
+                return m_categories[target].id;
             }
-            return -1; // End of list
+            return -1;
         }
     }
     return -1;
 }
 
-int CategoryListModel::getPreviousCategoryId(int currentCategoryId) const
+qint64 CategoryListModel::getNextCategoryId(qint64 currentCategoryId) const
 {
-    if (m_categories.isEmpty()) return -1;
-    if (currentCategoryId == -1) return m_categories.last().id;
-    
-    for (int i = 0; i < m_categories.size(); ++i) {
-        if (m_categories[i].id == currentCategoryId) {
-            if (i - 1 >= 0) {
-                return m_categories[i - 1].id;
-            }
-            return -1; // Top of list
-        }
-    }
-    return -1;
+    return adjacentCategoryId(currentCategoryId, 1);
+}
+
+qint64 CategoryListModel::getPreviousCategoryId(qint64 currentCategoryId) const
+{
+    return adjacentCategoryId(currentCategoryId, -1);
 }

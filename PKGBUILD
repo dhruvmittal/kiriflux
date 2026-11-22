@@ -15,7 +15,6 @@ depends=(
   'kdbusaddons'
   'ki18n'
   'kirigami'
-  'kxmlgui'
   'qt6-base'
   'qt6-declarative'
   'qt6-webengine'

@@ -2,7 +2,7 @@
 #include <QSignalSpy>
 #include "../src/core/SyncEngine.h"
 #include "../src/core/DatabaseManager.h"
-#include "../src/core/SettingsManager.h"
+#include "kiriflux.h"
 #include <QProcessEnvironment>
 
 #ifdef EXISTS_SECRETS
@@ -20,6 +20,7 @@ private slots:
     void testFetchFullContent();
 
 private:
+    bool m_hasSecrets = false;
 };
 
 void SyncTest::initTestCase()
@@ -46,9 +47,10 @@ void SyncTest::testRealConnection()
     if (apiKey.isEmpty()) {
         QSKIP("No secrets provided (via secrets.h or environment), skipping real connection test.");
     }
+    m_hasSecrets = true;
 
-    SettingsManager::instance().setApiUrl(apiUrl);
-    SettingsManager::instance().setApiKey(apiKey);
+    Settings::self()->setApiUrl(apiUrl);
+    Settings::self()->setApiKey(apiKey);
 
     QSignalSpy spyStarted(&SyncEngine::instance(), &SyncEngine::syncStarted);
     QSignalSpy spyFinished(&SyncEngine::instance(), &SyncEngine::syncFinished);
@@ -66,7 +68,7 @@ void SyncTest::testRealConnection()
 
 void SyncTest::testEndToEndSync()
 {
-    if (SettingsManager::instance().apiKey().isEmpty()) {
+    if (!m_hasSecrets) {
         QSKIP("No secrets provided, skipping end-to-end sync test.");
     }
 
@@ -74,17 +76,17 @@ void SyncTest::testEndToEndSync()
     auto feeds = DatabaseManager::instance().getAllFeeds();
     QVERIFY(feeds.count() > 0);
     
-    auto articles = DatabaseManager::instance().getAllArticles();
+    auto articles = DatabaseManager::instance().getArticles(-1, -1, ArticleStatus::Unread);
     QVERIFY(articles.count() > 0);
 }
 
 void SyncTest::testFetchFullContent()
 {
-    if (SettingsManager::instance().apiKey().isEmpty()) {
+    if (!m_hasSecrets) {
         QSKIP("No secrets provided, skipping full content test.");
     }
 
-    auto articles = DatabaseManager::instance().getAllArticles();
+    auto articles = DatabaseManager::instance().getArticles(-1, -1, ArticleStatus::Unread);
     QVERIFY(!articles.isEmpty());
     qint64 testId = articles.first().id;
 
@@ -94,7 +96,7 @@ void SyncTest::testFetchFullContent()
     // Wait for the update (Miniflux can be slow to reach upstream)
     QVERIFY(spyUpdated.wait(10000));
 
-    auto updatedArticles = DatabaseManager::instance().getAllArticles();
+    auto updatedArticles = DatabaseManager::instance().getArticles(-1, -1, ArticleStatus::Unread);
     QString newContent;
     for (const auto& a : updatedArticles) {
         if (a.id == testId) {

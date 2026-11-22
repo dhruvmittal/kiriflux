@@ -2,7 +2,8 @@
 #pragma once
 
 #include <QObject>
-#include <QNetworkAccessManager>
+#include <QNetworkRequest>
+#include <optional>
 #include "DatabaseManager.h"
 #include "NetworkManager.h"
 
@@ -16,26 +17,21 @@ public:
     void fetchCategories(const QString& url, const QString& apiKey);
     void fetchArticles(const QString& url, const QString& apiKey);
     void fetchArticleContent(const QString& url, const QString& apiKey, qint64 entryId);
-    void updateArticleStatus(const QString& url, const QString& apiKey, qint64 entryId, const QString& status);
     void updateArticlesStatus(const QString& url, const QString& apiKey, const QList<qint64>& entryIds, const QString& status);
     void toggleArticleBookmark(const QString& url, const QString& apiKey, qint64 entryId);
-    void fetchVersion(const QString& url, const QString& apiKey);
-    void prefetchUrl(const QUrl& url);
+    void fetchFeedIcon(const QString& url, const QString& apiKey, qint64 feedId);
 
 signals:
     void feedsFetched(const QList<Feed>& feeds);
     void categoriesFetched(const QList<Category>& categories);
-    void versionFetched(const QString& version);
     void articlesFetched(const QList<Article>& articles);
-    void articleUpdated(const Article& article);
     void contentFetched(qint64 entryId, const QString& content);
     void articleStatusUpdated(qint64 entryId, const QString& status);
     void articleBookmarkToggled(qint64 entryId);
+    void feedIconFetched(qint64 feedId, const QString& iconData);
+    void feedIconFailed(qint64 feedId);
     void errorOccurred(const QString& message);
 
 private:
-    QList<QUrl> m_prefetchQueue;
-    int m_activePrefetches = 0;
-    
-    void processPrefetchQueue();
+    std::optional<QNetworkRequest> makeRequest(const QString& url, const QString& endpoint, const QString& apiKey, int timeoutMs = 120000, bool emitError = true);
 };

@@ -4,7 +4,7 @@
 #include <QQmlContext>
 #include "../src/core/DatabaseManager.h"
 #include "../src/core/SyncEngine.h"
-#include "../src/core/SettingsManager.h"
+#include "kiriflux.h"
 
 class AppControllerTest : public QObject
 {
@@ -40,7 +40,9 @@ private slots:
         
         // Check if context properties are correctly set
         QVERIFY(ctx->contextProperty("syncEngine").value<QObject*>() != nullptr);
+        QVERIFY(ctx->contextProperty("networkManager").value<QObject*>() != nullptr);
         QVERIFY(ctx->contextProperty("settings").value<QObject*>() != nullptr);
+        QVERIFY(ctx->contextProperty("appAboutData").isValid());
         QVERIFY(ctx->contextProperty("feedListModel").value<QObject*>() != nullptr);
         QVERIFY(ctx->contextProperty("articleListModel").value<QObject*>() != nullptr);
         QVERIFY(ctx->contextProperty("categoryListModel").value<QObject*>() != nullptr);

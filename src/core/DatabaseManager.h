@@ -3,10 +3,8 @@
 
 #include <QObject>
 #include <QSqlDatabase>
-#include <QVariantList>
-#include <QMutex>
-#include <QRecursiveMutex>
 #include <QDateTime>
+#include <optional>
 
 struct Feed {
     qint64 id;
@@ -14,7 +12,9 @@ struct Feed {
     QString siteUrl;
     QString feedUrl;
     qint64 categoryId;
-    int unreadCount;
+    int unreadCount = 0;
+    qint64 iconId = 0;
+    bool hasIcon = false;
 };
 
 struct Category {
@@ -44,23 +44,10 @@ struct Article {
     // UI fields
     QString feedTitle;
     QString siteUrl;
+    qint64 feedIconId = 0;
+    bool feedHasIcon = false;
 
-    bool operator==(const Article& other) const {
-        return id == other.id &&
-               feedId == other.feedId &&
-               title == other.title &&
-               author == other.author &&
-               content == other.content &&
-               url == other.url &&
-               publishedAt == other.publishedAt &&
-               status == other.status &&
-               starred == other.starred &&
-               feedTitle == other.feedTitle &&
-               siteUrl == other.siteUrl;
-    }
-    bool operator!=(const Article& other) const {
-        return !(*this == other);
-    }
+    bool operator==(const Article& other) const = default;
 };
 
 class DatabaseManager : public QObject
@@ -76,6 +63,9 @@ public:
     void saveFeeds(const QList<Feed>& feeds);
     QList<Feed> getAllFeeds() const;
     QString getFeedTitle(qint64 feedId) const;
+    QList<qint64> getFeedIdsMissingIcons() const;
+    void saveFeedIcon(qint64 feedId, const QString& iconData);
+    QString getFeedIconData(qint64 feedId) const;
 
     // Categories
     void saveCategories(const QList<Category>& categories);
@@ -84,19 +74,15 @@ public:
 
     // Articles
     void saveArticles(const QList<Article>& articles);
-    QList<Article> getArticlesForFeed(qint64 feedId, ArticleStatus status = ArticleStatus::Unread, bool filterStarred = false, int limit = -1, int offset = 0) const;
-    QList<Article> getArticlesForCategory(qint64 categoryId, ArticleStatus status = ArticleStatus::Unread, bool filterStarred = false, int limit = -1, int offset = 0) const;
+    QList<Article> getArticles(qint64 feedId = -1, qint64 categoryId = -1, ArticleStatus status = ArticleStatus::Unread, bool filterStarred = false, int limit = -1, int offset = 0) const;
+    int countArticles(qint64 feedId = -1, qint64 categoryId = -1, ArticleStatus status = ArticleStatus::Unread, bool filterStarred = false) const;
+    QList<qint64> getUnreadArticleIds(qint64 feedId = -1, qint64 categoryId = -1, bool filterStarred = false) const;
     Q_INVOKABLE void clearAllData();
-    QList<Article> getAllArticles(ArticleStatus status = ArticleStatus::Unread, bool filterStarred = false, int limit = -1, int offset = 0) const;
-    int countAllArticles(ArticleStatus status = ArticleStatus::Unread, bool filterStarred = false) const;
-    int countArticlesForFeed(qint64 feedId, ArticleStatus status = ArticleStatus::Unread, bool filterStarred = false) const;
-    int countArticlesForCategory(qint64 categoryId, ArticleStatus status = ArticleStatus::Unread, bool filterStarred = false) const;
     std::optional<Article> getArticleById(qint64 id) const;
     
     void markAsRead(qint64 articleId, bool read);
     void markArticlesAsRead(const QList<qint64>& articleIds, bool read);
     void toggleStar(qint64 articleId, bool starred);
-    void updateArticleStatus(qint64 articleId, ArticleStatus status);
     void updateArticleContent(qint64 articleId, const QString& content);
     void purgeOldReadArticles(int days = 7);
     void vacuum();
@@ -107,10 +93,10 @@ signals:
 
 private:
     explicit DatabaseManager(QObject *parent = nullptr);
-    ~DatabaseManager() = default;
+    ~DatabaseManager() override;
     
     QSqlDatabase getDb() const;
+    void closeDb();
 
-    mutable QRecursiveMutex m_mutex;
     QString m_dbPath;
 };

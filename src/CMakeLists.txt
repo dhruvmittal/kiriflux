@@ -1,11 +1,10 @@
-find_package(KF6Config REQUIRED)
-
 add_subdirectory(core)
 
 # ── Kiriflux executable ──────────────────────────────────────────────
  
 qt_add_executable(kiriflux
     main.cpp
+    KirifluxImageProvider.cpp
 )
 
 # Ahead-of-Time QML compilation and embedding
@@ -20,28 +19,20 @@ qt_add_qml_module(kiriflux
 )
 
 qt_add_resources(kiriflux "icons"
-    PREFIX "/icons/"
-    FILES
-        org.kde.kiriflux.svg
+    PREFIX "/icons"
+    BASE "${CMAKE_CURRENT_SOURCE_DIR}/../icons/hicolor/scalable/apps"
+    FILES "${CMAKE_CURRENT_SOURCE_DIR}/../icons/hicolor/scalable/apps/org.kde.kiriflux.svg"
 )
 
-target_include_directories(kiriflux PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/core)
+target_include_directories(kiriflux PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/core ${CMAKE_BINARY_DIR})
 
 target_link_libraries(kiriflux PRIVATE
     kiriflux_core
-    Qt6::Core
     Qt6::Gui
     Qt6::Quick
-    Qt6::Qml
     Qt6::QuickControls2
     Qt6::Widgets
-    Qt6::Sql
-    Qt6::Network
-    Qt6::DBus
     Qt6::WebEngineQuick
-    KF6::CoreAddons
-    KF6::I18n
-    KF6::XmlGui
     KF6::DBusAddons
 )
 

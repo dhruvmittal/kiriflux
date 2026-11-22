@@ -2,4 +2,7 @@ File=kiriflux.kcfg
 ClassName=Settings
 Singleton=true
 Mutators=true
+GenerateProperties=true
+Notifiers=true
+CustomAdditions=true
 Includes=QFontDatabase,QFont

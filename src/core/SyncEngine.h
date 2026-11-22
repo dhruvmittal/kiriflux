@@ -3,29 +3,27 @@
 
 #include <QObject>
 #include <QTimer>
-#include <QFont>
 #include <QSet>
+#include <QUrl>
 #include "MinifluxClient.h"
 
 class SyncEngine : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(bool isSyncing READ isSyncing NOTIFY syncStatusChanged)
-    Q_PROPERTY(QString syncStatus READ syncStatus NOTIFY syncStatusChanged)
     Q_PROPERTY(QString lastSyncTimeText READ lastSyncTimeText NOTIFY syncFinished)
 
 public:
     static SyncEngine& instance();
+    static QList<QUrl> extractImageUrls(const QString& html, const QUrl& baseUrl);
 
     bool isSyncing() const { return m_isSyncing; }
-    QString syncStatus() const { return m_syncStatus; }
     QString lastSyncTimeText() const;
 
 public slots:
     void startIntervalSync();
     void forceSync();
     void fetchFullContent(qint64 entryId);
-    void updateArticleStatus(qint64 entryId, const QString& status);
     void updateArticlesStatus(const QList<qint64>& entryIds, const QString& status);
     void toggleArticleBookmark(qint64 entryId);
     
@@ -40,14 +38,17 @@ signals:
     void articleContentUpdated(qint64 articleId);
     void articleStatusUpdated(qint64 entryId, const QString& status);
     void articleBookmarkToggled(qint64 entryId);
+    void feedIconUpdated(qint64 feedId);
     void syncError(const QString& message);
 
 private:
     explicit SyncEngine(QObject *parent = nullptr);
-    ~SyncEngine() = default;
+    ~SyncEngine() override = default;
 
     void performSync();
     void prefetchImages(const QList<Article>& articles);
+    void fetchMissingFeedIcons();
+    void processIconQueue();
     void processStatusBatch();
     void handleError(const QString& error);
 
@@ -57,9 +58,10 @@ private:
     QTimer *m_errorThrottleTimer;
     
     QSet<qint64> m_pendingReadIds;
+    QList<qint64> m_pendingIconFeedIds;
+    QSet<qint64> m_inFlightIconFeedIds;
     QString m_lastErrorMessage;
     bool m_isSyncing = false;
     bool m_isManualSync = false;
     bool m_statusRequestInFlight = false;
-    QString m_syncStatus;
 };

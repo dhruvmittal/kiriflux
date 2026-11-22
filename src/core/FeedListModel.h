@@ -2,7 +2,6 @@
 #pragma once
 
 #include <QAbstractListModel>
-#include <QtQml/qqmlregistration.h>
 #include <QTimer>
 #include "DatabaseManager.h"
 
@@ -16,7 +15,9 @@ public:
         SiteUrlRole,
         FeedUrlRole,
         CategoryIdRole,
-        UnreadCountRole
+        UnreadCountRole,
+        IconIdRole,
+        HasIconRole
     };
 
     explicit FeedListModel(QObject *parent = nullptr);
@@ -28,9 +29,7 @@ public:
 public slots:
     void refresh();
     void updateUnreadCounts();
-
-    Q_INVOKABLE int getNextFeedId(int currentFeedId) const;
-    Q_INVOKABLE int getPreviousFeedId(int currentFeedId) const;
+    void onFeedIconUpdated(qint64 feedId);
 
 private:
     QList<Feed> m_feeds;

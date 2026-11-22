@@ -17,7 +17,6 @@ private slots:
     void testMarkRead();
     void testToggleStarred();
     void testGetMap();
-    void testFeedSwitching();
     void testMarkAllAsRead();
     void testMarkAllAsReadLazyLoading();
     void testMarkArticlesAsReadByIds();
@@ -26,6 +25,9 @@ private slots:
     void testArticleContentUpdated();
     void testDataRoles();
     void testWiggleRoom();
+    void testMarkReadUpToAndIdAt();
+    void testRefreshDuplicateSafety();
+    void testFeedIconUpdated();
 
 private:
     void seedData();
@@ -64,30 +66,27 @@ void ArticleListModelTest::seedData()
 void ArticleListModelTest::testInitialState()
 {
     ArticleListModel model;
-    model.setFilterStatus("all");
-    model.setFilterStarred(false);
+    model.setFilterMode("all");
     QCOMPARE(model.rowCount(), 3);
 }
 
 void ArticleListModelTest::testFilter()
 {
     ArticleListModel model;
-    model.setFilterStatus("unread");
-    model.setFilterStarred(false);
+    model.setFilterMode("unread");
     QCOMPARE(model.rowCount(), 2); // A1, A3
 
-    model.setFilterStarred(true);
-    QCOMPARE(model.rowCount(), 2); // Starred filter ignores unread status, shows A2 and A3
+    model.setFilterMode("starred");
+    QCOMPARE(model.rowCount(), 2); // A2, A3
 
-    model.setFilterStatus("all");
-    QCOMPARE(model.rowCount(), 2); // A2, A3 are starred
+    model.setFilterMode("all");
+    QCOMPARE(model.rowCount(), 3);
 }
 
 void ArticleListModelTest::testMarkRead()
 {
     ArticleListModel model;
-    model.setFilterStatus("all");
-    model.setFilterStarred(false);
+    model.setFilterMode("all");
     QSignalSpy spy(&model, &ArticleListModel::dataChanged);
     
     // Find A1 (id 1)
@@ -111,8 +110,7 @@ void ArticleListModelTest::testMarkRead()
 void ArticleListModelTest::testToggleStarred()
 {
     ArticleListModel model;
-    model.setFilterStatus("all");
-    model.setFilterStarred(false);
+    model.setFilterMode("all");
     QSignalSpy spy(&model, &ArticleListModel::dataChanged);
     
     model.toggleStarred(0); // Toggle whoever is first
@@ -122,8 +120,7 @@ void ArticleListModelTest::testToggleStarred()
 void ArticleListModelTest::testGetMap()
 {
     ArticleListModel model;
-    model.setFilterStatus("all");
-    model.setFilterStarred(false);
+    model.setFilterMode("all");
     QVariantMap map = model.get(0);
     QVERIFY(map.contains("id"));
     QVERIFY(map.contains("title"));
@@ -132,8 +129,7 @@ void ArticleListModelTest::testGetMap()
 void ArticleListModelTest::testCurrentFeed()
 {
     ArticleListModel model;
-    model.setFilterStatus("all");
-    model.setFilterStarred(false);
+    model.setFilterMode("all");
     model.setCurrentFeedId(10);
     QCOMPARE(model.rowCount(), 2); // A1, A2
 
@@ -144,15 +140,10 @@ void ArticleListModelTest::testCurrentFeed()
     QCOMPARE(model.rowCount(), 3);
 }
 
-void ArticleListModelTest::testFeedSwitching()
-{
-    testCurrentFeed();
-}
-
 void ArticleListModelTest::testMarkAllAsRead()
 {
     ArticleListModel model;
-    model.setFilterStatus("unread");
+    model.setFilterMode("unread");
     QCOMPARE(model.rowCount(), 2);
     
     QSignalSpy spy(&model, &ArticleListModel::dataChanged);
@@ -189,7 +180,7 @@ void ArticleListModelTest::testMarkAllAsReadLazyLoading()
     Settings::self()->setLazyLoadingBatchSize(10);
 
     ArticleListModel model;
-    model.setFilterStatus("unread");
+    model.setFilterMode("unread");
     // Initial batch loaded in memory is only 10 articles
     QCOMPARE(model.rowCount(), 10);
     QVERIFY(model.canFetchMore(QModelIndex()));
@@ -198,7 +189,7 @@ void ArticleListModelTest::testMarkAllAsReadLazyLoading()
     model.markAllAsRead();
 
     // Verify all articles in DB are now read
-    QList<Article> unreadInDb = DatabaseManager::instance().getAllArticles(ArticleStatus::Unread);
+    QList<Article> unreadInDb = DatabaseManager::instance().getArticles(-1, -1, ArticleStatus::Unread);
     QCOMPARE(unreadInDb.size(), 0);
 
     // Verify in-memory articles were marked read
@@ -218,8 +209,7 @@ void ArticleListModelTest::testMarkAllAsReadLazyLoading()
 void ArticleListModelTest::testMarkArticlesAsReadByIds()
 {
     ArticleListModel model;
-    model.setFilterStatus("all");
-    model.setFilterStarred(false);
+    model.setFilterMode("all");
 
     QSignalSpy spy(&model, &ArticleListModel::dataChanged);
     model.markArticlesAsReadByIds({1, 3}, true);
@@ -238,7 +228,7 @@ void ArticleListModelTest::testMarkArticlesAsReadByIds()
 void ArticleListModelTest::testGetByIdEdgeCases()
 {
     ArticleListModel model;
-    model.setFilterStatus("all");
+    model.setFilterMode("all");
     
     // Existing ID
     QVariantMap map = model.getById(1);
@@ -305,8 +295,7 @@ void ArticleListModelTest::testArticleContentUpdated()
 void ArticleListModelTest::testDataRoles()
 {
     ArticleListModel model;
-    model.setFilterStatus("all");
-    model.setFilterStarred(false);
+    model.setFilterMode("all");
     
     QModelIndex idx;
     for (int i = 0; i < model.rowCount(); ++i) {
@@ -351,8 +340,7 @@ void ArticleListModelTest::testWiggleRoom()
     Settings::self()->setLazyLoadingBatchSize(50);
 
     ArticleListModel model;
-    model.setFilterStatus("all");
-    model.setFilterStarred(false);
+    model.setFilterMode("all");
     
     // Verify only 50 loaded
     QCOMPARE(model.rowCount(), 50);
@@ -382,6 +370,75 @@ void ArticleListModelTest::testWiggleRoom()
     
     // Clean up
     Settings::self()->setLazyLoadingEnabled(false);
+}
+
+void ArticleListModelTest::testMarkReadUpToAndIdAt()
+{
+    DatabaseManager::instance().clearAllData();
+    Feed f1{1, "F1", "u1", "f1", 1, 0};
+    DatabaseManager::instance().saveFeeds({f1});
+
+    QList<Article> articles;
+    const QDateTime base = QDateTime::currentDateTimeUtc();
+    for (int i = 1; i <= 4; ++i) {
+        Article a;
+        a.id = i;
+        a.feedId = 1;
+        a.title = QString("A%1").arg(i);
+        a.status = ArticleStatus::Unread;
+        a.publishedAt = base.addSecs(i);
+        articles.append(a);
+    }
+    DatabaseManager::instance().saveArticles(articles);
+
+    ArticleListModel model;
+    model.setFilterMode("all");
+    QCOMPARE(model.rowCount(), 4);
+    QCOMPARE(model.idAt(-1), qint64(-1));
+    QCOMPARE(model.idAt(99), qint64(-1));
+    QCOMPARE(model.idAt(0), qint64(4));
+
+    model.markReadUpTo(2);
+    QCOMPARE(DatabaseManager::instance().getArticleById(4)->status, ArticleStatus::Read);
+    QCOMPARE(DatabaseManager::instance().getArticleById(3)->status, ArticleStatus::Read);
+    QCOMPARE(DatabaseManager::instance().getArticleById(2)->status, ArticleStatus::Unread);
+    QCOMPARE(DatabaseManager::instance().getArticleById(1)->status, ArticleStatus::Unread);
+}
+
+void ArticleListModelTest::testRefreshDuplicateSafety()
+{
+    DatabaseManager::instance().clearAllData();
+    Feed f1{1, "F1", "u1", "f1", 1, 0};
+    DatabaseManager::instance().saveFeeds({f1});
+
+    const QDateTime base = QDateTime::currentDateTimeUtc();
+    Article a1; a1.id = 1; a1.feedId = 1; a1.title = "One"; a1.status = ArticleStatus::Unread; a1.publishedAt = base.addSecs(10);
+    Article a2; a2.id = 2; a2.feedId = 1; a2.title = "Two"; a2.status = ArticleStatus::Unread; a2.publishedAt = base.addSecs(20);
+    DatabaseManager::instance().saveArticles({a1, a2});
+
+    ArticleListModel model;
+    model.setFilterMode("all");
+    QCOMPARE(model.rowCount(), 2);
+
+    // Move article 1 ahead of article 2 by updating its publishedAt in DB
+    a1.publishedAt = base.addSecs(30);
+    DatabaseManager::instance().saveArticles({a1});
+
+    model.refresh(false);
+    QCOMPARE(model.rowCount(), 2);
+    QCOMPARE(model.idAt(0), qint64(1));
+    QCOMPARE(model.idAt(1), qint64(2));
+}
+
+void ArticleListModelTest::testFeedIconUpdated()
+{
+    ArticleListModel model;
+    model.setFilterMode("all");
+    QSignalSpy spy(&model, &ArticleListModel::dataChanged);
+
+    model.onFeedIconUpdated(10);
+    QCOMPARE(spy.count(), 2); // A1 and A2 belong to feed 10
+    QCOMPARE(model.getById(1)["feedHasIcon"].toBool(), true);
 }
 
 QTEST_GUILESS_MAIN(ArticleListModelTest)

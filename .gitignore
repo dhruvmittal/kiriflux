@@ -42,3 +42,7 @@ result
 tests/secrets.h
 repo/
 out/
+pkg/
+*.pkg.tar*
+kiriflux-git/
+src/kiriflux-git/

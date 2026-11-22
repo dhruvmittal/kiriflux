@@ -47,7 +47,6 @@
             kconfig
             ki18n
             kcoreaddons
-            kxmlgui
             kitemmodels
             kdbusaddons
             qtwebengine

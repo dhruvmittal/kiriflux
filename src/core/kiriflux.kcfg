@@ -34,13 +34,9 @@
       <label>Clean Sync (Reset local state on sync, no server updates)</label>
       <default>false</default>
     </entry>
-    <entry name="FilterStatus" type="String">
-      <label>Last selected filter status</label>
+    <entry name="FilterMode" type="String">
+      <label>Last selected filter mode (all, unread, starred)</label>
       <default>all</default>
-    </entry>
-    <entry name="FilterStarred" type="Bool">
-      <label>Last selected filter starred state</label>
-      <default>false</default>
     </entry>
     <entry name="TitleLines" type="Int">
       <label>Maximum number of lines for article titles</label>
@@ -125,11 +121,11 @@
     </entry>
     <entry name="ArticleViewTitleFont" type="Font">
       <label>Font for article view title</label>
-      <default code="true">[]() { QFont f = QFontDatabase::systemFont(QFontDatabase::GeneralFont); f.setBold(true); f.setPointSizeF(f.pointSizeF() * 2.5); return f; }()</default>
+      <default code="true">[]() { QFont f = QFontDatabase::systemFont(QFontDatabase::GeneralFont); f.setBold(true); if (f.pointSizeF() > 0) f.setPointSizeF(f.pointSizeF() * 2.5); else f.setPixelSize(f.pixelSize() > 0 ? qRound(f.pixelSize() * 2.5) : 24); return f; }()</default>
     </entry>
     <entry name="ArticleViewInfoFont" type="Font">
       <label>Font for article view info</label>
-      <default code="true">[]() { QFont f = QFontDatabase::systemFont(QFontDatabase::GeneralFont); f.setPointSizeF(f.pointSizeF() * 0.9); return f; }()</default>
+      <default code="true">[]() { QFont f = QFontDatabase::systemFont(QFontDatabase::GeneralFont); if (f.pointSizeF() > 0) f.setPointSizeF(f.pointSizeF() * 0.9); else f.setPixelSize(f.pixelSize() > 0 ? qRound(f.pixelSize() * 0.9) : 11); return f; }()</default>
     </entry>
     <entry name="ArticleViewTextFont" type="Font">
       <label>Font for article view body</label>

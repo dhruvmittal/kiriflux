@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "FeedListModel.h"
-
 #include "SyncEngine.h"
+#include <QHash>
 
 FeedListModel::FeedListModel(QObject *parent)
     : QAbstractListModel(parent)
 {
     connect(&SyncEngine::instance(), &SyncEngine::articlesUpdated, this, &FeedListModel::refresh);
+    connect(&SyncEngine::instance(), &SyncEngine::feedIconUpdated, this, &FeedListModel::onFeedIconUpdated);
     
     m_unreadUpdateTimer.setInterval(50);
     m_unreadUpdateTimer.setSingleShot(true);
-    connect(&DatabaseManager::instance(), &DatabaseManager::unreadCountsChanged, &m_unreadUpdateTimer, static_cast<void(QTimer::*)()>(&QTimer::start));
+    connect(&DatabaseManager::instance(), &DatabaseManager::unreadCountsChanged, &m_unreadUpdateTimer, qOverload<>(&QTimer::start));
     connect(&m_unreadUpdateTimer, &QTimer::timeout, this, &FeedListModel::updateUnreadCounts);
     
     refresh();
@@ -25,17 +26,31 @@ void FeedListModel::refresh()
 
 void FeedListModel::updateUnreadCounts()
 {
-    auto newFeeds = DatabaseManager::instance().getAllFeeds();
+    const auto newFeeds = DatabaseManager::instance().getAllFeeds();
+    QHash<qint64, int> unreadById;
+    unreadById.reserve(newFeeds.size());
+    for (const auto& newFeed : newFeeds) {
+        unreadById.insert(newFeed.id, newFeed.unreadCount);
+    }
+
     for (int i = 0; i < m_feeds.size(); ++i) {
-        for (const auto& newFeed : newFeeds) {
-            if (m_feeds[i].id == newFeed.id) {
-                if (m_feeds[i].unreadCount != newFeed.unreadCount) {
-                    m_feeds[i].unreadCount = newFeed.unreadCount;
-                    QModelIndex qidx = index(i, 0);
-                    emit dataChanged(qidx, qidx, {UnreadCountRole});
-                }
-                break;
-            }
+        auto it = unreadById.constFind(m_feeds[i].id);
+        if (it != unreadById.constEnd() && m_feeds[i].unreadCount != it.value()) {
+            m_feeds[i].unreadCount = it.value();
+            const QModelIndex qidx = index(i, 0);
+            emit dataChanged(qidx, qidx, {UnreadCountRole});
+        }
+    }
+}
+
+void FeedListModel::onFeedIconUpdated(qint64 feedId)
+{
+    for (int i = 0; i < m_feeds.size(); ++i) {
+        if (m_feeds[i].id == feedId && !m_feeds[i].hasIcon) {
+            m_feeds[i].hasIcon = true;
+            const QModelIndex qidx = index(i, 0);
+            emit dataChanged(qidx, qidx, {HasIconRole});
+            return;
         }
     }
 }
@@ -58,6 +73,8 @@ QVariant FeedListModel::data(const QModelIndex &index, int role) const
     case FeedUrlRole: return feed.feedUrl;
     case CategoryIdRole: return qint64(feed.categoryId);
     case UnreadCountRole: return feed.unreadCount;
+    case IconIdRole: return qlonglong(feed.iconId);
+    case HasIconRole: return feed.hasIcon;
     case Qt::DisplayRole: return feed.title;
     }
     return {};
@@ -65,44 +82,15 @@ QVariant FeedListModel::data(const QModelIndex &index, int role) const
 
 QHash<int, QByteArray> FeedListModel::roleNames() const
 {
-    QHash<int, QByteArray> roles;
-    roles[IdRole] = "id";
-    roles[TitleRole] = "title";
-    roles[SiteUrlRole] = "siteUrl";
-    roles[FeedUrlRole] = "feedUrl";
-    roles[CategoryIdRole] = "categoryId";
-    roles[UnreadCountRole] = "unreadCount";
+    static const QHash<int, QByteArray> roles = {
+        {IdRole, "id"},
+        {TitleRole, "title"},
+        {SiteUrlRole, "siteUrl"},
+        {FeedUrlRole, "feedUrl"},
+        {CategoryIdRole, "categoryId"},
+        {UnreadCountRole, "unreadCount"},
+        {IconIdRole, "iconId"},
+        {HasIconRole, "hasIcon"}
+    };
     return roles;
-}
-
-int FeedListModel::getNextFeedId(int currentFeedId) const
-{
-    if (m_feeds.isEmpty()) return -1;
-    if (currentFeedId == -1) return m_feeds.first().id;
-    
-    for (int i = 0; i < m_feeds.size(); ++i) {
-        if (m_feeds[i].id == currentFeedId) {
-            if (i + 1 < m_feeds.size()) {
-                return m_feeds[i + 1].id;
-            }
-            return -1; // End of list
-        }
-    }
-    return -1;
-}
-
-int FeedListModel::getPreviousFeedId(int currentFeedId) const
-{
-    if (m_feeds.isEmpty()) return -1;
-    if (currentFeedId == -1) return m_feeds.last().id;
-    
-    for (int i = 0; i < m_feeds.size(); ++i) {
-        if (m_feeds[i].id == currentFeedId) {
-            if (i - 1 >= 0) {
-                return m_feeds[i - 1].id;
-            }
-            return -1; // Top of list
-        }
-    }
-    return -1;
 }

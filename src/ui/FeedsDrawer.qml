@@ -74,10 +74,7 @@ Kirigami.GlobalDrawer {
 
             // 1. All Articles
             QQC2.ItemDelegate {
-                font.family: (settings && settings.leftPaneFont) ? settings.leftPaneFont.family : ""
-                font.pointSize: (settings && settings.leftPaneFont && settings.leftPaneFont.pointSize > 0) ? settings.leftPaneFont.pointSize : -1
-                font.weight: (settings && settings.leftPaneFont) ? settings.leftPaneFont.weight : Font.Normal
-                font.italic: (settings && settings.leftPaneFont) ? settings.leftPaneFont.italic : false
+                font: settings.leftPaneFont
                 Layout.fillWidth: true
                 highlighted: articleListModel.currentFeedId === -1 && articleListModel.currentCategoryId === -1
                 text: i18n("All Articles")
@@ -105,10 +102,7 @@ Kirigami.GlobalDrawer {
 
                     QQC2.ItemDelegate {
                         id: categoryDelegate
-                        font.family: (settings && settings.leftPaneFont) ? settings.leftPaneFont.family : ""
-                        font.pointSize: (settings && settings.leftPaneFont && settings.leftPaneFont.pointSize > 0) ? settings.leftPaneFont.pointSize : -1
-                        font.weight: (settings && settings.leftPaneFont) ? settings.leftPaneFont.weight : Font.Normal
-                        font.italic: (settings && settings.leftPaneFont) ? settings.leftPaneFont.italic : false
+                        font: settings.leftPaneFont
                         Layout.fillWidth: true
                         highlighted: articleListModel.currentCategoryId === categoryItem.catId
                         onClicked: {
@@ -146,17 +140,14 @@ Kirigami.GlobalDrawer {
                     }
 
                     // Feeds in this category
+                    // shortcut: expanded categories filter full feedListModel; switch to a QSortFilterProxyModel if expanding many categories with 200+ feeds
                     Repeater {
-                        model: feedListModel
+                        model: categoryItem.expanded ? feedListModel : null
                         delegate: QQC2.ItemDelegate {
                             id: nestedFeedDelegate
-                            font.family: (settings && settings.leftPaneFont) ? settings.leftPaneFont.family : ""
-                            font.pointSize: (settings && settings.leftPaneFont && settings.leftPaneFont.pointSize > 0) ? settings.leftPaneFont.pointSize : -1
-                            font.weight: (settings && settings.leftPaneFont) ? settings.leftPaneFont.weight : Font.Normal
-                            font.italic: (settings && settings.leftPaneFont) ? settings.leftPaneFont.italic : false
+                            font: settings.leftPaneFont
                             Layout.fillWidth: true
-                            visible: categoryItem.expanded && model.categoryId === categoryItem.catId
-                            height: visible ? implicitHeight : 0
+                            visible: model.categoryId === categoryItem.catId
                             Layout.leftMargin: Kirigami.Units.largeSpacing
                             highlighted: articleListModel.currentFeedId === model.id
                             onClicked: articleListModel.currentFeedId = model.id
@@ -191,20 +182,19 @@ Kirigami.GlobalDrawer {
                 model: feedListModel
                 delegate: QQC2.ItemDelegate {
                     id: flatFeedDelegate
-                    font.family: (settings && settings.leftPaneFont) ? settings.leftPaneFont.family : ""
-                    font.pointSize: (settings && settings.leftPaneFont && settings.leftPaneFont.pointSize > 0) ? settings.leftPaneFont.pointSize : -1
-                    font.weight: (settings && settings.leftPaneFont) ? settings.leftPaneFont.weight : Font.Normal
-                    font.italic: (settings && settings.leftPaneFont) ? settings.leftPaneFont.italic : false
+                    font: settings.leftPaneFont
                     Layout.fillWidth: true
                     highlighted: articleListModel.currentFeedId === model.id
                     onClicked: articleListModel.currentFeedId = model.id
                     
                     contentItem: RowLayout {
                         Kirigami.Icon {
-                            source: model.siteUrl ? "https://www.google.com/s2/favicons?domain=" + model.siteUrl : "rss"
+                            source: model.hasIcon ? ("image://kiriflux/feed-icon/" + model.id + "?v=" + model.iconId) : "rss"
+                            fallback: "rss"
+                            isMask: !model.hasIcon
                             implicitWidth: Kirigami.Units.iconSizes.small
                             implicitHeight: Kirigami.Units.iconSizes.small
-                            selected: flatFeedDelegate.highlighted
+                            selected: !model.hasIcon && flatFeedDelegate.highlighted
                         }
                         QQC2.Label {
                             text: model.title

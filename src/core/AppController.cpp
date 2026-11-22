@@ -5,8 +5,9 @@
 #include "FeedListModel.h"
 #include "ArticleListModel.h"
 #include "CategoryListModel.h"
-#include "SettingsManager.h"
+#include "NetworkManager.h"
 #include "kiriflux.h"
+#include <KAboutData>
 #include <QDebug>
 
 AppController::AppController(QObject *parent)
@@ -23,18 +24,18 @@ bool AppController::init()
         return false;
     }
 
-    m_feedListModel = new FeedListModel(this);
-    m_articleListModel = new ArticleListModel(this);
-    m_categoryListModel = new CategoryListModel(this);
-
-    // Perform weekly database maintenance if enabled
+    // Perform weekly database maintenance before instantiating models so pruned rows aren't loaded
     if (Settings::self()->autoPruneEnabled()) {
-        QDateTime lastVacuum = Settings::self()->lastVacuumDate();
+        const QDateTime lastVacuum = Settings::self()->lastVacuumDate();
         if (!lastVacuum.isValid() || lastVacuum.daysTo(QDateTime::currentDateTime()) >= 7) {
             qDebug() << "Running weekly database optimization...";
             DatabaseManager::instance().optimizeDatabase();
         }
     }
+
+    m_feedListModel = new FeedListModel(this);
+    m_articleListModel = new ArticleListModel(this);
+    m_categoryListModel = new CategoryListModel(this);
 
     SyncEngine::instance().startIntervalSync();
     return true;
@@ -47,7 +48,9 @@ void AppController::registerContextProperties(QQmlApplicationEngine* engine)
     QQmlContext* ctx = engine->rootContext();
     ctx->setContextProperty(QStringLiteral("databaseManager"), &DatabaseManager::instance());
     ctx->setContextProperty(QStringLiteral("syncEngine"), &SyncEngine::instance());
-    ctx->setContextProperty(QStringLiteral("settings"), &SettingsManager::instance());
+    ctx->setContextProperty(QStringLiteral("networkManager"), &NetworkManager::instance());
+    ctx->setContextProperty(QStringLiteral("settings"), Settings::self());
+    ctx->setContextProperty(QStringLiteral("appAboutData"), QVariant::fromValue(KAboutData::applicationData()));
     ctx->setContextProperty(QStringLiteral("feedListModel"), m_feedListModel);
     ctx->setContextProperty(QStringLiteral("articleListModel"), m_articleListModel);
     ctx->setContextProperty(QStringLiteral("categoryListModel"), m_categoryListModel);

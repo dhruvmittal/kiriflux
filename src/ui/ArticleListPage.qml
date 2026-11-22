@@ -20,48 +20,54 @@ Kirigami.Page {
     
     title: articleListModel.currentName
 
+    function fontWithWeight(f, weight) {
+        if (!f) return Qt.font({ weight: weight });
+        let spec = {
+            family: f.family,
+            weight: weight,
+            italic: f.italic
+        };
+        if (f.pixelSize > 0) {
+            spec.pixelSize = f.pixelSize;
+        } else if (f.pointSize > 0) {
+            spec.pointSize = f.pointSize;
+        }
+        return Qt.font(spec);
+    }
+
     actions: [
         Kirigami.Action {
             text: i18n("Mark All Read")
             icon.name: "mail-mark-read"
             onTriggered: articleListModel.markAllAsRead()
             visible: articleListModel.count > 0
-            displayHint: (settings && settings.showToolbarLabels) ? 0 : 1
+            displayHint: (settings && settings.showToolbarLabels) ? Kirigami.DisplayHint.NoPreference : Kirigami.DisplayHint.IconOnly
         },
         Kirigami.Action {
             id: filterAction
-            text: articleListModel.filterStarred ? i18n("Starred") : (articleListModel.filterStatus === "unread" ? i18n("Unread") : i18n("All"))
-            displayHint: (settings && settings.showToolbarLabels) ? 0 : 1
-            icon.name: articleListModel.filterStarred ? "favorite" : (articleListModel.filterStatus === "unread" ? "mail-unread" : "view-list-details")
+            text: articleListModel.filterMode === "starred" ? i18n("Starred") : (articleListModel.filterMode === "unread" ? i18n("Unread") : i18n("All"))
+            displayHint: (settings && settings.showToolbarLabels) ? Kirigami.DisplayHint.NoPreference : Kirigami.DisplayHint.IconOnly
+            icon.name: articleListModel.filterMode === "starred" ? "favorite" : (articleListModel.filterMode === "unread" ? "mail-unread" : "view-list-details")
             Kirigami.Action {
                 text: i18n("All")
                 icon.name: "view-list-details"
                 checkable: true
-                checked: articleListModel.filterStatus === "all" && !articleListModel.filterStarred
-                onTriggered: {
-                    articleListModel.filterStatus = "all";
-                    articleListModel.filterStarred = false;
-                }
+                checked: articleListModel.filterMode === "all"
+                onTriggered: articleListModel.filterMode = "all"
             }
             Kirigami.Action {
                 text: i18n("Unread")
                 icon.name: "mail-unread"
                 checkable: true
-                checked: articleListModel.filterStatus === "unread" && !articleListModel.filterStarred
-                onTriggered: {
-                    articleListModel.filterStatus = "unread";
-                    articleListModel.filterStarred = false;
-                }
+                checked: articleListModel.filterMode === "unread"
+                onTriggered: articleListModel.filterMode = "unread"
             }
             Kirigami.Action {
                 text: i18n("Starred")
                 icon.name: "favorite"
                 checkable: true
-                checked: articleListModel.filterStarred
-                onTriggered: {
-                    articleListModel.filterStatus = "all";
-                    articleListModel.filterStarred = true;
-                }
+                checked: articleListModel.filterMode === "starred"
+                onTriggered: articleListModel.filterMode = "starred"
             }
         }
     ]
@@ -72,48 +78,12 @@ Kirigami.Page {
         
         articleListView.currentIndex = index
         let model = articleListModel.get(index);
-        let props = {
-            articleIndex: index,
-            articleTitle: model.title,
-            articleContent: model.content,
-            feedSiteUrl: model.feedSiteUrl,
-            feedTitle: model.feedTitle,
-            author: model.author,
-            publishedAt: model.publishedAt,
-            isUnread: model.status === "unread",
-            articleUrl: model.url,
-            articleId: model.id
-        };
+        root.articleViewPage.loadArticle(model);
 
-        // Check if an ArticleViewPage is already on the stack (manual lookup for Kirigami PageRow)
-        let page = null;
-        for (let i = 0; i < applicationWindow().pageStack.depth; ++i) {
-            let item = applicationWindow().pageStack.get(i);
-            if (item && item.objectName === "articleViewPage") {
-                page = item;
-                break;
-            }
-        }
-
-        if (page) {
-            // Update existing page properties
-            for (let p in props) {
-                page[p] = props[p];
-            }
-            // In 1-pane mode, wideScreen is false, so only one page is visible at a time.
-            // We must explicitly navigate to the article view page after updating it.
-            if (!applicationWindow().wideScreen) {
-                // Find the index of the existing article view page and jump to it
-                for (let j = 0; j < applicationWindow().pageStack.depth; ++j) {
-                    if (applicationWindow().pageStack.get(j) === page) {
-                        applicationWindow().pageStack.currentIndex = j;
-                        break;
-                    }
-                }
-            }
-        } else {
-            // Push pre-instantiated page (avoids PageRow creating it under a QtObject parent)
-            applicationWindow().pageStack.push(root.articleViewPage ?? Qt.resolvedUrl("ArticleViewPage.qml"), props);
+        if (applicationWindow().pageStack.depth < 2) {
+            applicationWindow().pageStack.push(root.articleViewPage);
+        } else if (!applicationWindow().wideScreen) {
+            applicationWindow().pageStack.currentIndex = 1;
         }
 
         // Automatic Read Marking: On Open
@@ -141,69 +111,39 @@ Kirigami.Page {
         }
     }
 
-    Shortcut {
-        sequence: "m"
-        onActivated: {
-            if (articleListView.currentIndex >= 0) {
-                let modelItem = articleListModel.get(articleListView.currentIndex);
-                if (modelItem) {
-                    articleListModel.markAsReadById(modelItem.id, modelItem.status === "unread");
-                }
-            }
-        }
-    }
-
-    Shortcut {
-        sequence: "f"
-        onActivated: {
-            if (articleListView.currentIndex >= 0) {
-                let modelItem = articleListModel.get(articleListView.currentIndex);
-                if (modelItem && modelItem.url) {
-                    Qt.openUrlExternally(modelItem.url);
-                }
-            }
-        }
-    }
-
     Connections {
         target: articleListModel
         function onModelReset() { 
-            root.updateOpenArticle(); 
-            
-            // Reset selection and scroll position
             articleListView.currentIndex = -1;
             articleListView.positionViewAtIndex(0, ListView.Beginning);
             
-            // Close any open ArticleViewPage on the stack
-            // Search from top to find and pop the article view
             if (settings && settings.closeReadingPaneOnReset) {
-                for (let i = applicationWindow().pageStack.depth - 1; i >= 0; i--) {
-                    let item = applicationWindow().pageStack.get(i);
-                    if (item && item.objectName === "articleViewPage") {
-                        // Pop everything from this page onwards
-                        if (i > 0) {
-                            applicationWindow().pageStack.pop(applicationWindow().pageStack.get(i-1));
-                        } else {
-                            applicationWindow().pageStack.pop();
-                        }
-                        break;
-                    }
+                if (applicationWindow().pageStack.depth > 1) {
+                    applicationWindow().pageStack.pop();
+                }
+                if (root.articleViewPage) {
+                    root.articleViewPage.clearArticle();
+                }
+            } else {
+                root.updateOpenArticle();
+            }
+        }
+        function onDataChanged(topLeft, bottomRight) {
+            if (!root.articleViewPage || root.articleViewPage.articleId === null) return;
+            for (let r = topLeft.row; r <= bottomRight.row; ++r) {
+                if (articleListModel.idAt(r) === root.articleViewPage.articleId) {
+                    root.updateOpenArticle();
+                    break;
                 }
             }
         }
-        function onDataChanged() { root.updateOpenArticle(); }
     }
 
     function updateOpenArticle() {
-        for (let i = 0; i < applicationWindow().pageStack.depth; ++i) {
-            let item = applicationWindow().pageStack.get(i);
-            if (item && item.objectName === "articleViewPage" && item.articleId !== null) {
-                let modelData = articleListModel.getById(item.articleId);
-                if (modelData) {
-                    item.articleContent = modelData.content;
-                    item.isUnread = (modelData.status === "unread");
-                }
-                break;
+        if (root.articleViewPage && root.articleViewPage.articleId !== null) {
+            let modelData = articleListModel.getById(root.articleViewPage.articleId);
+            if (modelData && modelData.id !== undefined) {
+                root.articleViewPage.syncUpdates(modelData);
             }
         }
     }
@@ -245,17 +185,7 @@ Kirigami.Page {
                         }
                         
                         if (topIndex > 0) {
-                            // Any item with index < topIndex has scrolled out of view at the top 
-                            let unreadIds = [];
-                            for (let i = 0; i < topIndex; i++) {
-                                let modelItem = articleListModel.get(i);
-                                if (modelItem && modelItem.status === "unread") {
-                                    unreadIds.push(modelItem.id);
-                                }
-                            }
-                            if (unreadIds.length > 0) {
-                                articleListModel.markArticlesAsReadByIds(unreadIds, true);
-                            }
+                            articleListModel.markReadUpTo(topIndex);
                         }
                     }
                 }
@@ -288,7 +218,9 @@ Kirigami.Page {
                             }
                             
                             Kirigami.Icon {
-                                source: model.feedSiteUrl ? "https://www.google.com/s2/favicons?domain=" + model.feedSiteUrl : "rss"
+                                source: model.feedHasIcon ? ("image://kiriflux/feed-icon/" + model.feedId + "?v=" + model.feedIconId) : "rss"
+                                fallback: "rss"
+                                isMask: !model.feedHasIcon
                                 implicitWidth: Kirigami.Units.iconSizes.small
                                 implicitHeight: Kirigami.Units.iconSizes.small
                                 Layout.alignment: Qt.AlignVCenter
@@ -303,10 +235,12 @@ Kirigami.Page {
                             QQC2.Label {
                                 id: titleLabel
                                 text: model.title
-                                font.family: (settings && settings.articleListTitleFont) ? settings.articleListTitleFont.family : ""
-                                font.pointSize: (settings && settings.articleListTitleFont && settings.articleListTitleFont.pointSize > 0) ? settings.articleListTitleFont.pointSize : -1
-                                font.weight: (settings && settings.articleListTitleFont) ? (model.status === "unread" ? Font.Bold : settings.articleListTitleFont.weight) : (model.status === "unread" ? Font.Bold : Font.Normal)
-                                font.italic: (settings && settings.articleListTitleFont) ? settings.articleListTitleFont.italic : false
+                                textFormat: Text.PlainText
+                                font: root.fontWithWeight(
+                                    settings ? settings.articleListTitleFont : null,
+                                    model.status === "unread"
+                                        ? Font.Bold
+                                        : (settings && settings.articleListTitleFont ? settings.articleListTitleFont.weight : Font.Normal))
                                 elide: Text.ElideRight
                                 maximumLineCount: settings ? settings.titleLines : 1
                                 wrapMode: (settings && settings.titleLines > 1) ? Text.WordWrap : Text.NoWrap
@@ -325,10 +259,7 @@ Kirigami.Page {
                                         parts.push(new Date(model.publishedAt).toLocaleString(Qt.locale(), "MMM d, hh:mm"));
                                     return parts.join(" • ");
                                 }
-                                font.family: (settings && settings.articleListInfoFont) ? settings.articleListInfoFont.family : ""
-                                font.pointSize: (settings && settings.articleListInfoFont && settings.articleListInfoFont.pointSize > 0) ? settings.articleListInfoFont.pointSize : -1
-                                font.weight: (settings && settings.articleListInfoFont) ? settings.articleListInfoFont.weight : Font.Normal
-                                font.italic: (settings && settings.articleListInfoFont) ? settings.articleListInfoFont.italic : false
+                                font: settings.articleListInfoFont
                                 opacity: delegate.highlighted ? 0.85 : 0.65
                                 elide: Text.ElideRight
                                 Layout.fillWidth: true
@@ -342,10 +273,10 @@ Kirigami.Page {
                     anchors.centerIn: parent
                     width: parent.width - Kirigami.Units.largeSpacing * 4
                     visible: articleListView.count === 0
-                    icon.name: articleListModel.filterStarred ? "favorite" : "mail-mark-read"
-                    text: articleListModel.filterStarred
+                    icon.name: articleListModel.filterMode === "starred" ? "favorite" : "mail-mark-read"
+                    text: articleListModel.filterMode === "starred"
                         ? i18n("No starred articles")
-                        : (articleListModel.filterStatus === "unread" ? i18n("No unread articles") : i18n("No articles"))
+                        : (articleListModel.filterMode === "unread" ? i18n("No unread articles") : i18n("No articles"))
                 }
             }
         }

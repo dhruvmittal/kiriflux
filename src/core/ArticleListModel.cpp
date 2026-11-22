@@ -3,15 +3,65 @@
 #include "SyncEngine.h"
 #include "kiriflux.h"
 #include <KLocalizedString>
+#include <QSet>
+
+static void decodeFilterMode(const QString& mode, ArticleStatus& status, bool& starred)
+{
+    if (mode == QLatin1String("unread")) {
+        status = ArticleStatus::Unread;
+        starred = false;
+    } else if (mode == QLatin1String("starred")) {
+        status = ArticleStatus::All;
+        starred = true;
+    } else {
+        status = ArticleStatus::All;
+        starred = false;
+    }
+}
+
+static QString statusToString(ArticleStatus status)
+{
+    switch (status) {
+    case ArticleStatus::Read: return QStringLiteral("read");
+    case ArticleStatus::Unread: return QStringLiteral("unread");
+    case ArticleStatus::Removed: return QStringLiteral("removed");
+    default: return QStringLiteral("unknown");
+    }
+}
+
+static QVariantMap articleToMap(const Article& article)
+{
+    QVariantMap res;
+    res[QStringLiteral("id")] = qlonglong(article.id);
+    res[QStringLiteral("feedId")] = qlonglong(article.feedId);
+    res[QStringLiteral("title")] = article.title;
+    res[QStringLiteral("author")] = article.author;
+    res[QStringLiteral("content")] = article.content;
+    res[QStringLiteral("url")] = article.url;
+    res[QStringLiteral("publishedAt")] = article.publishedAt;
+    res[QStringLiteral("status")] = statusToString(article.status);
+    res[QStringLiteral("starred")] = article.starred;
+    res[QStringLiteral("isRead")] = (article.status == ArticleStatus::Read);
+    res[QStringLiteral("feedTitle")] = article.feedTitle;
+    res[QStringLiteral("feedSiteUrl")] = article.siteUrl;
+    res[QStringLiteral("feedIconId")] = qlonglong(article.feedIconId);
+    res[QStringLiteral("feedHasIcon")] = article.feedHasIcon;
+    return res;
+}
 
 ArticleListModel::ArticleListModel(QObject *parent)
     : QAbstractListModel(parent)
 {
-    m_filterStatus = Settings::self()->filterStatus();
-    m_filterStarred = Settings::self()->filterStarred();
+    const QString savedMode = Settings::self()->filterMode();
+    if (savedMode == QLatin1String("unread") || savedMode == QLatin1String("starred")) {
+        m_filterMode = savedMode;
+    } else {
+        m_filterMode = QStringLiteral("all");
+    }
     
     connect(&SyncEngine::instance(), &SyncEngine::articlesUpdated, this, &ArticleListModel::refresh);
     connect(&SyncEngine::instance(), &SyncEngine::articleContentUpdated, this, &ArticleListModel::onArticleContentUpdated);
+    connect(&SyncEngine::instance(), &SyncEngine::feedIconUpdated, this, &ArticleListModel::onFeedIconUpdated);
 
     refresh();
 }
@@ -33,19 +83,11 @@ void ArticleListModel::fetchMore(const QModelIndex &parent)
     int offset = m_articles.size();
     
     ArticleStatus status = ArticleStatus::All;
-    if (!m_filterStarred) {
-        if (m_filterStatus == "unread") status = ArticleStatus::Unread;
-        else if (m_filterStatus == "read") status = ArticleStatus::Read;
-    }
+    bool starred = false;
+    decodeFilterMode(m_filterMode, status, starred);
 
-    QList<Article> moreArticles;
-    if (m_currentFeedId != -1) {
-        moreArticles = DatabaseManager::instance().getArticlesForFeed(m_currentFeedId, status, m_filterStarred, batchSize, offset);
-    } else if (m_currentCategoryId != -1) {
-        moreArticles = DatabaseManager::instance().getArticlesForCategory(m_currentCategoryId, status, m_filterStarred, batchSize, offset);
-    } else {
-        moreArticles = DatabaseManager::instance().getAllArticles(status, m_filterStarred, batchSize, offset);
-    }
+    QList<Article> moreArticles = DatabaseManager::instance().getArticles(
+        m_currentFeedId, m_currentCategoryId, status, starred, batchSize, offset);
 
     if (moreArticles.isEmpty()) return;
 
@@ -114,11 +156,30 @@ void ArticleListModel::markArticlesAsReadByIds(const QList<qint64>& ids, bool re
     }
 }
 
-void ArticleListModel::setFilterStatus(const QString &status)
+void ArticleListModel::markReadUpTo(int endIndex)
 {
-    if (m_filterStatus == status) return;
-    m_filterStatus = status;
-    Settings::setFilterStatus(status);
+    const int limit = qMin(endIndex, static_cast<int>(m_articles.size()));
+    if (limit <= 0) return;
+
+    QList<qint64> unreadIds;
+    for (int i = 0; i < limit; ++i) {
+        if (m_articles.at(i).status == ArticleStatus::Unread) {
+            unreadIds.append(m_articles.at(i).id);
+        }
+    }
+    if (!unreadIds.isEmpty()) {
+        markArticlesAsReadByIds(unreadIds, true);
+    }
+}
+
+void ArticleListModel::setFilterMode(const QString &mode)
+{
+    const QString normalized = (mode == QLatin1String("unread") || mode == QLatin1String("starred"))
+                                   ? mode
+                                   : QStringLiteral("all");
+    if (m_filterMode == normalized) return;
+    m_filterMode = normalized;
+    Settings::self()->setFilterMode(m_filterMode);
     Settings::self()->save();
     refresh(true);
     emit filterChanged();
@@ -134,32 +195,12 @@ QString ArticleListModel::currentName() const
     return i18n("All Articles");
 }
 
-void ArticleListModel::setFilterStarred(bool starred)
-{
-    if (m_filterStarred == starred) return;
-    m_filterStarred = starred;
-    Settings::setFilterStarred(starred);
-    Settings::self()->save();
-    refresh(true);
-    emit filterChanged();
-}
-
 void ArticleListModel::markAllAsRead()
 {
-    QList<Article> unreadArticles;
-    if (m_currentFeedId != -1) {
-        unreadArticles = DatabaseManager::instance().getArticlesForFeed(m_currentFeedId, ArticleStatus::Unread, m_filterStarred);
-    } else if (m_currentCategoryId != -1) {
-        unreadArticles = DatabaseManager::instance().getArticlesForCategory(m_currentCategoryId, ArticleStatus::Unread, m_filterStarred);
-    } else {
-        unreadArticles = DatabaseManager::instance().getAllArticles(ArticleStatus::Unread, m_filterStarred);
-    }
+    const bool starredOnly = (m_filterMode == QLatin1String("starred"));
+    const QList<qint64> dbUnreadIds = DatabaseManager::instance().getUnreadArticleIds(m_currentFeedId, m_currentCategoryId, starredOnly);
 
-    QSet<qint64> unreadSet;
-    unreadSet.reserve(unreadArticles.size() + m_articles.size());
-    for (const auto& a : unreadArticles) {
-        unreadSet.insert(a.id);
-    }
+    QSet<qint64> unreadSet(dbUnreadIds.begin(), dbUnreadIds.end());
     for (const auto& a : m_articles) {
         if (a.status == ArticleStatus::Unread) {
             unreadSet.insert(a.id);
@@ -181,7 +222,7 @@ void ArticleListModel::markAllAsRead()
         }
     }
 
-    if (Settings::self()->lazyLoadingEnabled() && m_filterStatus == QStringLiteral("unread")) {
+    if (Settings::self()->lazyLoadingEnabled() && m_filterMode == QLatin1String("unread")) {
         m_totalAvailableCount = m_articles.size();
     }
 }
@@ -194,7 +235,6 @@ void ArticleListModel::toggleStarred(int index)
 
 void ArticleListModel::toggleStarredById(qint64 id)
 {
-    // Find current state
     bool currentStarred = false;
     bool foundInModel = false;
     int modelIndex = -1;
@@ -209,12 +249,11 @@ void ArticleListModel::toggleStarredById(qint64 id)
     }
     
     if (!foundInModel) {
-        // Must check DB if not in current view
         auto article = DatabaseManager::instance().getArticleById(id);
         if (article) {
             currentStarred = article->starred;
         } else {
-            return; // Not found in DB either
+            return;
         }
     }
     
@@ -231,15 +270,12 @@ void ArticleListModel::toggleStarredById(qint64 id)
 
 void ArticleListModel::onArticleContentUpdated(qint64 id)
 {
-    // Find the item in our list and update its content from DB
     for (int i = 0; i < m_articles.count(); ++i) {
         if (m_articles.at(i).id == id) {
-            // Re-fetch this article from DB to get NEW content
             auto article = DatabaseManager::instance().getArticleById(id);
             if (article) {
                 m_articles[i] = *article;
                 QModelIndex qidx = index(i, 0);
-                // Emit dataChanged for all relevant roles (content, etc.)
                 emit dataChanged(qidx, qidx); 
             }
             return;
@@ -247,13 +283,22 @@ void ArticleListModel::onArticleContentUpdated(qint64 id)
     }
 }
 
+void ArticleListModel::onFeedIconUpdated(qint64 feedId)
+{
+    for (int i = 0; i < m_articles.count(); ++i) {
+        if (m_articles[i].feedId == feedId && !m_articles[i].feedHasIcon) {
+            m_articles[i].feedHasIcon = true;
+            const QModelIndex qidx = index(i, 0);
+            emit dataChanged(qidx, qidx, {FeedHasIconRole});
+        }
+    }
+}
+
 void ArticleListModel::refresh(bool forceReset)
 {
     ArticleStatus status = ArticleStatus::All;
-    if (!m_filterStarred) {
-        if (m_filterStatus == "unread") status = ArticleStatus::Unread;
-        else if (m_filterStatus == "read") status = ArticleStatus::Read;
-    }
+    bool starred = false;
+    decodeFilterMode(m_filterMode, status, starred);
 
     bool lazy = Settings::self()->lazyLoadingEnabled();
     int batchSize = Settings::self()->lazyLoadingBatchSize();
@@ -261,25 +306,12 @@ void ArticleListModel::refresh(bool forceReset)
     
     if (lazy) {
         limit = (forceReset || m_articles.isEmpty()) ? batchSize : (m_articles.size() + batchSize);
-        if (m_currentFeedId != -1) {
-            m_totalAvailableCount = DatabaseManager::instance().countArticlesForFeed(m_currentFeedId, status, m_filterStarred);
-        } else if (m_currentCategoryId != -1) {
-            m_totalAvailableCount = DatabaseManager::instance().countArticlesForCategory(m_currentCategoryId, status, m_filterStarred);
-        } else {
-            m_totalAvailableCount = DatabaseManager::instance().countAllArticles(status, m_filterStarred);
-        }
+        m_totalAvailableCount = DatabaseManager::instance().countArticles(m_currentFeedId, m_currentCategoryId, status, starred);
     } else {
         m_totalAvailableCount = -1;
     }
 
-    QList<Article> newArticles;
-    if (m_currentFeedId != -1) {
-        newArticles = DatabaseManager::instance().getArticlesForFeed(m_currentFeedId, status, m_filterStarred, limit, 0);
-    } else if (m_currentCategoryId != -1) {
-        newArticles = DatabaseManager::instance().getArticlesForCategory(m_currentCategoryId, status, m_filterStarred, limit, 0);
-    } else {
-        newArticles = DatabaseManager::instance().getAllArticles(status, m_filterStarred, limit, 0);
-    }
+    QList<Article> newArticles = DatabaseManager::instance().getArticles(m_currentFeedId, m_currentCategoryId, status, starred, limit, 0);
 
     if (forceReset || m_articles.isEmpty()) {
         beginResetModel();
@@ -289,6 +321,13 @@ void ArticleListModel::refresh(bool forceReset)
         return;
     }
 
+    QSet<qint64> oldIds;
+    oldIds.reserve(m_articles.size());
+    for (const auto& a : m_articles) {
+        oldIds.insert(a.id);
+    }
+
+    const bool guardUnread = (m_filterMode == QLatin1String("unread"));
     int oldIdx = 0;
     int newIdx = 0;
 
@@ -313,24 +352,34 @@ void ArticleListModel::refresh(bool forceReset)
                 while (newIdx < newArticles.size() && 
                        ((newArticles[newIdx].publishedAt > m_articles[oldIdx].publishedAt) || 
                         (newArticles[newIdx].publishedAt == m_articles[oldIdx].publishedAt && newArticles[newIdx].id > m_articles[oldIdx].id))) {
+                    if (oldIds.contains(newArticles[newIdx].id)) {
+                        // Article timestamp/order shifted; reset cleanly instead of creating duplicate IDs
+                        beginResetModel();
+                        m_articles = newArticles;
+                        endResetModel();
+                        emit countChanged();
+                        return;
+                    }
                     newIdx++;
                 }
                 int count = newIdx - startInsertIdx;
                 beginInsertRows(QModelIndex(), oldIdx, oldIdx + count - 1);
                 for (int i = 0; i < count; ++i) {
                     m_articles.insert(oldIdx + i, newArticles[startInsertIdx + i]);
+                    oldIds.insert(newArticles[startInsertIdx + i].id);
                 }
                 endInsertRows();
                 oldIdx += count;
             } else {
-                if (m_filterStatus == "unread" && m_articles[oldIdx].status == ArticleStatus::Read) {
+                if (guardUnread && m_articles[oldIdx].status == ArticleStatus::Read) {
                     oldIdx++; // Evaporation Guard: keep locally read items in the unread list until hard reset
                 } else {
                     int startRemoveIdx = oldIdx;
                     while (oldIdx < m_articles.size() && 
                            ((m_articles[oldIdx].publishedAt > newArticles[newIdx].publishedAt) || 
                             (m_articles[oldIdx].publishedAt == newArticles[newIdx].publishedAt && m_articles[oldIdx].id > newArticles[newIdx].id))) {
-                        if (m_filterStatus == "unread" && m_articles[oldIdx].status == ArticleStatus::Read) break;
+                        if (guardUnread && m_articles[oldIdx].status == ArticleStatus::Read) break;
+                        oldIds.remove(m_articles[oldIdx].id);
                         oldIdx++;
                     }
                     int count = oldIdx - startRemoveIdx;
@@ -346,6 +395,15 @@ void ArticleListModel::refresh(bool forceReset)
     }
 
     if (newIdx < newArticles.size()) {
+        for (int k = newIdx; k < newArticles.size(); ++k) {
+            if (oldIds.contains(newArticles[k].id)) {
+                beginResetModel();
+                m_articles = newArticles;
+                endResetModel();
+                emit countChanged();
+                return;
+            }
+        }
         int count = newArticles.size() - newIdx;
         beginInsertRows(QModelIndex(), oldIdx, oldIdx + count - 1);
         while (newIdx < newArticles.size()) {
@@ -358,11 +416,11 @@ void ArticleListModel::refresh(bool forceReset)
     if (oldIdx < m_articles.size()) {
         // Need to respect Evaporation Guard for tail removals too
         while (oldIdx < m_articles.size()) {
-            if (m_filterStatus == "unread" && m_articles[oldIdx].status == ArticleStatus::Read) {
+            if (guardUnread && m_articles[oldIdx].status == ArticleStatus::Read) {
                 oldIdx++;
             } else {
                 int startRemoveIdx = oldIdx;
-                while (oldIdx < m_articles.size() && !(m_filterStatus == "unread" && m_articles[oldIdx].status == ArticleStatus::Read)) {
+                while (oldIdx < m_articles.size() && !(guardUnread && m_articles[oldIdx].status == ArticleStatus::Read)) {
                     oldIdx++;
                 }
                 int count = oldIdx - startRemoveIdx;
@@ -396,17 +454,12 @@ QVariant ArticleListModel::data(const QModelIndex &index, int role) const
     case ContentRole: return article.content;
     case UrlRole: return article.url;
     case PublishedAtRole: return article.publishedAt;
-    case StatusRole: {
-        switch (article.status) {
-            case ArticleStatus::Read: return QStringLiteral("read");
-            case ArticleStatus::Unread: return QStringLiteral("unread");
-            case ArticleStatus::Removed: return QStringLiteral("removed");
-            default: return QStringLiteral("unknown");
-        }
-    }
+    case StatusRole: return statusToString(article.status);
     case StarredRole: return article.starred;
     case FeedTitleRole: return article.feedTitle;
     case FeedSiteUrlRole: return article.siteUrl;
+    case FeedIconIdRole: return qlonglong(article.feedIconId);
+    case FeedHasIconRole: return article.feedHasIcon;
     case Qt::DisplayRole: return article.title;
     }
     return {};
@@ -414,61 +467,47 @@ QVariant ArticleListModel::data(const QModelIndex &index, int role) const
 
 QHash<int, QByteArray> ArticleListModel::roleNames() const
 {
-    QHash<int, QByteArray> roles;
-    roles[IdRole] = "id";
-    roles[FeedIdRole] = "feedId";
-    roles[TitleRole] = "title";
-    roles[AuthorRole] = "author";
-    roles[ContentRole] = "content";
-    roles[UrlRole] = "url";
-    roles[PublishedAtRole] = "publishedAt";
-    roles[StatusRole] = "status";
-    roles[StarredRole] = "starred";
-    roles[FeedTitleRole] = "feedTitle";
-    roles[FeedSiteUrlRole] = "feedSiteUrl";
+    static const QHash<int, QByteArray> roles = {
+        {IdRole, "id"},
+        {FeedIdRole, "feedId"},
+        {TitleRole, "title"},
+        {AuthorRole, "author"},
+        {ContentRole, "content"},
+        {UrlRole, "url"},
+        {PublishedAtRole, "publishedAt"},
+        {StatusRole, "status"},
+        {StarredRole, "starred"},
+        {FeedTitleRole, "feedTitle"},
+        {FeedSiteUrlRole, "feedSiteUrl"},
+        {FeedIconIdRole, "feedIconId"},
+        {FeedHasIconRole, "feedHasIcon"}
+    };
     return roles;
 }
+
 QVariantMap ArticleListModel::get(int row) const
 {
     if (row < 0 || row >= m_articles.count()) return {};
-
-    QVariantMap res;
-    QHash<int, QByteArray> roles = roleNames();
-    QHashIterator<int, QByteArray> i(roles);
-    while (i.hasNext()) {
-        i.next();
-        res[QString::fromUtf8(i.value())] = data(index(row, 0), i.key());
-    }
-    return res;
+    return articleToMap(m_articles.at(row));
 }
+
 QVariantMap ArticleListModel::getById(qint64 id) const
 {
-    // Search cached list first
     for (int i = 0; i < m_articles.count(); ++i) {
         if (m_articles.at(i).id == id) {
-            return get(i);
+            return articleToMap(m_articles.at(i));
         }
     }
     
-    // Fallback to database
     auto article = DatabaseManager::instance().getArticleById(id);
     if (article) {
-        QVariantMap res;
-        res["id"] = qlonglong(article->id);
-        res["feedId"] = qlonglong(article->feedId);
-        res["title"] = article->title;
-        res["author"] = article->author;
-        res["content"] = article->content;
-        res["url"] = article->url;
-        res["publishedAt"] = article->publishedAt;
-        res["status"] = (article->status == ArticleStatus::Read) ? QStringLiteral("read")
-                      : (article->status == ArticleStatus::Removed) ? QStringLiteral("removed")
-                      : QStringLiteral("unread");
-        res["starred"] = article->starred;
-        res["isRead"] = article->status == ArticleStatus::Read;
-        res["feedTitle"] = article->feedTitle;
-        res["feedSiteUrl"] = article->siteUrl;
-        return res;
+        return articleToMap(*article);
     }
     return {};
+}
+
+qint64 ArticleListModel::idAt(int row) const
+{
+    if (row < 0 || row >= m_articles.count()) return -1;
+    return m_articles.at(row).id;
 }

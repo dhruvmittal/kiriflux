@@ -41,8 +41,8 @@ A familiar, productivity-focused layout with a sidebar for feeds and categories,
 ### Prerequisites
 
 Kiriflux requires:
-- **Qt 6** (Core, Gui, Quick, QuickControls2, Widgets, Sql, DBus, WebEngineQuick)
-- **KDE Frameworks 6** (Kirigami, KConfig, KI18n, KCoreAddons, KXmlGui, KDBusAddons)
+- **Qt 6** (Core, Gui, Quick, QuickControls2, Widgets, Sql, WebEngineQuick)
+- **KDE Frameworks 6** (Kirigami, KConfig, KI18n, KCoreAddons, KDBusAddons)
 - **CMake** ≥ 3.20 and **Ninja** (recommended)
 - **Extra CMake Modules (ECM)**
 
@@ -79,7 +79,7 @@ Install the dependencies using `pacman`.
 
 ```bash
 sudo pacman -S qt6-base qt6-declarative qt6-webengine qt6-svg \
-  kirigami ki18n kconfig kcoreaddons kxmlgui kdbusaddons \
+  kirigami ki18n kconfig kcoreaddons kdbusaddons \
   qqc2-desktop-style extra-cmake-modules cmake ninja
 ```
 

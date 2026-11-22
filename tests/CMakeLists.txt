@@ -1,120 +1,28 @@
-find_package(Qt6 REQUIRED COMPONENTS Test Sql Network Concurrent)
+find_package(Qt6 REQUIRED COMPONENTS Test Sql Network)
 
-# 1. DatabaseManagerTest
-add_executable(DatabaseManagerTest DatabaseManagerTest.cpp)
-target_link_libraries(DatabaseManagerTest PRIVATE
-    kiriflux_core
-    Qt6::Test
-    Qt6::Sql
-)
-add_test(NAME DatabaseManagerTest COMMAND DatabaseManagerTest)
+function(kiriflux_add_test name)
+    add_executable(${name} ${name}.cpp)
+    target_link_libraries(${name} PRIVATE
+        kiriflux_core
+        Qt6::Test
+        ${ARGN}
+    )
+    add_test(NAME ${name} COMMAND ${name})
+    set_tests_properties(${name} PROPERTIES
+        ENVIRONMENT "XDG_CONFIG_HOME=${CMAKE_CURRENT_BINARY_DIR}/test-config;XDG_DATA_HOME=${CMAKE_CURRENT_BINARY_DIR}/test-data"
+    )
+endfunction()
 
-# 11. AppControllerTest
-add_executable(AppControllerTest AppControllerTest.cpp)
-target_link_libraries(AppControllerTest PRIVATE
-    kiriflux_core
-    Qt6::Test
-    Qt6::Qml
-)
-add_test(NAME AppControllerTest COMMAND AppControllerTest)
-
-# 2. ArticleListModelTest
-add_executable(ArticleListModelTest ArticleListModelTest.cpp)
-target_link_libraries(ArticleListModelTest PRIVATE
-    kiriflux_core
-    Qt6::Test
-)
-add_test(NAME ArticleListModelTest COMMAND ArticleListModelTest)
-
-# 3. FeedListModelTest
-add_executable(FeedListModelTest FeedListModelTest.cpp)
-target_link_libraries(FeedListModelTest PRIVATE
-    kiriflux_core
-    Qt6::Test
-)
-add_test(NAME FeedListModelTest COMMAND FeedListModelTest)
-
-# 4. CategoryListModelTest
-add_executable(CategoryListModelTest CategoryListModelTest.cpp)
-target_link_libraries(CategoryListModelTest PRIVATE
-    kiriflux_core
-    Qt6::Test
-)
-add_test(NAME CategoryListModelTest COMMAND CategoryListModelTest)
-
-# 5. SyncTest (Integration, requires secrets)
+kiriflux_add_test(DatabaseManagerTest Qt6::Sql)
+kiriflux_add_test(AppControllerTest Qt6::Qml)
+kiriflux_add_test(ArticleListModelTest)
+kiriflux_add_test(FeedListModelTest)
+kiriflux_add_test(CategoryListModelTest)
+kiriflux_add_test(SyncTest Qt6::Network)
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/secrets.h")
-    add_executable(SyncTest SyncTest.cpp)
     target_compile_definitions(SyncTest PRIVATE EXISTS_SECRETS)
-    target_link_libraries(SyncTest PRIVATE
-        kiriflux_core
-        Qt6::Test
-        Qt6::Network
-    )
-    add_test(NAME SyncTest COMMAND SyncTest)
-else()
-    add_executable(SyncTest SyncTest.cpp) # Built anyway, skip at runtime if no env/secrets
-    target_link_libraries(SyncTest PRIVATE
-        kiriflux_core
-        Qt6::Test
-        Qt6::Network
-    )
-    add_test(NAME SyncTest COMMAND SyncTest)
 endif()
-
-# 6. BatchSyncTest
-add_executable(BatchSyncTest BatchSyncTest.cpp)
-target_link_libraries(BatchSyncTest PRIVATE
-    kiriflux_core
-    Qt6::Test
-    Qt6::Network
-)
-add_test(NAME BatchSyncTest COMMAND BatchSyncTest)
-# 7. NetworkConcurrencyTest
-add_executable(NetworkConcurrencyTest NetworkConcurrencyTest.cpp)
-target_link_libraries(NetworkConcurrencyTest PRIVATE
-    kiriflux_core
-    Qt6::Test
-    Qt6::Network
-)
-add_test(NAME NetworkConcurrencyTest COMMAND NetworkConcurrencyTest)
-
-# 8. SettingsManagerTest
-add_executable(SettingsManagerTest SettingsManagerTest.cpp)
-target_link_libraries(SettingsManagerTest PRIVATE
-    kiriflux_core
-    Qt6::Test
-)
-add_test(NAME SettingsManagerTest COMMAND SettingsManagerTest)
-
-# 9. NetworkManagerTest
-add_executable(NetworkManagerTest NetworkManagerTest.cpp)
-target_link_libraries(NetworkManagerTest PRIVATE
-    kiriflux_core
-    Qt6::Test
-    Qt6::Network
-)
-add_test(NAME NetworkManagerTest COMMAND NetworkManagerTest)
-
-# 10. ImagePrefetchTest
-add_executable(ImagePrefetchTest ImagePrefetchTest.cpp)
-target_link_libraries(ImagePrefetchTest PRIVATE
-    kiriflux_core
-    Qt6::Test
-)
-add_test(NAME ImagePrefetchTest COMMAND ImagePrefetchTest)
-
-set_tests_properties(
-    DatabaseManagerTest
-    AppControllerTest
-    ArticleListModelTest
-    FeedListModelTest
-    CategoryListModelTest
-    SyncTest
-    BatchSyncTest
-    NetworkConcurrencyTest
-    SettingsManagerTest
-    NetworkManagerTest
-    ImagePrefetchTest
-    PROPERTIES ENVIRONMENT "XDG_CONFIG_HOME=${CMAKE_CURRENT_BINARY_DIR}/test-config;XDG_DATA_HOME=${CMAKE_CURRENT_BINARY_DIR}/test-data"
-)
+kiriflux_add_test(BatchSyncTest Qt6::Network)
+kiriflux_add_test(SettingsManagerTest)
+kiriflux_add_test(NetworkManagerTest Qt6::Network)
+kiriflux_add_test(ImagePrefetchTest)

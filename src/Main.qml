@@ -43,22 +43,7 @@ Kirigami.ApplicationWindow {
                 sourceComponent: Kirigami.AboutItem {
                     getInvolvedUrl: ""
                     donateUrl: ""
-                    aboutData: ({
-                        displayName: "Kiriflux",
-                        productName: "kiriflux",
-                        componentName: "kiriflux",
-                        shortDescription: i18n("A desktop-first RSS reader for Miniflux"),
-                        homepage: "https://github.com",
-                        bugAddress: "",
-                        version: Qt.application.version,
-                        otherText: "",
-                        authors: [{ name: i18n("Kiriflux Team"), task: "", emailAddress: "", webAddress: "https://github.com", ocsUsername: "" }],
-                        credits: [],
-                        translators: [],
-                        licenses: [{ name: "GPL v3", text: "", spdx: "GPL-3.0-or-later" }],
-                        copyrightStatement: i18n("© 2026 Kiriflux Contributors"),
-                        desktopFileName: "org.kde.kiriflux"
-                    })
+                    aboutData: appAboutData
                 }
             }
         }
@@ -66,18 +51,6 @@ Kirigami.ApplicationWindow {
 
     Connections {
         target: syncEngine
-        function onArticlesUpdated() {
-            articleListModel.refresh();
-            feedListModel.refresh();
-            categoryListModel.refresh();
-        }
-        function onArticleStatusUpdated(entryId, status) {
-            if (status === "read") {
-                // Optional: show notification for manual read marks? 
-                // Usually we don't notify for every read mark, but for "saved" we did.
-                // Keeping it quiet for now unless it was a specific 'save' action.
-            }
-        }
         function onArticleBookmarkToggled(entryId) {
              root.showPassiveNotification(i18n("Article star status updated."));
         }
@@ -86,71 +59,24 @@ Kirigami.ApplicationWindow {
         }
     }
 
-    Component.onCompleted: {
-        articleListModel.refresh();
-        feedListModel.refresh();
-        categoryListModel.refresh();
-        // Deferred second refresh ensures the article list is populated after the
-        // QML engine finishes component instantiation (avoids blank center pane on cold launch).
-        startupRefreshTimer.start();
-    }
-
-    Timer {
-        id: startupRefreshTimer
-        interval: 150
-        repeat: false
-        onTriggered: articleListModel.refresh()
-    }
-
     // ── Layout Control Properties ──────────────────────────────────
     // 3 columns: Drawer pinned (modal=false) + pageStack wide
     // 2 columns: Drawer modal (closeable) + pageStack wide
     // 1 column:  Drawer modal + pageStack narrow (one page at a time)
     property int layoutMode: 3 // Default to 3-column
 
+    // Imperative drawerOpen keeps manual hamburger toggling working in 1/2-column modes
     onLayoutModeChanged: {
-        if (layoutMode === 3) {
-            globalDrawer.modal = false;
-            globalDrawer.drawerOpen = true;
-            // Allow multiple columns side-by-side
-            if (pageStack.columnView) {
-                pageStack.columnView.columnResizeMode = Kirigami.ColumnView.FixedColumns;
-                pageStack.columnView.columnSpacing = 0;
-                pageStack.columnView.padding = 0;
-                pageStack.columnView.leftPadding = 0;
-                pageStack.columnView.rightPadding = 0;
-            }
-        } else if (layoutMode === 2) {
-            globalDrawer.modal = true;
-            globalDrawer.drawerOpen = false;
-            // Allow multiple columns side-by-side (drawer is just hidden)
-            if (pageStack.columnView) {
-                pageStack.columnView.columnResizeMode = Kirigami.ColumnView.FixedColumns;
-                pageStack.columnView.columnSpacing = 0;
-                pageStack.columnView.padding = 0;
-                pageStack.columnView.leftPadding = 0;
-                pageStack.columnView.rightPadding = 0;
-            }
-        } else {
-            // wideScreen alone is not enough — the PageRow fits columns based on
-            // available pixel width and ignores wideScreen for column count.
-            globalDrawer.modal = true;
-            globalDrawer.drawerOpen = false;
-            if (pageStack.columnView) {
-                pageStack.columnView.columnResizeMode = Kirigami.ColumnView.SingleColumn;
-                pageStack.columnView.columnSpacing = 0;
-                pageStack.columnView.padding = 0;
-                pageStack.columnView.leftPadding = 0;
-                pageStack.columnView.rightPadding = 0;
-            }
-        }
+        globalDrawer.drawerOpen = (layoutMode === 3 && !Kirigami.Settings.isMobile);
     }
 
     pageStack.globalToolBar.style: Kirigami.ApplicationHeaderStyle.ToolBar
     pageStack.globalToolBar.showNavigationButtons: Kirigami.ApplicationHeaderStyle.ShowBackButton
+    pageStack.columnView.columnResizeMode: root.layoutMode === 1
+        ? Kirigami.ColumnView.SingleColumn
+        : Kirigami.ColumnView.FixedColumns
 
     // wideScreen controls back-button visibility and drawer modal default.
-    // The actual page stack column count is driven imperatively above.
     wideScreen: layoutMode !== 1
 
     // ── Layout Menu ────────────────────────────────────────────────
@@ -204,19 +130,28 @@ Kirigami.ApplicationWindow {
                     text: i18n("1 Line")
                     checkable: true
                     checked: settings.titleLines === 1
-                    onTriggered: settings.titleLines = 1
+                    onTriggered: {
+                        settings.titleLines = 1;
+                        settings.save();
+                    }
                 }
                 Platform.MenuItem {
                     text: i18n("2 Lines")
                     checkable: true
                     checked: settings.titleLines === 2
-                    onTriggered: settings.titleLines = 2
+                    onTriggered: {
+                        settings.titleLines = 2;
+                        settings.save();
+                    }
                 }
                 Platform.MenuItem {
                     text: i18n("3 Lines")
                     checkable: true
                     checked: settings.titleLines === 3
-                    onTriggered: settings.titleLines = 3
+                    onTriggered: {
+                        settings.titleLines = 3;
+                        settings.save();
+                    }
                 }
             }
 
@@ -226,7 +161,10 @@ Kirigami.ApplicationWindow {
                 text: i18n("Use Native Reader Mode")
                 checkable: true
                 checked: settings.useReaderMode
-                onTriggered: settings.useReaderMode = !settings.useReaderMode
+                onTriggered: {
+                    settings.useReaderMode = !settings.useReaderMode;
+                    settings.save();
+                }
             }
 
             Platform.MenuSeparator {}
@@ -268,14 +206,11 @@ Kirigami.ApplicationWindow {
 
     // ── Global Drawer (Left Pane: Feeds) ───────────────────────────
     globalDrawer: FeedsDrawer {
-        // Initial state: pinned open for 3-pane, closed for 2/1-pane.
-        // The onLayoutModeChanged handler in root drives subsequent changes.
         modal: root.layoutMode !== 3 || Kirigami.Settings.isMobile
         drawerOpen: root.layoutMode === 3 && !Kirigami.Settings.isMobile
     }
 
     // ── Global Keyboard Shortcuts ──────────────────────────────────
-    // Assuming article listView is inside the active page now, we handle shortcuts contextually
     Shortcut {
         sequence: "R"
         onActivated: syncEngine.forceSync()
@@ -296,29 +231,23 @@ Kirigami.ApplicationWindow {
 
     Shortcut {
         sequence: "Alt+1"
-        onActivated: {
-            articleListModel.filterStatus = "all"
-            articleListModel.filterStarred = false
-        }
+        onActivated: articleListModel.filterMode = "all"
     }
     Shortcut {
         sequence: "Alt+2"
-        onActivated: {
-            articleListModel.filterStatus = "unread"
-            articleListModel.filterStarred = false
-        }
+        onActivated: articleListModel.filterMode = "unread"
     }
     Shortcut {
         sequence: "Alt+3"
-        onActivated: {
-            articleListModel.filterStatus = "all"
-            articleListModel.filterStarred = true
-        }
+        onActivated: articleListModel.filterMode = "starred"
     }
 
     Shortcut {
         sequence: "N"
-        onActivated: settings.useReaderMode = !settings.useReaderMode
+        onActivated: {
+            settings.useReaderMode = !settings.useReaderMode;
+            settings.save();
+        }
     }
 
     Shortcut {

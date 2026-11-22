@@ -18,17 +18,18 @@ Kirigami.Page {
     // Hint for Kirigami.PageRow (column view)
     Layout.fillWidth: true
     
-    // Properties passed when pushing the page
-    property int articleIndex: -1
+    // Properties populated via loadArticle()
     property string articleTitle: ""
     property string articleContent: ""
-    property string feedSiteUrl: ""
     property string feedTitle: ""
     property string author: ""
-    property string publishedAt: ""
+    property var publishedAt: null
     property bool isUnread: false
     property string articleUrl: ""
     property var articleId: null
+
+    // Avoid WebEngineView.settings shadowing the root context "settings" object
+    readonly property var appSettings: settings
 
     // Properties for robust color-to-CSS conversion
     readonly property color themedTextColor: Kirigami.Theme.textColor
@@ -39,6 +40,22 @@ Kirigami.Page {
 
     function colorToCss(c) {
         return "rgba(" + Math.floor(c.r*255) + "," + Math.floor(c.g*255) + "," + Math.floor(c.b*255) + "," + c.a + ")";
+    }
+
+    function fontSizeCss(f, fallback) {
+        if (!f) return fallback;
+        if (f.pixelSize > 0) return f.pixelSize + "px";
+        if (f.pointSize > 0) return f.pointSize + "pt";
+        return fallback;
+    }
+
+    function formatMetadata() {
+        let dateStr = root.publishedAt ? new Date(root.publishedAt).toLocaleString(Qt.locale(), Locale.ShortFormat) : "";
+        let parts = [];
+        if (root.feedTitle) parts.push(root.feedTitle);
+        if (root.author) parts.push(root.author);
+        if (dateStr) parts.push(dateStr);
+        return parts.join(" • ");
     }
 
     // Hidden TextEdit for clipboard operations
@@ -53,74 +70,41 @@ Kirigami.Page {
         clipboardHelper.copy();
     }
 
-    QQC2.Popup {
-        id: imageLightbox
-        parent: QQC2.Overlay.overlay
-        anchors.centerIn: parent
-        width: parent ? parent.width : root.width
-        height: parent ? parent.height : root.height
-        modal: true
-        focus: true
-        padding: Kirigami.Units.largeSpacing * 2
-        closePolicy: QQC2.Popup.CloseOnEscape | QQC2.Popup.CloseOnPressOutside
-        property url imageSource: ""
+    function loadArticle(article) {
+        root.articleId = article.id;
+        root.articleTitle = article.title || "";
+        root.articleContent = article.content || "";
+        root.feedTitle = article.feedTitle || "";
+        root.author = article.author || "";
+        root.publishedAt = article.publishedAt || null;
+        root.isUnread = (article.status === "unread");
+        root.articleUrl = article.url || "";
+        updateActiveView();
+    }
 
-        background: Rectangle {
-            color: Qt.rgba(0, 0, 0, 0.85)
-            MouseArea {
-                anchors.fill: parent
-                onClicked: imageLightbox.close()
-            }
-        }
+    function clearArticle() {
+        root.articleId = null;
+        root.articleTitle = "";
+        root.articleContent = "";
+        root.feedTitle = "";
+        root.author = "";
+        root.publishedAt = null;
+        root.isUnread = false;
+        root.articleUrl = "";
+    }
 
-        contentItem: Image {
-            source: imageLightbox.imageSource
-            fillMode: Image.PreserveAspectFit
-            asynchronous: true
-
-            MouseArea {
-                anchors.fill: parent
-                onClicked: imageLightbox.close()
-            }
-
-            QQC2.BusyIndicator {
-                anchors.centerIn: parent
-                running: parent.status === Image.Loading
-            }
+    function syncUpdates(modelData) {
+        root.isUnread = (modelData.status === "unread");
+        if (modelData.content !== undefined && modelData.content !== root.articleContent) {
+            root.articleContent = modelData.content;
+            updateActiveView();
         }
     }
 
-    QQC2.Menu {
-        id: contextMenu
-        property string linkUrl: ""
-        readonly property bool isImageLink: linkUrl.startsWith("kiriflux-img:")
-
-        QQC2.MenuItem {
-            text: i18n("Copy")
-            icon.name: "edit-copy"
-            enabled: readerModeLoader.item && readerModeLoader.item.nativeTextItem && readerModeLoader.item.nativeTextItem.selectedText.length > 0
-            onTriggered: readerModeLoader.item.nativeTextItem.copy()
-        }
-
-        QQC2.MenuItem {
-            text: contextMenu.isImageLink ? i18n("Copy Image Address") : i18n("Copy Link Address")
-            icon.name: "edit-copy-url"
-            visible: contextMenu.linkUrl !== ""
-            onTriggered: root.copyToClipboard(contextMenu.isImageLink ? root.resolveImageUrl(contextMenu.linkUrl) : contextMenu.linkUrl)
-        }
-        
-        QQC2.MenuSeparator { visible: contextMenu.linkUrl !== "" }
-        
-        QQC2.MenuItem {
-            text: contextMenu.isImageLink ? i18n("Open Image in Browser") : i18n("Open Link in Browser")
-            icon.name: "internet-services"
-            visible: contextMenu.linkUrl !== ""
-            onTriggered: Qt.openUrlExternally(contextMenu.isImageLink ? root.resolveImageUrl(contextMenu.linkUrl) : contextMenu.linkUrl)
-        }
-    }
-
-    function resolveImageUrl(schemeUrl) {
-        let raw = decodeURIComponent(schemeUrl.slice("kiriflux-img:".length));
+    function resolveImageUrl(rawOrScheme) {
+        let raw = rawOrScheme.startsWith("kiriflux-img:")
+            ? decodeURIComponent(rawOrScheme.slice("kiriflux-img:".length))
+            : rawOrScheme;
         if (!raw) return "";
         if (/^https?:\/\/|^data:/i.test(raw)) {
             return raw;
@@ -144,23 +128,104 @@ Kirigami.Page {
         }
     }
 
-    Timer {
-        id: renderDebouncer
-        interval: 10
-        repeat: false
-        onTriggered: updateActiveView()
+    function toProviderImageUrl(url) {
+        if (url && /^https?:\/\//i.test(url)) {
+            return "image://kiriflux/img/" + encodeURIComponent(url);
+        }
+        return url;
     }
 
-    onArticleContentChanged: if (readerModeLoader.item || webViewLoader.item) renderDebouncer.restart()
-    onArticleTitleChanged: if (readerModeLoader.item || webViewLoader.item) renderDebouncer.restart()
-    onFeedTitleChanged: if (readerModeLoader.item || webViewLoader.item) renderDebouncer.restart()
-    onAuthorChanged: if (readerModeLoader.item || webViewLoader.item) renderDebouncer.restart()
-    onPublishedAtChanged: if (readerModeLoader.item || webViewLoader.item) renderDebouncer.restart()
+    QQC2.Popup {
+        id: imageLightbox
+        parent: QQC2.Overlay.overlay
+        anchors.centerIn: parent
+        width: parent ? parent.width : root.width
+        height: parent ? parent.height : root.height
+        modal: true
+        focus: true
+        padding: Kirigami.Units.largeSpacing * 2
+        closePolicy: QQC2.Popup.CloseOnEscape | QQC2.Popup.CloseOnPressOutside
+        property string imageSource: ""
 
-    Connections {
-        target: settings
-        function onSettingsChanged() {
-            updateActiveView();
+        background: Rectangle {
+            color: Qt.rgba(0, 0, 0, 0.85)
+            MouseArea {
+                anchors.fill: parent
+                onClicked: imageLightbox.close()
+            }
+        }
+
+        contentItem: Image {
+            source: root.toProviderImageUrl(imageLightbox.imageSource)
+            fillMode: Image.PreserveAspectFit
+            asynchronous: true
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: imageLightbox.close()
+            }
+
+            QQC2.BusyIndicator {
+                anchors.centerIn: parent
+                running: parent.status === Image.Loading
+            }
+        }
+    }
+
+    QQC2.Menu {
+        id: contextMenu
+        property string linkUrl: ""
+        property Item targetText: null
+        readonly property bool isImageLink: linkUrl.startsWith("kiriflux-img:")
+
+        QQC2.MenuItem {
+            text: i18n("Copy")
+            icon.name: "edit-copy"
+            enabled: contextMenu.targetText && contextMenu.targetText.selectedText.length > 0
+            onTriggered: contextMenu.targetText.copy()
+        }
+
+        QQC2.MenuItem {
+            text: contextMenu.isImageLink ? i18n("Copy Image Address") : i18n("Copy Link Address")
+            icon.name: "edit-copy-url"
+            visible: contextMenu.linkUrl !== ""
+            onTriggered: root.copyToClipboard(contextMenu.isImageLink ? root.resolveImageUrl(contextMenu.linkUrl) : contextMenu.linkUrl)
+        }
+        
+        QQC2.MenuSeparator { visible: contextMenu.linkUrl !== "" }
+        
+        QQC2.MenuItem {
+            text: contextMenu.isImageLink ? i18n("Open Image in Browser") : i18n("Open Link in Browser")
+            icon.name: "internet-services"
+            visible: contextMenu.linkUrl !== ""
+            onTriggered: Qt.openUrlExternally(contextMenu.isImageLink ? root.resolveImageUrl(contextMenu.linkUrl) : contextMenu.linkUrl)
+        }
+    }
+
+    component ReaderText : TextEdit {
+        id: readerText
+        readOnly: true
+        selectByMouse: true
+        activeFocusOnTab: false
+        cursorVisible: false
+        selectionColor: Kirigami.Theme.highlightColor
+        selectedTextColor: Kirigami.Theme.highlightedTextColor
+        color: root.themedTextColor
+        wrapMode: TextEdit.WordWrap
+        Layout.fillWidth: true
+
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.RightButton
+            onClicked: (mouse) => {
+                contextMenu.targetText = readerText;
+                contextMenu.linkUrl = readerText.linkAt(mouse.x, mouse.y);
+                contextMenu.popup();
+            }
+        }
+
+        HoverHandler {
+            cursorShape: (readerText.linkAt(point.position.x, point.position.y) !== "") ? Qt.PointingHandCursor : Qt.IBeamCursor
         }
     }
 
@@ -179,6 +244,7 @@ Kirigami.Page {
         Kirigami.Action {
             text: root.isUnread ? i18n("Mark Read") : i18n("Mark Unread")
             icon.name: root.isUnread ? "mail-mark-read" : "mail-mark-unread"
+            shortcut: "m"
             enabled: root.articleId !== null
             onTriggered: {
                 if (root.articleId !== null) {
@@ -191,6 +257,7 @@ Kirigami.Page {
         Kirigami.Action {
             text: i18n("Star")
             icon.name: "favorite"
+            shortcut: "s"
             enabled: root.articleId !== null
             onTriggered: {
                 if (root.articleId !== null) {
@@ -202,6 +269,7 @@ Kirigami.Page {
         Kirigami.Action {
             text: i18n("Full Content")
             icon.name: "download"
+            shortcut: "d"
             enabled: root.articleId !== null
             onTriggered: {
                 if (root.articleId !== null && syncEngine) {
@@ -213,7 +281,8 @@ Kirigami.Page {
         Kirigami.Action {
             text: i18n("Open Browser")
             icon.name: "globe"
-            enabled: root.articleId !== null
+            shortcut: "f"
+            enabled: root.articleId !== null && root.articleUrl !== ""
             onTriggered: {
                 if (root.articleUrl) {
                     Qt.openUrlExternally(root.articleUrl)
@@ -242,37 +311,33 @@ Kirigami.Page {
                 id: readerScroll
                 QQC2.ScrollBar.horizontal.policy: QQC2.ScrollBar.AlwaysOff
                 contentWidth: availableWidth
-                
-                readonly property alias nativeTextItem: nativeText
 
                 function formatReaderHtml(html) {
                     if (!html) return "<p style='color:#888; text-align:center;'>Select an article to read.</p>";
                     let colWidth = Math.min(760, Math.max(100, (readerScroll.width > 0 ? readerScroll.width : root.width) - Kirigami.Units.largeSpacing * 4));
                     let maxImgWidth = Math.max(160, Math.min(colWidth - Kirigami.Units.largeSpacing * 4, 520));
                     return html.replace(/<img([^>]*)>/gi, function(match, attributes) {
-                        let srcMatch = attributes.match(/\bsrc=["']([^"']+)["']/i);
-                        let widthMatch = attributes.match(/\bwidth=["']?(\d+)(?:px)?["']?/i);
+                        let srcMatch = attributes.match(/(?:^|\s)src=["']([^"']+)["']/i);
+                        let widthMatch = attributes.match(/(?:^|\s)width=["']?(\d+)(?:px)?["']?/i);
                         let origWidth = widthMatch ? parseInt(widthMatch[1], 10) : 0;
                         let targetWidth = (origWidth > 0 && origWidth < maxImgWidth) ? origWidth : maxImgWidth;
-                        let cleanAttrs = attributes.replace(/\b(width|height)=["'][^"']*["']/gi, "");
+                        let cleanAttrs = attributes.replace(/(^|\s)(?:width|height)=["'][^"']*["']/gi, "$1");
+                        let resolvedSrc = (srcMatch && srcMatch[1]) ? root.resolveImageUrl(srcMatch[1]) : "";
+                        if (resolvedSrc) {
+                            let providerSrc = root.toProviderImageUrl(resolvedSrc);
+                            cleanAttrs = cleanAttrs.replace(/(^|\s)src=["'][^"']*["']/i, `$1src="${providerSrc}"`);
+                        }
                         let imgTag = `<img width="${targetWidth}" ${cleanAttrs}>`;
-                        if (srcMatch && srcMatch[1]) {
-                            imgTag = `<a href="kiriflux-img:${encodeURIComponent(srcMatch[1])}">${imgTag}</a>`;
+                        if (resolvedSrc) {
+                            imgTag = `<a href="kiriflux-img:${encodeURIComponent(resolvedSrc)}">${imgTag}</a>`;
                         }
                         return (origWidth > 0 && origWidth <= 64) ? imgTag : `<table align="center" style="margin-top: 12px; margin-bottom: 12px;"><tr><td>${imgTag}</td></tr></table>`;
                     });
                 }
 
                 property var updateContent: function() {
-                    let dateStr = root.publishedAt ? new Date(root.publishedAt).toLocaleString(Qt.locale(), Locale.ShortFormat) : "";
-                    let metadata = (root.feedTitle ? root.feedTitle : "") + 
-                                   (root.feedTitle && root.author ? " • " : "") + 
-                                   (root.author ? root.author : "") + 
-                                   ((root.feedTitle || root.author) && dateStr ? " • " : "") + 
-                                   dateStr;
-                    
                     nativeTitle.text = root.articleTitle;
-                    nativeInfo.text = metadata;
+                    nativeInfo.text = root.formatMetadata();
                     nativeText.text = formatReaderHtml(root.articleContent);
                     readerScroll.contentItem.contentY = 0;
                 }
@@ -292,78 +357,24 @@ Kirigami.Page {
                             Layout.maximumWidth: 760
                             spacing: Kirigami.Units.largeSpacing
 
-                            TextEdit {
+                            ReaderText {
                                 id: nativeTitle
-                                readOnly: true
-                                selectByMouse: true
-                                activeFocusOnTab: false
-                                cursorVisible: false
-                                selectionColor: Kirigami.Theme.highlightColor
-                                selectedTextColor: Kirigami.Theme.highlightedTextColor
-                                font.family: (settings && settings.articleViewTitleFont) ? settings.articleViewTitleFont.family : ""
-                                font.pointSize: (settings && settings.articleViewTitleFont && settings.articleViewTitleFont.pointSize > 0) ? settings.articleViewTitleFont.pointSize : -1
-                                font.weight: (settings && settings.articleViewTitleFont) ? settings.articleViewTitleFont.weight : Font.Normal
-                                font.italic: (settings && settings.articleViewTitleFont) ? settings.articleViewTitleFont.italic : false
-                                color: root.themedTextColor
-                                wrapMode: TextEdit.WordWrap
-                                Layout.fillWidth: true
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    acceptedButtons: Qt.RightButton
-                                    onClicked: {
-                                        contextMenu.linkUrl = "";
-                                        contextMenu.popup();
-                                    }
-                                }
+                                font: settings.articleViewTitleFont
                             }
                             
-                            TextEdit {
+                            ReaderText {
                                 id: nativeInfo
-                                readOnly: true
-                                selectByMouse: true
-                                activeFocusOnTab: false
-                                cursorVisible: false
-                                selectionColor: Kirigami.Theme.highlightColor
-                                selectedTextColor: Kirigami.Theme.highlightedTextColor
-                                font.family: (settings && settings.articleViewInfoFont) ? settings.articleViewInfoFont.family : ""
-                                font.pointSize: (settings && settings.articleViewInfoFont && settings.articleViewInfoFont.pointSize > 0) ? settings.articleViewInfoFont.pointSize : -1
-                                font.weight: (settings && settings.articleViewInfoFont) ? settings.articleViewInfoFont.weight : Font.Normal
-                                font.italic: (settings && settings.articleViewInfoFont) ? settings.articleViewInfoFont.italic : false
-                                color: root.themedTextColor
+                                font: settings.articleViewInfoFont
                                 opacity: 0.7
-                                wrapMode: TextEdit.WordWrap
-                                Layout.fillWidth: true
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    acceptedButtons: Qt.RightButton
-                                    onClicked: {
-                                        contextMenu.linkUrl = "";
-                                        contextMenu.popup();
-                                    }
-                                }
                             }
                             
                             Kirigami.Separator { Layout.fillWidth: true }
                             
-                            TextEdit {
+                            ReaderText {
                                 id: nativeText
                                 textFormat: TextEdit.RichText
-                                readOnly: true
-                                selectByMouse: true
-                                activeFocusOnTab: false
-                                cursorVisible: false
-                                selectionColor: Kirigami.Theme.highlightColor
-                                selectedTextColor: Kirigami.Theme.highlightedTextColor
                                 baseUrl: root.articleUrl
-                                font.family: (settings && settings.articleViewTextFont) ? settings.articleViewTextFont.family : ""
-                                font.pointSize: (settings && settings.articleViewTextFont && settings.articleViewTextFont.pointSize > 0) ? settings.articleViewTextFont.pointSize : -1
-                                font.weight: (settings && settings.articleViewTextFont) ? settings.articleViewTextFont.weight : Font.Normal
-                                font.italic: (settings && settings.articleViewTextFont) ? settings.articleViewTextFont.italic : false
-                                color: root.themedTextColor
-                                wrapMode: TextEdit.WordWrap
-                                Layout.fillWidth: true
+                                font: settings.articleViewTextFont
                                 onLinkActivated: (link) => {
                                     if (link.startsWith("kiriflux-img:")) {
                                         imageLightbox.imageSource = root.resolveImageUrl(link);
@@ -371,20 +382,6 @@ Kirigami.Page {
                                     } else {
                                         Qt.openUrlExternally(link);
                                     }
-                                }
-                                
-                                MouseArea {
-                                    anchors.fill: parent
-                                    acceptedButtons: Qt.RightButton
-                                    onClicked: (mouse) => {
-                                        let link = nativeText.linkAt(mouse.x, mouse.y);
-                                        contextMenu.linkUrl = link;
-                                        contextMenu.popup();
-                                    }
-                                }
-                                
-                                HoverHandler {
-                                    cursorShape: (nativeText.linkAt(point.position.x, point.position.y) !== "") ? Qt.PointingHandCursor : Qt.IBeamCursor
                                 }
                             }
                             
@@ -459,36 +456,48 @@ Kirigami.Page {
                         <head>
                             <style>
                                 :root { 
+                                    color-scheme: var(--color-scheme);
                                     --color-scheme: light;
                                     --text-color: #000;
                                     --bg-color: #fff;
                                     --alt-bg-color: #eee;
                                     --highlight-color: #3daee9;
                                     --focus-color: #3daee9;
+                                    --body-font-family: serif;
+                                    --body-font-size: 16px;
+                                    --body-font-weight: normal;
+                                    --body-font-style: normal;
+                                    --title-font-family: sans-serif;
+                                    --title-font-size: 18pt;
+                                    --title-font-weight: bold;
+                                    --title-font-style: normal;
+                                    --meta-font-family: sans-serif;
+                                    --meta-font-size: 10pt;
+                                    --meta-font-weight: normal;
+                                    --meta-font-style: normal;
                                 }
-                                color-scheme: var(--color-scheme);
                                 body {
-                                    font-family: "${(settings && settings.articleViewTextFont) ? settings.articleViewTextFont.family : 'serif'}", serif;
-                                    font-size: ${(settings && settings.articleViewTextFont && settings.articleViewTextFont.pointSize > 0) ? settings.articleViewTextFont.pointSize + "pt" : '12pt'};
-                                    font-weight: ${(settings && settings.articleViewTextFont) ? settings.articleViewTextFont.weight : 'normal'};
-                                    font-style: ${(settings && settings.articleViewTextFont) ? (settings.articleViewTextFont.italic ? 'italic' : 'normal') : 'normal'};
+                                    font-family: var(--body-font-family), serif;
+                                    font-size: var(--body-font-size);
+                                    font-weight: var(--body-font-weight);
+                                    font-style: var(--body-font-style);
                                     padding: 40px; line-height: 1.6;
                                     color: var(--text-color) !important; background-color: var(--bg-color) !important;
                                     margin: 0 auto; max-width: 800px;
                                 }
                                 .header { margin-bottom: 24px; border-bottom: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent); padding-bottom: 16px; }
                                 .title {
-                                    font-family: "${(settings && settings.articleViewTitleFont) ? settings.articleViewTitleFont.family : 'sans-serif'}", sans-serif;
-                                    font-size: ${(settings && settings.articleViewTitleFont && settings.articleViewTitleFont.pointSize > 0) ? settings.articleViewTitleFont.pointSize + "pt" : '18pt'};
-                                    font-weight: ${(settings && settings.articleViewTitleFont) ? settings.articleViewTitleFont.weight : 'bold'};
-                                    font-style: ${(settings && settings.articleViewTitleFont) ? (settings.articleViewTitleFont.italic ? 'italic' : 'normal') : 'normal'};
+                                    font-family: var(--title-font-family), sans-serif;
+                                    font-size: var(--title-font-size);
+                                    font-weight: var(--title-font-weight);
+                                    font-style: var(--title-font-style);
                                     line-height: 1.2; margin-bottom: 15px; color: var(--text-color);
                                 }
                                 .meta {
-                                    font-family: "${(settings && settings.articleViewInfoFont) ? settings.articleViewInfoFont.family : 'sans-serif'}", sans-serif;
-                                    font-size: ${(settings && settings.articleViewInfoFont && settings.articleViewInfoFont.pointSize > 0) ? settings.articleViewInfoFont.pointSize + "pt" : '10pt'};
-                                    font-weight: ${(settings && settings.articleViewInfoFont) ? settings.articleViewInfoFont.weight : 'normal'};
-                                    font-style: ${(settings && settings.articleViewInfoFont) ? (settings.articleViewInfoFont.italic ? 'italic' : 'normal') : 'normal'};
+                                    font-family: var(--meta-font-family), sans-serif;
+                                    font-size: var(--meta-font-size);
+                                    font-weight: var(--meta-font-weight);
+                                    font-style: var(--meta-font-style);
                                     opacity: 0.7; color: var(--text-color);
                                 }
                                 img { 
@@ -566,14 +575,30 @@ Kirigami.Page {
                     if (!webViewReady) return;
 
                     let colorScheme = isDark ? 'dark' : 'light';
+                    let bodyFont = root.appSettings ? root.appSettings.articleViewTextFont : null;
+                    let titleFont = root.appSettings ? root.appSettings.articleViewTitleFont : null;
+                    let infoFont = root.appSettings ? root.appSettings.articleViewInfoFont : null;
 
                     runJavaScript(`
-                        document.documentElement.style.setProperty('--color-scheme', '${colorScheme}');
-                        document.documentElement.style.setProperty('--text-color', '${textColor}');
-                        document.documentElement.style.setProperty('--bg-color', '${bgColor}');
-                        document.documentElement.style.setProperty('--alt-bg-color', '${alternateBgColor}');
-                        document.documentElement.style.setProperty('--highlight-color', '${highlightColor}');
-                        document.documentElement.style.setProperty('--focus-color', '${focusColor}');
+                        let s = document.documentElement.style;
+                        s.setProperty('--color-scheme', ${JSON.stringify(colorScheme)});
+                        s.setProperty('--text-color', ${JSON.stringify(textColor)});
+                        s.setProperty('--bg-color', ${JSON.stringify(bgColor)});
+                        s.setProperty('--alt-bg-color', ${JSON.stringify(alternateBgColor)});
+                        s.setProperty('--highlight-color', ${JSON.stringify(highlightColor)});
+                        s.setProperty('--focus-color', ${JSON.stringify(focusColor)});
+                        s.setProperty('--body-font-family', ${JSON.stringify(bodyFont ? bodyFont.family : "serif")});
+                        s.setProperty('--body-font-size', ${JSON.stringify(root.fontSizeCss(bodyFont, "16px"))});
+                        s.setProperty('--body-font-weight', ${JSON.stringify(String(bodyFont ? bodyFont.weight : 400))});
+                        s.setProperty('--body-font-style', ${JSON.stringify(bodyFont && bodyFont.italic ? "italic" : "normal")});
+                        s.setProperty('--title-font-family', ${JSON.stringify(titleFont ? titleFont.family : "sans-serif")});
+                        s.setProperty('--title-font-size', ${JSON.stringify(root.fontSizeCss(titleFont, "18pt"))});
+                        s.setProperty('--title-font-weight', ${JSON.stringify(String(titleFont ? titleFont.weight : 700))});
+                        s.setProperty('--title-font-style', ${JSON.stringify(titleFont && titleFont.italic ? "italic" : "normal")});
+                        s.setProperty('--meta-font-family', ${JSON.stringify(infoFont ? infoFont.family : "sans-serif")});
+                        s.setProperty('--meta-font-size', ${JSON.stringify(root.fontSizeCss(infoFont, "10pt"))});
+                        s.setProperty('--meta-font-weight', ${JSON.stringify(String(infoFont ? infoFont.weight : 400))});
+                        s.setProperty('--meta-font-style', ${JSON.stringify(infoFont && infoFont.italic ? "italic" : "normal")});
                     `);
                 }
 
@@ -595,22 +620,23 @@ Kirigami.Page {
                     }
                 }
 
+                readonly property font watchedTitleFont: root.appSettings.articleViewTitleFont
+                readonly property font watchedInfoFont: root.appSettings.articleViewInfoFont
+                readonly property font watchedTextFont: root.appSettings.articleViewTextFont
+                onWatchedTitleFontChanged: if (webViewReady) updateTheme()
+                onWatchedInfoFontChanged: if (webViewReady) updateTheme()
+                onWatchedTextFontChanged: if (webViewReady) updateTheme()
+
                 property var updateContent: function() {
                     if (!webViewReady) return;
 
                     if (root.articleContent || root.articleTitle) {
-                        let dateStr = root.publishedAt ? new Date(root.publishedAt).toLocaleString(Qt.locale(), Locale.ShortFormat) : "";
-                        let metadata = (root.feedTitle ? root.feedTitle : "") + 
-                                       (root.feedTitle && root.author ? " • " : "") + 
-                                       (root.author ? root.author : "") + 
-                                       ((root.feedTitle || root.author) && dateStr ? " • " : "") + 
-                                       dateStr;
-
-                        let titleHtml = root.articleTitle || "";
+                        let metadata = root.formatMetadata();
+                        let titleText = root.articleTitle || "";
                         let contentHtml = root.articleContent || "<p>No content available.</p>";
 
                         runJavaScript(`
-                            document.getElementById('article-title').innerHTML = ${JSON.stringify(titleHtml)};
+                            document.getElementById('article-title').textContent = ${JSON.stringify(titleText)};
                             document.getElementById('article-meta').textContent = ${JSON.stringify(metadata)};
                             document.getElementById('article-content').innerHTML = ${JSON.stringify(contentHtml)};
                             window.scrollTo(0, 0);
@@ -618,7 +644,7 @@ Kirigami.Page {
                     } else {
                         let emptyHtml = "<div style='display:flex; justify-content:center; align-items:center; height:50vh; color:#888;'>Select an article to read.</div>";
                         runJavaScript(`
-                            document.getElementById('article-title').innerHTML = "";
+                            document.getElementById('article-title').textContent = "";
                             document.getElementById('article-meta').textContent = "";
                             document.getElementById('article-content').innerHTML = ${JSON.stringify(emptyHtml)};
                             window.scrollTo(0, 0);
@@ -643,44 +669,6 @@ Kirigami.Page {
                     sequence: "Space"
                     onActivated: articleWebView.runJavaScript("window.scrollBy(0, window.innerHeight);")
                 }
-            }
-        }
-    }
-
-    // Global page shortcuts context
-    Shortcut {
-        sequence: "s"
-        onActivated: {
-            if (root.articleId !== null) {
-                articleListModel.toggleStarredById(root.articleId)
-            }
-        }
-    }
-
-    Shortcut {
-        sequence: "d"
-        onActivated: {
-            if (root.articleId !== null && syncEngine) {
-                syncEngine.fetchFullContent(root.articleId)
-            }
-        }
-    }
-
-    Shortcut {
-        sequence: "m"
-        onActivated: {
-            if (root.articleId !== null) {
-                articleListModel.markAsReadById(root.articleId, root.isUnread)
-                root.isUnread = !root.isUnread
-            }
-        }
-    }
-
-    Shortcut {
-        sequence: "f"
-        onActivated: {
-            if (root.articleUrl) {
-                Qt.openUrlExternally(root.articleUrl)
             }
         }
     }

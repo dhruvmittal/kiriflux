@@ -1,8 +1,8 @@
 #include <QtTest>
-#include "../src/core/NetworkManager.h"
-#include "../src/core/KirifluxNAMFactory.h"
-#include <QNetworkAccessManager>
+#include <QTcpServer>
+#include <QTcpSocket>
 #include <QDir>
+#include "../src/core/NetworkManager.h"
 
 class NetworkManagerTest : public QObject
 {
@@ -29,26 +29,52 @@ private slots:
         QVERIFY(QDir(cacheDir).exists());
     }
 
-    void testNAMFactory() {
-        KirifluxNAMFactory factory;
-        QObject parent;
-        QNetworkAccessManager* nam = factory.create(&parent);
-        
-        QVERIFY(nam != nullptr);
-        QVERIFY(nam->cache() != nullptr);
-        
-        // Verify that the factory sets the global cache directory on the newly created NAM's cache
-        auto namCache = qobject_cast<QNetworkDiskCache*>(nam->cache());
-        QVERIFY(namCache != nullptr);
-        QCOMPARE(namCache->cacheDirectory(), NetworkManager::instance().cache()->cacheDirectory());
-        QCOMPARE(namCache->maximumCacheSize(), NetworkManager::instance().cache()->maximumCacheSize());
+    void testPrefetchConcurrencyCap() {
+        QTcpServer server;
+        QVERIFY(server.listen(QHostAddress::LocalHost, 0));
+
+        int totalServed = 0;
+        int maxConcurrent = 0;
+        NetworkManager& nm = NetworkManager::instance();
+
+        connect(&server, &QTcpServer::newConnection, this, [&]() {
+            while (QTcpSocket* sock = server.nextPendingConnection()) {
+                maxConcurrent = qMax(maxConcurrent, nm.activePrefetchCount());
+                QTimer::singleShot(25, sock, [sock, &totalServed]() {
+                    sock->write("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nCache-Control: no-store\r\nConnection: close\r\n\r\nok");
+                    sock->flush();
+                    sock->disconnectFromHost();
+                    sock->deleteLater();
+                    totalServed++;
+                });
+            }
+        });
+
+        const quint16 port = server.serverPort();
+        const int totalRequests = 15;
+        for (int i = 0; i < totalRequests; ++i) {
+            const QUrl url(QStringLiteral("http://127.0.0.1:%1/img-%2.png").arg(port).arg(i));
+            nm.prefetchUrl(url);
+            maxConcurrent = qMax(maxConcurrent, nm.activePrefetchCount());
+        }
+
+        // Duplicate and non-HTTP URLs must be ignored
+        nm.prefetchUrl(QUrl(QStringLiteral("http://127.0.0.1:%1/img-0.png").arg(port)));
+        nm.prefetchUrl(QUrl(QStringLiteral("data:image/png;base64,iVBORw0KGgo=")));
+
+        QVERIFY(QTest::qWaitFor([&]() {
+            maxConcurrent = qMax(maxConcurrent, nm.activePrefetchCount());
+            return totalServed == totalRequests && nm.activePrefetchCount() == 0;
+        }, 5000));
+
+        QCOMPARE(totalServed, totalRequests);
+        QVERIFY(maxConcurrent <= 6);
+        QVERIFY(maxConcurrent >= 2);
     }
 
     void testClearCache() {
         NetworkManager& nm = NetworkManager::instance();
-        // This is hard to test without real network activity but we can verify the call
         nm.clearCache();
-        // If it didn't crash, it's a good sign.
     }
 };
 
