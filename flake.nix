@@ -10,17 +10,6 @@
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
-
-      # Kirigami's qmldir files contain 'prefer :/qt/qml/...' directives that
-      # force the QML engine to load from QRC resource paths. When KF6::Kirigami
-      # is linked statically, those resources exist in the binary. On NixOS we
-      # don't link it (it breaks qt6_import_qml_plugins), so we strip the
-      # 'prefer' lines to let the engine use the filesystem paths instead.
-      kirigamiQml = pkgs.runCommand "kirigami-qml-patched" {} ''
-        cp -r ${pkgs.kdePackages.kirigami.unwrapped}/lib/qt-6/qml $out
-        chmod -R u+w $out
-        find $out -name qmldir -exec sed -i -e '/^prefer /d' -e '/^linktarget /d' {} \;
-      '';
     in
     {
       packages.${system} = {
@@ -33,7 +22,7 @@
             cmake
             ninja
             pkg-config
-            makeWrapper
+            kdePackages.wrapQtAppsHook
             kdePackages.extra-cmake-modules
           ];
 
@@ -41,9 +30,11 @@
             qtbase
             qtdeclarative
             qtsvg
+            qtwayland
             kirigami
             qqc2-desktop-style
             qqc2-breeze-style
+            sonnet
             kconfig
             ki18n
             kcoreaddons
@@ -63,29 +54,19 @@
 
           doCheck = false;
 
-          dontWrapQtApps = true;
-
-          # Explicitly wrap the app with required QML paths and KDE theme
-          postInstall = ''
-            wrapProgram $out/bin/kiriflux \
-              --set QML_DISABLE_DISK_CACHE "1" \
-              --set QTWEBENGINEPROCESS_PATH "${pkgs.kdePackages.qtwebengine}/libexec/QtWebEngineProcess" \
-              --set QTWEBENGINE_RESOURCES_PATH "${pkgs.kdePackages.qtwebengine}/resources" \
-              --set QTWEBENGINE_LOCALES_PATH "${pkgs.kdePackages.qtwebengine}/translations/qtwebengine_locales" \
-              --prefix QML2_IMPORT_PATH : "${kirigamiQml}" \
-              --prefix QML2_IMPORT_PATH : "${pkgs.kdePackages.qqc2-desktop-style}/lib/qt-6/qml" \
-              --prefix QML2_IMPORT_PATH : "${pkgs.kdePackages.qqc2-breeze-style}/lib/qt-6/qml" \
-              --prefix QML2_IMPORT_PATH : "${pkgs.kdePackages.kitemmodels}/lib/qt-6/qml" \
-              --prefix QML2_IMPORT_PATH : "${pkgs.kdePackages.qtdeclarative}/lib/qt-6/qml" \
-              --prefix QML2_IMPORT_PATH : "${pkgs.kdePackages.qtwebengine}/lib/qt-6/qml" \
-              --prefix QT_PLUGIN_PATH : "${pkgs.kdePackages.qtbase}/lib/qt-6/plugins" \
-              --prefix QT_PLUGIN_PATH : "${pkgs.kdePackages.plasma-integration}/lib/qt-6/plugins" \
-              --prefix QT_PLUGIN_PATH : "${pkgs.kdePackages.breeze}/lib/qt-6/plugins" \
-              --prefix XDG_DATA_DIRS : "${pkgs.kdePackages.kirigami}/share" \
-              --prefix XDG_DATA_DIRS : "${pkgs.kdePackages.breeze-icons}/share" \
-              --prefix XDG_DATA_DIRS : "$out/share" \
-              --set QT_QPA_PLATFORMTHEME "kde" \
+          preFixup = ''
+            qtWrapperArgs=(
+              --unset NIXPKGS_QT6_QML_IMPORT_PATH
+              --unset QML2_IMPORT_PATH
+              --set QML_DISABLE_DISK_CACHE "1"
+              --set QTWEBENGINEPROCESS_PATH "${pkgs.kdePackages.qtwebengine}/libexec/QtWebEngineProcess"
+              --set QTWEBENGINE_RESOURCES_PATH "${pkgs.kdePackages.qtwebengine}/resources"
+              --set QTWEBENGINE_LOCALES_PATH "${pkgs.kdePackages.qtwebengine}/translations/qtwebengine_locales"
+              --prefix XDG_DATA_DIRS : "${pkgs.kdePackages.breeze-icons}/share"
+              --set QT_QPA_PLATFORMTHEME "kde"
               --set QT_QUICK_CONTROLS_STYLE "org.kde.desktop"
+              "''${qtWrapperArgs[@]}"
+            )
           '';
         };
 
@@ -120,11 +101,25 @@
           clang-tools
         ];
 
-        # Mirror the postInstall wrapper environment for dev builds
+        # Mirror the wrapQtAppsHook environment for dev builds
         shellHook = ''
+          unset QML2_IMPORT_PATH
           export QML_DISABLE_DISK_CACHE=1
-          export QML2_IMPORT_PATH="${kirigamiQml}:${pkgs.kdePackages.qqc2-desktop-style}/lib/qt-6/qml:${pkgs.kdePackages.qqc2-breeze-style}/lib/qt-6/qml:${pkgs.kdePackages.kitemmodels}/lib/qt-6/qml:${pkgs.kdePackages.qtdeclarative}/lib/qt-6/qml:${pkgs.kdePackages.qtwebengine}/lib/qt-6/qml"
-          export QT_PLUGIN_PATH="${pkgs.kdePackages.qtbase}/lib/qt-6/plugins:${pkgs.kdePackages.plasma-integration}/lib/qt-6/plugins:${pkgs.kdePackages.breeze}/lib/qt-6/plugins"
+          export NIXPKGS_QT6_QML_IMPORT_PATH="${pkgs.lib.makeSearchPath "lib/qt-6/qml" (with pkgs.kdePackages; [
+            kirigami.unwrapped
+            qqc2-desktop-style
+            qqc2-breeze-style
+            sonnet
+            kitemmodels
+            qtdeclarative
+            qtwebengine
+          ])}"
+          export QT_PLUGIN_PATH="${pkgs.lib.makeSearchPath "lib/qt-6/plugins" (with pkgs.kdePackages; [
+            qtbase
+            qtwayland
+            plasma-integration
+            breeze
+          ])}:$QT_PLUGIN_PATH"
           export XDG_DATA_DIRS="${pkgs.kdePackages.kirigami}/share:${pkgs.kdePackages.breeze-icons}/share:$XDG_DATA_DIRS"
           export QT_QPA_PLATFORMTHEME="kde"
           export QT_QUICK_CONTROLS_STYLE="org.kde.desktop"
